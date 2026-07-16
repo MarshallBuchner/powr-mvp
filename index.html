@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>POWR Skating Coach</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <main class="app-shell">
+    <header class="hero">
+      <div class="brand">POWR</div>
+      <p class="eyebrow">AI HOCKEY DEVELOPMENT</p>
+      <h1>Understand every stride.</h1>
+      <p class="hero-copy">Upload a skating clip and receive a clear, actionable development report.</p>
+    </header>
+
+    <section class="card upload-card">
+      <h2>Skating analysis</h2>
+      <div class="form-grid">
+        <label>Player name<input id="playerName" type="text" placeholder="Marshall" /></label>
+        <label>Clip type<select id="clipType"><option>Game footage</option><option>Practice drill</option><option>POWR assessment</option></select></label>
+        <label>Primary goal<select id="goal"><option>Acceleration</option><option>Stride efficiency</option><option>Crossovers</option><option>Backward skating</option><option>Transitions</option></select></label>
+      </div>
+
+      <label class="drop-zone" for="videoInput">
+        <span class="drop-title">Choose a skating video</span>
+        <span class="drop-subtitle">MP4, MOV, or WebM</span>
+        <input id="videoInput" type="file" accept="video/*" />
+      </label>
+
+      <video id="videoPreview" controls hidden></video>
+      <button id="analyzeButton" type="button" disabled>Generate sample POWR report</button>
+      <p id="statusMessage" class="status-message"></p>
+    </section>
+
+    <section id="report" class="card report-card" hidden>
+      <div class="report-heading">
+        <div><p class="eyebrow">POWR SKATING REPORT</p><h2 id="reportPlayer">Player</h2></div>
+        <div class="score-block"><span>82</span><small>POWR SCORE</small></div>
+      </div>
+
+      <div class="quality-grid">
+        <div><span>Video quality</span><strong>Good</strong></div>
+        <div><span>Analysis confidence</span><strong>Moderate</strong></div>
+        <div><span>Clip type</span><strong id="reportClipType">Game footage</strong></div>
+      </div>
+
+      <div class="metric-grid">
+        <article class="metric"><span>Acceleration</span><strong>84</strong><div class="bar"><i style="width:84%"></i></div></article>
+        <article class="metric"><span>Stride efficiency</span><strong>78</strong><div class="bar"><i style="width:78%"></i></div></article>
+        <article class="metric"><span>Balance & posture</span><strong>86</strong><div class="bar"><i style="width:86%"></i></div></article>
+        <article class="metric"><span>Edge control</span><strong>80</strong><div class="bar"><i style="width:80%"></i></div></article>
+      </div>
+
+      <div class="report-section"><h3>What you do well</h3><ul><li>You maintain an athletic posture while moving through the play.</li><li>Your stride rhythm remains active instead of becoming passive.</li><li>You appear comfortable changing direction under game pressure.</li></ul></div>
+      <div class="report-section"><h3>Highest-impact opportunity</h3><p>Finish each power stride more completely before beginning recovery. A longer, cleaner extension may improve speed without increasing cadence.</p></div>
+      <div class="report-section"><h3>Recommended drills</h3><ol><li>Single-leg power pushes — 3 sets of 8 per side.</li><li>Slow extension strides — 3 passes focusing on full finish.</li><li>Three-stride acceleration starts — 5 repetitions.</li></ol></div>
+      <div class="report-section next-focus"><h3>Next-session focus</h3><p id="nextFocus">Create more distance from each stride before increasing foot speed.</p></div>
+      <p class="disclaimer">Prototype report only. This version does not yet perform automated AI video analysis.</p>
+    </section>
+  </main>
+  <script src="app.js"></script>
+</body>
+</html>
