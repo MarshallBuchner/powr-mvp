@@ -1,20 +1,17 @@
-# POWR MVP v1
+# POWR v0.2
 
-This is the first browser-based prototype for POWR, an AI hockey skating coach.
+Mobile-first prototype for an AI hockey skating coach.
 
-## What this version does
-- Accepts player details and a local video upload.
-- Displays a video preview.
-- Generates a polished sample POWR report.
-- Demonstrates the intended experience before real AI analysis is connected.
+## Improvements
+- Premium mobile-first landing screen
+- Goal selection
+- Large video upload area
+- Local video preview
+- Simulated analysis sequence
+- Scannable skating report
+- Goal-specific next-session focus
 
-## How to run it
-1. Unzip the folder.
-2. Open `index.html` in Chrome, Safari, or Edge.
-3. Choose a skating video.
-4. Click **Generate sample POWR report**.
+## Update your live site
+Replace `index.html`, `style.css`, `app.js`, and `README.md` in the root of your GitHub repository, then commit the changes. Vercel should redeploy automatically.
 
-No installation is required.
-
-## Important
-The video remains on the user's device. This version does not upload it or perform AI analysis yet.
+This prototype does not upload video or perform real AI analysis yet.

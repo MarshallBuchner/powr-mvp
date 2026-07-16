@@ -3,61 +3,116 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>POWR Skating Coach</title>
+  <meta name="theme-color" content="#090b0d" />
+  <title>POWR — AI Hockey Development</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <main class="app-shell">
-    <header class="hero">
-      <div class="brand">POWR</div>
-      <p class="eyebrow">AI HOCKEY DEVELOPMENT</p>
-      <h1>Understand every stride.</h1>
-      <p class="hero-copy">Upload a skating clip and receive a clear, actionable development report.</p>
-    </header>
+    <section class="hero">
+      <div class="brand-lockup">
+        <div class="brand">POWR</div>
+        <p class="eyebrow">AI HOCKEY DEVELOPMENT</p>
+      </div>
+      <div class="hero-copy">
+        <h1>Train smarter.<br />Skate faster.</h1>
+        <p>Upload a skating clip and receive a clear, personalized development report.</p>
+      </div>
+    </section>
 
     <section class="card upload-card">
-      <h2>Skating analysis</h2>
-      <div class="form-grid">
-        <label>Player name<input id="playerName" type="text" placeholder="Marshall" /></label>
-        <label>Clip type<select id="clipType"><option>Game footage</option><option>Practice drill</option><option>POWR assessment</option></select></label>
-        <label>Primary goal<select id="goal"><option>Acceleration</option><option>Stride efficiency</option><option>Crossovers</option><option>Backward skating</option><option>Transitions</option></select></label>
+      <div class="section-heading">
+        <p class="eyebrow">START YOUR ANALYSIS</p>
+        <h2>What do you want to improve?</h2>
       </div>
 
-      <label class="drop-zone" for="videoInput">
-        <span class="drop-title">Choose a skating video</span>
-        <span class="drop-subtitle">MP4, MOV, or WebM</span>
+      <div class="goal-grid" id="goalGrid">
+        <button class="goal-chip active" data-goal="Overall skating">Overall skating</button>
+        <button class="goal-chip" data-goal="Acceleration">Acceleration</button>
+        <button class="goal-chip" data-goal="Stride efficiency">Stride efficiency</button>
+        <button class="goal-chip" data-goal="Crossovers">Crossovers</button>
+        <button class="goal-chip" data-goal="Backward skating">Backward skating</button>
+        <button class="goal-chip" data-goal="Transitions">Transitions</button>
+      </div>
+
+      <label class="upload-zone" for="videoInput">
+        <div class="upload-icon">↑</div>
+        <span class="upload-title">Upload skating video</span>
+        <span class="upload-subtitle">Choose a video from Photos or Files</span>
         <input id="videoInput" type="file" accept="video/*" />
       </label>
 
-      <video id="videoPreview" controls hidden></video>
-      <button id="analyzeButton" type="button" disabled>Generate sample POWR report</button>
-      <p id="statusMessage" class="status-message"></p>
+      <div id="fileSummary" class="file-summary" hidden>
+        <div>
+          <span class="file-label">Selected clip</span>
+          <strong id="fileName">video.mp4</strong>
+        </div>
+        <button id="removeVideoButton" class="text-button" type="button">Remove</button>
+      </div>
+
+      <video id="videoPreview" controls playsinline hidden></video>
+      <button id="analyzeButton" class="primary-button" type="button" disabled>Analyze skating</button>
+      <p class="privacy-note">Prototype mode: your video stays on your device and is not uploaded.</p>
+    </section>
+
+    <section id="processingPanel" class="card processing-card" hidden>
+      <p class="eyebrow">POWR ANALYSIS</p>
+      <h2>Building your skating profile</h2>
+      <div class="progress-track"><div id="progressBar" class="progress-bar"></div></div>
+      <div class="processing-list">
+        <div class="processing-step" data-step="0"><span class="step-icon">1</span><p>Reviewing video quality</p></div>
+        <div class="processing-step" data-step="1"><span class="step-icon">2</span><p>Tracking skating movement</p></div>
+        <div class="processing-step" data-step="2"><span class="step-icon">3</span><p>Evaluating mechanics</p></div>
+        <div class="processing-step" data-step="3"><span class="step-icon">4</span><p>Creating development plan</p></div>
+      </div>
     </section>
 
     <section id="report" class="card report-card" hidden>
-      <div class="report-heading">
-        <div><p class="eyebrow">POWR SKATING REPORT</p><h2 id="reportPlayer">Player</h2></div>
-        <div class="score-block"><span>82</span><small>POWR SCORE</small></div>
+      <div class="report-top">
+        <div>
+          <p class="eyebrow">POWR SKATING REPORT</p>
+          <h2 id="reportGoal">Overall skating</h2>
+          <p class="report-date" id="reportDate"></p>
+        </div>
+        <div class="score-ring"><span>84</span><small>POWR SCORE</small></div>
       </div>
 
-      <div class="quality-grid">
+      <div class="report-meta">
         <div><span>Video quality</span><strong>Good</strong></div>
         <div><span>Analysis confidence</span><strong>Moderate</strong></div>
-        <div><span>Clip type</span><strong id="reportClipType">Game footage</strong></div>
       </div>
 
-      <div class="metric-grid">
-        <article class="metric"><span>Acceleration</span><strong>84</strong><div class="bar"><i style="width:84%"></i></div></article>
-        <article class="metric"><span>Stride efficiency</span><strong>78</strong><div class="bar"><i style="width:78%"></i></div></article>
-        <article class="metric"><span>Balance & posture</span><strong>86</strong><div class="bar"><i style="width:86%"></i></div></article>
-        <article class="metric"><span>Edge control</span><strong>80</strong><div class="bar"><i style="width:80%"></i></div></article>
+      <div class="metric-list">
+        <article class="metric"><div class="metric-copy"><span>Acceleration</span><strong>86</strong></div><div class="metric-track"><i style="width:86%"></i></div></article>
+        <article class="metric"><div class="metric-copy"><span>Stride efficiency</span><strong>79</strong></div><div class="metric-track"><i style="width:79%"></i></div></article>
+        <article class="metric"><div class="metric-copy"><span>Balance & posture</span><strong>88</strong></div><div class="metric-track"><i style="width:88%"></i></div></article>
+        <article class="metric"><div class="metric-copy"><span>Edge control</span><strong>83</strong></div><div class="metric-track"><i style="width:83%"></i></div></article>
       </div>
 
-      <div class="report-section"><h3>What you do well</h3><ul><li>You maintain an athletic posture while moving through the play.</li><li>Your stride rhythm remains active instead of becoming passive.</li><li>You appear comfortable changing direction under game pressure.</li></ul></div>
-      <div class="report-section"><h3>Highest-impact opportunity</h3><p>Finish each power stride more completely before beginning recovery. A longer, cleaner extension may improve speed without increasing cadence.</p></div>
-      <div class="report-section"><h3>Recommended drills</h3><ol><li>Single-leg power pushes — 3 sets of 8 per side.</li><li>Slow extension strides — 3 passes focusing on full finish.</li><li>Three-stride acceleration starts — 5 repetitions.</li></ol></div>
-      <div class="report-section next-focus"><h3>Next-session focus</h3><p id="nextFocus">Create more distance from each stride before increasing foot speed.</p></div>
-      <p class="disclaimer">Prototype report only. This version does not yet perform automated AI video analysis.</p>
+      <div class="insight-card positive">
+        <p class="insight-label">TOP STRENGTH</p>
+        <h3>Athletic skating posture</h3>
+        <p>You remain engaged through the knees and hips instead of becoming upright while moving through the play.</p>
+      </div>
+
+      <div class="insight-card opportunity">
+        <p class="insight-label">HIGHEST-IMPACT OPPORTUNITY</p>
+        <h3>Finish each power stride</h3>
+        <p>Create more distance from each stride before beginning recovery. This can improve speed without forcing a higher cadence.</p>
+      </div>
+
+      <div class="report-section">
+        <div class="section-heading compact"><p class="eyebrow">YOUR DEVELOPMENT PLAN</p><h3>Recommended drills</h3></div>
+        <div class="drill-list">
+          <article><span>01</span><div><h4>Single-leg power pushes</h4><p>3 sets of 8 repetitions per side.</p></div></article>
+          <article><span>02</span><div><h4>Slow extension strides</h4><p>3 passes emphasizing full stride completion.</p></div></article>
+          <article><span>03</span><div><h4>Three-stride acceleration starts</h4><p>5 maximum-effort repetitions with full recovery.</p></div></article>
+        </div>
+      </div>
+
+      <div class="next-focus"><p class="insight-label">NEXT SESSION FOCUS</p><h3 id="nextFocus">Create more distance from each stride.</h3></div>
+      <button id="newAnalysisButton" class="secondary-button" type="button">Analyze another clip</button>
+      <p class="prototype-note">Sample report only. Automated AI video analysis is not connected yet.</p>
     </section>
   </main>
   <script src="app.js"></script>
