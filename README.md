@@ -1,17 +1,51 @@
-# POWR v0.2
+# POWR
 
-Mobile-first prototype for an AI hockey skating coach.
+> **THE HOME OF HOCKEY DEVELOPMENT**
 
-## Improvements
-- Premium mobile-first landing screen
-- Goal selection
-- Large video upload area
-- Local video preview
-- Simulated analysis sequence
-- Scannable skating report
-- Goal-specific next-session focus
+POWR is an AI-powered hockey development platform designed to help players, coaches, and organizations improve skating through intelligent video analysis, personalized development plans, and measurable progress over time.
 
-## Update your live site
-Replace `index.html`, `style.css`, `app.js`, and `README.md` in the root of your GitHub repository, then commit the changes. Vercel should redeploy automatically.
+---
 
-This prototype does not upload video or perform real AI analysis yet.
+## 🚧 Status
+
+POWR MVP is currently in active development.
+
+Current Progress
+
+- ✅ Landing Page
+- ✅ Video Upload Experience
+- 🚧 AI Analysis Experience
+- ⏳ Development Report
+- ⏳ Authentication
+- ⏳ Player Dashboard
+- ⏳ Coach Platform
+
+---
+
+## Tech Stack
+
+- Next.js (App Router)
+- React
+- TypeScript
+- CSS
+- Git
+- GitHub
+- Vercel
+
+### Planned
+
+- Supabase
+- OpenAI
+- Computer Vision
+- Stripe
+- Analytics
+
+---
+
+## Mission
+
+To become **the home of hockey development**, providing players with measurable improvement and giving coaches the tools to develop athletes with confidence.
+
+---
+
+© 2026 POWR
