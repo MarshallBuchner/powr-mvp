@@ -62,13 +62,9 @@ export default function UploadCard({
       setPreviewUrl("");
       return;
     }
-
+  
     const objectUrl = URL.createObjectURL(selectedFile);
     setPreviewUrl(objectUrl);
-
-    return () => {
-      URL.revokeObjectURL(objectUrl);
-    };
   }, [selectedFile]);
 
   function validateAndSelectFile(file: File) {
@@ -132,12 +128,14 @@ export default function UploadCard({
   }
 
   function handleAnalyze() {
-    if (!selectedFile) {
+    if (!selectedFile || !previewUrl) {
       return;
     }
   
     onAnalyze({
+      file: selectedFile,
       fileName: selectedFile.name,
+      videoUrl: previewUrl,
       goal: selectedGoal,
       duration,
     });

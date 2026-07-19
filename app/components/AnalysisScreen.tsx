@@ -52,7 +52,23 @@ export default function AnalysisScreen({
     () => (isComplete ? analysisSteps.length : activeStep),
     [activeStep, isComplete],
   );
+  const confidence = Math.min(99.2, 60 + progress * 0.392);
 
+  const framesProcessed = Math.round(progress * 48.12);
+  
+  const strideCycles = Math.round(progress / 8);
+  
+  const landmarks =
+    activeStep >= 2 || isComplete ? 18 : 0;
+  
+  const edgeStability =
+    progress < 35
+      ? "Scanning"
+      : progress < 65
+      ? "Calculating"
+      : progress < 90
+      ? "Good"
+      : "Excellent";
   useEffect(() => {
     const totalDuration = 12_000;
     const updateInterval = 120;
@@ -102,7 +118,77 @@ export default function AnalysisScreen({
               : "POWR is reviewing your movement frame by frame."}
           </p>
         </div>
+        
+        <div className="analysis-video">
+  <video
+    src={request.videoUrl}
+    className="analysis-video-player"
+    autoPlay
+    muted
+    loop
+    playsInline
+    preload="auto"
+  />
+  <div
+  className={`body-tracking-overlay ${
+    activeStep >= 2 || isComplete ? "tracking-visible" : ""
+  }`}
+  aria-hidden="true"
+>
+  <div className="tracking-skeleton">
+    <span className="joint joint-head" />
+    <span className="joint joint-shoulder-left" />
+    <span className="joint joint-shoulder-right" />
+    <span className="joint joint-hip-left" />
+    <span className="joint joint-hip-right" />
+    <span className="joint joint-knee-left" />
+    <span className="joint joint-knee-right" />
+    <span className="joint joint-ankle-left" />
+    <span className="joint joint-ankle-right" />
 
+    <span className="skeleton-line line-shoulders" />
+    <span className="skeleton-line line-torso-left" />
+    <span className="skeleton-line line-torso-right" />
+    <span className="skeleton-line line-hips" />
+    <span className="skeleton-line line-leg-left-top" />
+    <span className="skeleton-line line-leg-left-bottom" />
+    <span className="skeleton-line line-leg-right-top" />
+    <span className="skeleton-line line-leg-right-bottom" />
+  </div>
+</div>
+<div className="telemetry-panel">
+  <div className="telemetry-title">AI TRACKING</div>
+
+  <div className="telemetry-row">
+    <span>Confidence</span>
+    <strong>{confidence.toFixed(1)}%</strong>
+  </div>
+
+  <div className="telemetry-row">
+    <span>Frames</span>
+    <strong>{framesProcessed.toLocaleString()}</strong>
+  </div>
+
+  <div className="telemetry-row">
+    <span>Landmarks</span>
+    <strong>{landmarks}</strong>
+  </div>
+
+  <div className="telemetry-row">
+    <span>Stride Cycles</span>
+    <strong>{strideCycles}</strong>
+  </div>
+
+  <div className="telemetry-row">
+    <span>Edge Stability</span>
+    <strong>{edgeStability}</strong>
+  </div>
+</div>
+  <div className="analysis-video-status">
+    <span className="tracking-dot" />
+    <span>{isComplete ? "Analysis complete" : "AI tracking active"}</span>
+  </div>
+</div>
         <div className="analysis-card">
           <div className="clip-summary">
             <div className="clip-icon" aria-hidden="true">
@@ -589,7 +675,276 @@ export default function AnalysisScreen({
             opacity: 1;
           }
         }
-
+        .analysis-video {
+          position: relative;
+          margin: 0 auto 32px;
+          overflow: hidden;
+          border: 1px solid #252a23;
+          border-radius: 28px;
+          background: #050605;
+          box-shadow: 0 24px 70px rgba(0, 0, 0, 0.35);
+        }
+        
+        .analysis-video::after {
+          position: absolute;
+          inset: 0;
+          pointer-events: none;
+          background: linear-gradient(
+            180deg,
+            transparent 55%,
+            rgba(0, 0, 0, 0.5) 100%
+          );
+          content: "";
+        }
+        
+        .analysis-video-player {
+          display: block;
+          width: 100%;
+          max-height: 520px;
+          object-fit: contain;
+          background: #000;
+        }
+        .body-tracking-overlay {
+          position: absolute;
+          inset: 0;
+          z-index: 1;
+          pointer-events: none;
+          opacity: 0;
+          transition: opacity 600ms ease;
+        }
+        
+        .body-tracking-overlay.tracking-visible {
+          opacity: 1;
+        }
+        
+        .tracking-skeleton {
+          position: absolute;
+          top: 16%;
+          left: 50%;
+          width: 190px;
+          height: 330px;
+          transform: translateX(-50%);
+          filter: drop-shadow(0 0 8px rgba(184, 255, 46, 0.45));
+        }
+        
+        .joint {
+          position: absolute;
+          z-index: 2;
+          width: 11px;
+          height: 11px;
+          border: 2px solid #b8ff2e;
+          border-radius: 50%;
+          background: rgba(8, 10, 8, 0.8);
+          box-shadow:
+            0 0 0 5px rgba(184, 255, 46, 0.08),
+            0 0 14px rgba(184, 255, 46, 0.65);
+          animation: jointPulse 1.5s ease-in-out infinite;
+        }
+        
+        .joint-head {
+          top: 0;
+          left: 90px;
+        }
+        
+        .joint-shoulder-left {
+          top: 60px;
+          left: 48px;
+        }
+        
+        .joint-shoulder-right {
+          top: 60px;
+          right: 48px;
+        }
+        
+        .joint-hip-left {
+          top: 155px;
+          left: 66px;
+        }
+        
+        .joint-hip-right {
+          top: 155px;
+          right: 66px;
+        }
+        
+        .joint-knee-left {
+          top: 235px;
+          left: 45px;
+        }
+        
+        .joint-knee-right {
+          top: 235px;
+          right: 45px;
+        }
+        
+        .joint-ankle-left {
+          bottom: 0;
+          left: 20px;
+        }
+        
+        .joint-ankle-right {
+          right: 20px;
+          bottom: 0;
+        }
+        
+        .skeleton-line {
+          position: absolute;
+          z-index: 1;
+          height: 2px;
+          background: linear-gradient(
+            90deg,
+            rgba(184, 255, 46, 0.25),
+            rgba(184, 255, 46, 0.9),
+            rgba(184, 255, 46, 0.25)
+          );
+          transform-origin: left center;
+        }
+        
+        .line-shoulders {
+          top: 65px;
+          left: 54px;
+          width: 82px;
+        }
+        
+        .line-torso-left {
+          top: 68px;
+          left: 53px;
+          width: 97px;
+          transform: rotate(79deg);
+        }
+        
+        .line-torso-right {
+          top: 68px;
+          right: 53px;
+          width: 97px;
+          transform: rotate(101deg);
+          transform-origin: right center;
+        }
+        
+        .line-hips {
+          top: 160px;
+          left: 72px;
+          width: 46px;
+        }
+        
+        .line-leg-left-top {
+          top: 163px;
+          left: 71px;
+          width: 82px;
+          transform: rotate(106deg);
+        }
+        
+        .line-leg-left-bottom {
+          top: 241px;
+          left: 50px;
+          width: 93px;
+          transform: rotate(109deg);
+        }
+        
+        .line-leg-right-top {
+          top: 163px;
+          right: 71px;
+          width: 82px;
+          transform: rotate(74deg);
+          transform-origin: right center;
+        }
+        
+        .line-leg-right-bottom {
+          top: 241px;
+          right: 50px;
+          width: 93px;
+          transform: rotate(71deg);
+          transform-origin: right center;
+        }
+        
+        @keyframes jointPulse {
+          0%,
+          100% {
+            transform: scale(0.9);
+            opacity: 0.7;
+          }
+        
+          50% {
+            transform: scale(1.15);
+            opacity: 1;
+          }
+        }
+        .telemetry-panel {
+          position: absolute;
+          top: 18px;
+          left: 18px;
+          z-index: 2;
+        
+          width: 220px;
+        
+          padding: 16px;
+        
+          border: 1px solid rgba(184,255,46,.18);
+          border-radius: 18px;
+        
+          background: rgba(8,10,8,.72);
+          backdrop-filter: blur(18px);
+        
+          color: white;
+        }
+        
+        .telemetry-title{
+          margin-bottom:14px;
+        
+          color:#b8ff2e;
+        
+          font-size:.72rem;
+          font-weight:800;
+          letter-spacing:.18em;
+        }
+        
+        .telemetry-row{
+          display:flex;
+          justify-content:space-between;
+        
+          margin-bottom:10px;
+        
+          font-size:.82rem;
+        }
+        
+        .telemetry-row:last-child{
+          margin-bottom:0;
+        }
+        
+        .telemetry-row span{
+          color:#8d9388;
+        }
+        
+        .telemetry-row strong{
+          color:white;
+        }
+        .analysis-video-status {
+          position: absolute;
+          z-index: 2;
+          right: 20px;
+          bottom: 18px;
+          display: flex;
+          align-items: center;
+          gap: 9px;
+          padding: 9px 13px;
+          border: 1px solid rgba(184, 255, 46, 0.22);
+          border-radius: 999px;
+          background: rgba(8, 10, 8, 0.78);
+          color: #e9eee4;
+          font-size: 0.74rem;
+          font-weight: 750;
+          letter-spacing: 0.04em;
+          backdrop-filter: blur(12px);
+        }
+        
+        .tracking-dot {
+          width: 8px;
+          height: 8px;
+          border-radius: 50%;
+          background: #b8ff2e;
+          box-shadow: 0 0 0 5px rgba(184, 255, 46, 0.1);
+          animation: blink 1.1s ease-in-out infinite;
+        }
+        
         @media (max-width: 640px) {
           .analysis-page {
             padding: 48px 16px;
