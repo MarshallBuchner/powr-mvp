@@ -1,15 +1,51 @@
 "use client";
 
+import { useState } from "react";
+
 import Hero from "./components/Hero";
 import UploadCard from "./components/UploadCard";
+import AnalysisScreen from "./components/AnalysisScreen";
+import ReportScreen from "./components/ReportScreen";
+
 import type { AnalysisRequest } from "./components/types";
 
-export default function Home() {
-  function handleAnalyze(request: AnalysisRequest) {
-    console.log("Analysis request:", request);
+type Screen = "upload" | "analysis" | "report";
 
-    alert(
-      `Ready to analyze ${request.fileName} with focus on ${request.goal}.`,
+export default function Home() {
+  const [analysisRequest, setAnalysisRequest] =
+    useState<AnalysisRequest | null>(null);
+
+  const [screen, setScreen] = useState<Screen>("upload");
+
+  function handleAnalyze(request: AnalysisRequest) {
+    setAnalysisRequest(request);
+    setScreen("analysis");
+  }
+
+  function handleAnalysisComplete() {
+    setScreen("report");
+  }
+
+  function handleRestart() {
+    setAnalysisRequest(null);
+    setScreen("upload");
+  }
+
+  if (screen === "analysis" && analysisRequest) {
+    return (
+      <AnalysisScreen
+        request={analysisRequest}
+        onComplete={handleAnalysisComplete}
+      />
+    );
+  }
+
+  if (screen === "report" && analysisRequest) {
+    return (
+      <ReportScreen
+        request={analysisRequest}
+        onRestart={handleRestart}
+      />
     );
   }
 
