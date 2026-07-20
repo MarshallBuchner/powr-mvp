@@ -130,11 +130,17 @@ export default function AnalysisScreen({
     preload="auto"
   />
   <div
+  className={`scan-line ${
+    activeStep < 2 && !isComplete ? "scan-active" : ""
+  }`}
+/>
+  <div
   className={`body-tracking-overlay ${
     activeStep >= 2 || isComplete ? "tracking-visible" : ""
   }`}
   aria-hidden="true"
 >
+
   <div className="tracking-skeleton">
     <span className="joint joint-head" />
     <span className="joint joint-shoulder-left" />
@@ -716,7 +722,26 @@ export default function AnalysisScreen({
         .body-tracking-overlay.tracking-visible {
           opacity: 1;
         }
+        .scan-line {
+          position: absolute;
+          left: 0;
+          right: 0;
+          z-index: 2;
+          height: 3px;
+          pointer-events: none;
+          background: linear-gradient(
+            90deg,
+            transparent,
+            rgba(184, 255, 46, 0.95),
+            transparent
+          );
+          opacity: 0;
+        }
         
+        .scan-active {
+          opacity: 0.85;
+          animation: scanDown 2.8s linear infinite;
+        }
         .tracking-skeleton {
           position: absolute;
           top: 16%;
@@ -855,7 +880,17 @@ export default function AnalysisScreen({
           transform: rotate(71deg);
           transform-origin: right center;
         }
+        @keyframes scanDown{
+
+          0%{
+              top:-10%;
+          }
         
+          100%{
+              top:110%;
+          }
+        
+        }
         @keyframes jointPulse {
           0%,
           100% {
