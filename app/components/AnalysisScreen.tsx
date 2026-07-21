@@ -40,6 +40,57 @@ const analysisSteps: AnalysisStep[] = [
   },
 ];
 
+const brainMessages = [
+  {
+    title: "VIDEO PREPARATION",
+    items: [
+      "Video uploaded",
+      "Preparing clip",
+      "Checking frame quality",
+    ],
+  },
+  {
+    title: "PLAYER DETECTION",
+    items: [
+      "Ice surface detected",
+      "Searching for skater",
+      "Separating player from background",
+    ],
+  },
+  {
+    title: "BODY TRACKING",
+    items: [
+      "Player isolated",
+      "Mapping body landmarks",
+      "Tracking lower-body movement",
+    ],
+  },
+  {
+    title: "MECHANICS ANALYSIS",
+    items: [
+      "Reviewing knee bend",
+      "Measuring hip extension",
+      "Evaluating stride recovery",
+    ],
+  },
+  {
+    title: "MOVEMENT COMPARISON",
+    items: [
+      "Comparing movement patterns",
+      "Identifying strengths",
+      "Finding development opportunities",
+    ],
+  },
+  {
+    title: "REPORT GENERATION",
+    items: [
+      "Building recommendations",
+      "Selecting development drills",
+      "Finalizing report",
+    ],
+  },
+];
+
 export default function AnalysisScreen({
   request,
   onComplete,
@@ -47,19 +98,34 @@ export default function AnalysisScreen({
   const [activeStep, setActiveStep] = useState(0);
   const [progress, setProgress] = useState(4);
   const [isComplete, setIsComplete] = useState(false);
-
+  const [brainProgress, setBrainProgress] = useState(0);
+  const [typedBrainText, setTypedBrainText] = useState("");
   const completedSteps = useMemo(
     () => (isComplete ? analysisSteps.length : activeStep),
     [activeStep, isComplete],
   );
-  const confidence = Math.min(99.2, 60 + progress * 0.392);
+  const confidence =
+  activeStep > 2 ||
+  (activeStep === 2 && brainProgress >= 2) ||
+  isComplete
+    ? Math.min(99.2, 60 + progress * 0.392)
+    : 0;
 
   const framesProcessed = Math.round(progress * 48.12);
   
-  const strideCycles = Math.round(progress / 8);
+  const strideCycles =
+  activeStep > 2 ||
+  (activeStep === 2 && brainProgress >= 3) ||
+  isComplete
+    ? Math.max(1, Math.round(progress / 8))
+    : 0;
   
   const landmarks =
-    activeStep >= 2 || isComplete ? 18 : 0;
+  activeStep > 2 ||
+  (activeStep === 2 && brainProgress >= 2) ||
+  isComplete
+    ? 18
+    : 0;
   
   const edgeStability =
     progress < 35
@@ -69,6 +135,21 @@ export default function AnalysisScreen({
       : progress < 90
       ? "Good"
       : "Excellent";
+
+      const headDetected = activeStep >= 2 || isComplete;
+
+const shouldersDetected = activeStep >= 2 || isComplete;
+
+const hipsDetected = activeStep >= 3 || isComplete;
+
+const kneesDetected = activeStep >= 3 || isComplete;
+
+const anklesDetected = activeStep >= 4 || isComplete;
+
+const currentBrain =
+  isComplete
+    ? brainMessages[brainMessages.length - 1]
+    : brainMessages[activeStep];
   useEffect(() => {
     const totalDuration = 12_000;
     const updateInterval = 120;
@@ -99,6 +180,43 @@ export default function AnalysisScreen({
       stepTimers.forEach((timer) => window.clearTimeout(timer));
     };
   }, []);
+
+  useEffect(() => {
+    setBrainProgress(0);
+  
+    const timers = [
+      window.setTimeout(() => setBrainProgress(1), 300),
+      window.setTimeout(() => setBrainProgress(2), 700),
+      window.setTimeout(() => setBrainProgress(3), 1100),
+    ];
+  
+    return () => timers.forEach(window.clearTimeout);
+  }, [activeStep]);
+
+  useEffect(() => {
+    if (isComplete || brainProgress === 0) {
+      setTypedBrainText("");
+      return;
+    }
+  
+    const activeMessage = currentBrain.items[brainProgress - 1];
+  
+    setTypedBrainText("");
+  
+    let characterIndex = 0;
+  
+    const typingTimer = window.setInterval(() => {
+      characterIndex += 1;
+  
+      setTypedBrainText(activeMessage.slice(0, characterIndex));
+  
+      if (characterIndex >= activeMessage.length) {
+        window.clearInterval(typingTimer);
+      }
+    }, 28);
+  
+    return () => window.clearInterval(typingTimer);
+  }, [brainProgress, currentBrain, isComplete]);
 
   return (
     <main className="analysis-page">
@@ -134,23 +252,67 @@ export default function AnalysisScreen({
     activeStep < 2 && !isComplete ? "scan-active" : ""
   }`}
 />
-  <div
+<div
   className={`body-tracking-overlay ${
-    activeStep >= 2 || isComplete ? "tracking-visible" : ""
+    (activeStep > 2 ||
+      (activeStep === 2 && brainProgress >= 2) ||
+      isComplete)
+      ? "tracking-visible"
+      : ""
   }`}
   aria-hidden="true"
 >
 
   <div className="tracking-skeleton">
-    <span className="joint joint-head" />
-    <span className="joint joint-shoulder-left" />
-    <span className="joint joint-shoulder-right" />
-    <span className="joint joint-hip-left" />
-    <span className="joint joint-hip-right" />
-    <span className="joint joint-knee-left" />
-    <span className="joint joint-knee-right" />
-    <span className="joint joint-ankle-left" />
-    <span className="joint joint-ankle-right" />
+  <span
+  className={`joint joint-head ${
+    headDetected ? "joint-visible" : ""
+  }`}
+/>
+<span
+  className={`joint joint-shoulder-left ${
+    shouldersDetected ? "joint-visible" : ""
+  }`}
+/>
+
+<span
+  className={`joint joint-shoulder-right ${
+    shouldersDetected ? "joint-visible" : ""
+  }`}
+/>
+<span
+  className={`joint joint-hip-left ${
+    hipsDetected ? "joint-visible" : ""
+  }`}
+/>
+
+<span
+  className={`joint joint-hip-right ${
+    hipsDetected ? "joint-visible" : ""
+  }`}
+/>
+<span
+  className={`joint joint-knee-left ${
+    kneesDetected ? "joint-visible" : ""
+  }`}
+/>
+
+<span
+  className={`joint joint-knee-right ${
+    kneesDetected ? "joint-visible" : ""
+  }`}
+/>
+<span
+  className={`joint joint-ankle-left ${
+    anklesDetected ? "joint-visible" : ""
+  }`}
+/>
+
+<span
+  className={`joint joint-ankle-right ${
+    anklesDetected ? "joint-visible" : ""
+  }`}
+/>
 
     <span className="skeleton-line line-shoulders" />
     <span className="skeleton-line line-torso-left" />
@@ -190,6 +352,29 @@ export default function AnalysisScreen({
     <strong>{edgeStability}</strong>
   </div>
 </div>
+
+<div className="brain-panel">
+  <div className="brain-title">{currentBrain.title}</div>
+
+  <div className="brain-items">
+  {currentBrain.items
+  .slice(0, isComplete ? currentBrain.items.length : brainProgress)
+  .map((item, index) => (
+      <div className="brain-item" key={item}>
+        <span className="brain-check">
+          {index < 2 || isComplete ? "✓" : "•"}
+        </span>
+
+        <span>
+  {!isComplete && index === brainProgress - 1
+    ? typedBrainText
+    : item}
+</span>
+      </div>
+    ))}
+  </div>
+</div>
+
   <div className="analysis-video-status">
     <span className="tracking-dot" />
     <span>{isComplete ? "Analysis complete" : "AI tracking active"}</span>
@@ -755,6 +940,13 @@ export default function AnalysisScreen({
         .joint {
           position: absolute;
           z-index: 2;
+          opacity: 0;
+
+transform: scale(0.4);
+
+transition:
+  opacity 350ms ease,
+  transform 350ms ease;
           width: 11px;
           height: 11px;
           border: 2px solid #b8ff2e;
@@ -764,6 +956,11 @@ export default function AnalysisScreen({
             0 0 0 5px rgba(184, 255, 46, 0.08),
             0 0 14px rgba(184, 255, 46, 0.65);
           animation: jointPulse 1.5s ease-in-out infinite;
+        }
+
+        .joint-visible {
+          opacity: 1;
+          transform: scale(1);
         }
         
         .joint-head {
@@ -920,6 +1117,54 @@ export default function AnalysisScreen({
           backdrop-filter: blur(18px);
         
           color: white;
+        }
+
+        .brain-panel {
+          position: absolute;
+          top: 250px;
+          left: 18px;
+          z-index: 2;
+        
+          width: 220px;
+        
+          padding: 16px;
+        
+          border: 1px solid rgba(184,255,46,.18);
+          border-radius: 18px;
+        
+          background: rgba(8,10,8,.72);
+          backdrop-filter: blur(18px);
+        
+          color: white;
+        }
+        
+        .brain-title {
+          margin-bottom: 14px;
+        
+          color: #b8ff2e;
+        
+          font-size: .72rem;
+          font-weight: 800;
+          letter-spacing: .18em;
+        }
+        
+        .brain-item {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+        
+          margin-bottom: 10px;
+        
+          font-size: .82rem;
+        }
+        
+        .brain-item:last-child {
+          margin-bottom: 0;
+        }
+        
+        .brain-check {
+          color: #b8ff2e;
+          font-weight: 800;
         }
         
         .telemetry-title{
