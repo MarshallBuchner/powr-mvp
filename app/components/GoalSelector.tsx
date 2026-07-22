@@ -15,9 +15,8 @@ export default function GoalSelector({
         <button
           key={goal}
           type="button"
-          className={`goal-chip ${
-            selectedGoal === goal ? "active" : ""
-          }`}
+          className={`goal-chip ${selectedGoal === goal ? "active" : ""
+            }`}
           onClick={() => onSelectGoal(goal)}
         >
           {goal}

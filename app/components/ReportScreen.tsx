@@ -11,6 +11,69 @@ type ReportScreenProps = {
 
 const overallScore = 84;
 
+const powrTier = "⚡ Competitive";
+const percentile = "Competitive development tier";
+
+const coachSummary =
+  "Your skating profile shows strong balance, edge control, and consistent stride rhythm. Your biggest opportunity is completing each stride with greater extension and maintaining a deeper knee bend. Improving those two areas should help you generate more power, accelerate faster, and conserve energy during longer shifts.";
+
+const analysisConfidence = 97;
+const analyzedFrames = 512;
+const trackedLandmarks = 18;
+const strideCycles = 12;
+
+const movementMetrics = [
+  {
+    title: "Acceleration",
+    score: 86,
+    explanation: "Strong opening strides with good forward momentum.",
+  },
+  {
+    title: "Edge Control",
+    score: 88,
+    explanation: "Stable weight transfer through turns and direction changes.",
+  },
+  {
+    title: "Balance",
+    score: 84,
+    explanation: "Controlled upper body with consistent skating posture.",
+  },
+  {
+    title: "Stride Recovery",
+    score: 78,
+    explanation: "Recovery is consistent but can return beneath the body faster.",
+  },
+  {
+    title: "Knee Bend",
+    score: 76,
+    explanation: "A deeper stance would improve power and acceleration.",
+  },
+  {
+    title: "Hip Extension",
+    score: 81,
+    explanation: "Good extension, with room to finish each push more completely.",
+  },
+];
+
+const performanceGains = [
+  {
+    label: "Acceleration",
+    value: "+8%",
+  },
+  {
+    label: "Top Speed",
+    value: "+4%",
+  },
+  {
+    label: "Skating Efficiency",
+    value: "+12%",
+  },
+  {
+    label: "Blue-Line Sprint",
+    value: "-0.18 sec",
+  },
+];
+
 const strengths = [
   {
     title: "Edge Control",
@@ -128,12 +191,41 @@ export default function ReportScreen({
             <span>{displayScore}</span>
           </div>
 
-          <p className="level">Advanced Recreational</p>
+          <p className="level">{powrTier}</p>
+
+          <p className="percentile">{percentile}</p>
 
           <p className="score-note">
             Strong mechanics with clear opportunities to improve power and
             acceleration.
           </p>
+        </div>
+      </section>
+
+      <section className="coach-summary reveal reveal-second">
+        <div className="coach-summary-icon">AI</div>
+
+        <div>
+          <p className="eyebrow">POWR AI Coach</p>
+
+          <h2>Assessment summary</h2>
+
+          <p className="coach-summary-text">
+            {coachSummary}
+          </p>
+
+          <div className="coach-confidence">
+            <div className="confidence-score">
+              <span>{analysisConfidence}%</span>
+              <small>AI Confidence</small>
+            </div>
+
+            <div className="confidence-details">
+              <div>✓ {analyzedFrames} analyzed frames</div>
+              <div>✓ {trackedLandmarks} tracked landmarks</div>
+              <div>✓ {strideCycles} completed stride cycles</div>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -178,6 +270,46 @@ export default function ReportScreen({
       <section className="report-section reveal reveal-third">
         <div className="section-heading">
           <div>
+            <p className="eyebrow">Complete skating profile</p>
+            <h2>Movement breakdown</h2>
+          </div>
+
+          <span className="section-count">06</span>
+        </div>
+
+        <div className="movement-grid">
+          {movementMetrics.map((metric, index) => (
+            <article
+              className="movement-card animated-card"
+              style={{ animationDelay: `${650 + index * 110}ms` }}
+              key={metric.title}
+            >
+              <div className="movement-card-top">
+                <div>
+                  <h3>{metric.title}</h3>
+                  <p>{metric.explanation}</p>
+                </div>
+
+                <span className="movement-score">{metric.score}</span>
+              </div>
+
+              <div className="metric-track">
+                <div
+                  className="metric-fill"
+                  style={{
+                    width: `${metric.score}%`,
+                    animationDelay: `${850 + index * 110}ms`,
+                  }}
+                />
+              </div>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className="report-section reveal reveal-third">
+        <div className="section-heading">
+          <div>
             <p className="eyebrow">Where to focus next</p>
             <h2>Highest-impact improvements</h2>
           </div>
@@ -198,6 +330,37 @@ export default function ReportScreen({
             </article>
           ))}
         </div>
+      </section>
+
+      <section className="performance-gain reveal reveal-fourth">
+        <div className="performance-gain-heading">
+          <div>
+            <p className="eyebrow">Projected development impact</p>
+            <h2>Estimated performance gain</h2>
+          </div>
+
+          <span className="gain-icon">↗</span>
+        </div>
+
+        <p className="performance-gain-intro">
+          By improving your stride extension and knee bend over the next 6–8
+          weeks, your skating profile could show gains in these areas:
+        </p>
+
+        <div className="gain-grid">
+          {performanceGains.map((gain) => (
+            <div className="gain-stat" key={gain.label}>
+              <span>{gain.value}</span>
+              <p>{gain.label}</p>
+            </div>
+          ))}
+        </div>
+
+        <p className="gain-disclaimer">
+          Prototype projection shown for demonstration purposes. Future estimates
+          will be calculated from the player&apos;s measured skating data and
+          comparable development profiles.
+        </p>
       </section>
 
       <section className="report-section reveal reveal-fourth">
@@ -233,17 +396,39 @@ export default function ReportScreen({
       </section>
 
       <section className="report-footer reveal reveal-fifth">
-        <div>
-          <p className="eyebrow">Next analysis</p>
-          <h2>Track your progress over time.</h2>
-          <p>
-            Upload another skating clip after practicing these drills and
-            compare your development.
+        <div className="coach-final">
+          <p className="eyebrow">Coach's Recommendation</p>
+
+          <h2>You're closer than you think.</h2>
+
+          <p className="coach-final-text">
+            Your balance and edge control already provide an excellent
+            foundation. Over the next two weeks, focus on completing every
+            stride and maintaining a deeper knee bend instead of simply skating
+            harder. Small technical improvements should produce the biggest
+            gains.
           </p>
+
+          <div className="next-focus-grid">
+            <div className="focus-box">
+              <small>🎯 Primary Focus</small>
+              <strong>Stride Extension</strong>
+            </div>
+
+            <div className="focus-box">
+              <small>📅 Reassessment</small>
+              <strong>2 Weeks</strong>
+            </div>
+
+            <div className="focus-box">
+              <small>⏱ Practice Goal</small>
+              <strong>2–3 Sessions / Week</strong>
+            </div>
+          </div>
         </div>
 
         <button type="button" onClick={onRestart}>
-          Analyze another clip
+          Upload Your Next Session →
         </button>
       </section>
 
@@ -269,12 +454,208 @@ export default function ReportScreen({
           margin: 0 auto;
         }
 
+        .coach-final-text {
+          max-width: 700px;
+          margin: 18px 0 32px;
+          color: #b1c2b9;
+          line-height: 1.8;
+        }
+        
+        .next-focus-grid {
+          display: grid;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          gap: 18px;
+        }
+        
+        .focus-box {
+          padding: 20px;
+          border: 1px solid rgba(109,255,174,.15);
+          border-radius: 18px;
+          background: rgba(255,255,255,.035);
+        }
+        
+        .focus-box small {
+          display: block;
+          margin-bottom: 10px;
+          color: #8ea197;
+          font-size: .72rem;
+          text-transform: uppercase;
+          letter-spacing: .08em;
+        }
+        
+        .focus-box strong {
+          display: block;
+          color: #f5fff9;
+          font-size: 1.05rem;
+        }
+
         .report-hero {
           display: grid;
           grid-template-columns: 1.3fr 0.7fr;
           gap: 48px;
           align-items: center;
           padding: 48px 0 64px;
+        }
+
+        .performance-gain {
+          width: min(1120px, 100%);
+          margin: 54px auto;
+          padding: 36px;
+          border: 1px solid rgba(109, 255, 174, 0.2);
+          border-radius: 28px;
+          background:
+            radial-gradient(
+              circle at top right,
+              rgba(109, 255, 174, 0.13),
+              transparent 34%
+            ),
+            rgba(255, 255, 255, 0.035);
+          box-shadow: 0 24px 70px rgba(0, 0, 0, 0.22);
+        }
+        
+        .performance-gain-heading {
+          display: flex;
+          justify-content: space-between;
+          gap: 24px;
+          align-items: flex-start;
+        }
+        
+        .gain-icon {
+          display: grid;
+          width: 52px;
+          height: 52px;
+          flex-shrink: 0;
+          place-items: center;
+          border: 1px solid rgba(109, 255, 174, 0.25);
+          border-radius: 16px;
+          background: rgba(109, 255, 174, 0.1);
+          color: #72f2ac;
+          font-size: 1.7rem;
+          font-weight: 800;
+        }
+        
+        .performance-gain-intro {
+          max-width: 760px;
+          margin: 22px 0 30px;
+          color: #b1c2b9;
+          line-height: 1.7;
+        }
+        
+        .gain-grid {
+          display: grid;
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+          gap: 16px;
+        }
+        
+        .gain-stat {
+          padding: 24px 18px;
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          border-radius: 20px;
+          background: rgba(5, 15, 10, 0.42);
+          text-align: center;
+        }
+        
+        .gain-stat span {
+          display: block;
+          color: #72f2ac;
+          font-size: clamp(1.8rem, 4vw, 2.7rem);
+          font-weight: 800;
+          letter-spacing: -0.04em;
+        }
+        
+        .gain-stat p {
+          margin: 8px 0 0;
+          color: #91a39a;
+          font-size: 0.88rem;
+          font-weight: 600;
+        }
+        
+        .gain-disclaimer {
+          margin: 24px 0 0;
+          color: #718279;
+          font-size: 0.78rem;
+          line-height: 1.6;
+        }
+
+        .coach-summary {
+          width: min(1120px, 100%);
+          margin: 0 auto 54px;
+          display: grid;
+          grid-template-columns: 64px 1fr;
+          gap: 24px;
+          align-items: flex-start;
+          padding: 32px;
+          border: 1px solid rgba(109, 255, 174, 0.16);
+          border-radius: 26px;
+          background:
+            linear-gradient(
+              135deg,
+              rgba(109, 255, 174, 0.08),
+              rgba(255, 255, 255, 0.025)
+            );
+          box-shadow: 0 22px 60px rgba(0, 0, 0, 0.2);
+        }
+        
+        .coach-summary-icon {
+          width: 64px;
+          height: 64px;
+          display: grid;
+          place-items: center;
+          border: 1px solid rgba(109, 255, 174, 0.28);
+          border-radius: 18px;
+          background: rgba(109, 255, 174, 0.1);
+          color: #72f2ac;
+          font-size: 0.9rem;
+          font-weight: 800;
+          letter-spacing: 0.08em;
+        }
+        
+        .coach-summary h2 {
+          margin-bottom: 16px;
+        }
+        
+        .coach-summary-text {
+          max-width: 850px;
+          margin: 0;
+          color: #b1c2b9;
+          font-size: 1.05rem;
+          line-height: 1.75;
+        }
+
+        .coach-confidence {
+          display: flex;
+          gap: 28px;
+          align-items: center;
+          margin-top: 28px;
+          padding-top: 24px;
+          border-top: 1px solid rgba(255,255,255,.08);
+        }
+        
+        .confidence-score {
+          min-width: 130px;
+          text-align: center;
+        }
+        
+        .confidence-score span {
+          display: block;
+          font-size: 2.5rem;
+          font-weight: 800;
+          color: #72f2ac;
+          line-height: 1;
+        }
+        
+        .confidence-score small {
+          color: #91a39a;
+          text-transform: uppercase;
+          letter-spacing: .08em;
+          font-size: .7rem;
+        }
+        
+        .confidence-details {
+          display: grid;
+          gap: 10px;
+          color: #b1c2b9;
+          font-size: .95rem;
         }
 
         .reveal {
@@ -380,6 +761,14 @@ export default function ReportScreen({
           font-weight: 700;
         }
 
+        .percentile {
+          margin: 8px 0 0;
+          color: #72f2ac;
+          font-size: 0.85rem;
+          font-weight: 600;
+          letter-spacing: 0.04em;
+        }
+
         .score-note {
           margin: 10px 0 0;
           color: #91a39a;
@@ -424,6 +813,53 @@ export default function ReportScreen({
 
         .improvement-grid {
           grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .movement-grid {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 18px;
+        }
+        
+        .movement-card {
+          padding: 26px;
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          border-radius: 22px;
+          background: rgba(255, 255, 255, 0.035);
+          transition:
+            transform 180ms ease,
+            border-color 180ms ease,
+            background 180ms ease;
+        }
+        
+        .movement-card:hover {
+          transform: translateY(-4px);
+          border-color: rgba(109, 255, 174, 0.2);
+          background: rgba(109, 255, 174, 0.045);
+        }
+        
+        .movement-card-top {
+          display: flex;
+          justify-content: space-between;
+          gap: 24px;
+        }
+        
+        .movement-card h3 {
+          margin: 0;
+          font-size: 1.12rem;
+        }
+        
+        .movement-card p {
+          margin: 10px 0 0;
+          color: #91a39a;
+          line-height: 1.55;
+        }
+        
+        .movement-score {
+          flex-shrink: 0;
+          color: #6dffae;
+          font-size: 1.75rem;
+          font-weight: 800;
         }
 
         .metric-card,
@@ -644,29 +1080,46 @@ export default function ReportScreen({
             padding-top: 24px;
           }
 
+          .gain-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+          }
+        
+          .movement-grid {
+            grid-template-columns: 1fr;
+          }
+        
           .report-hero,
           .strength-grid,
           .improvement-grid {
             grid-template-columns: 1fr;
           }
-
+        
           .report-hero {
             gap: 32px;
           }
-
+        
           .score-card {
             max-width: 420px;
           }
-
+        
           .report-footer {
             align-items: flex-start;
             flex-direction: column;
+          }
+
+          .next-focus-grid {
+            grid-template-columns: 1fr;
           }
         }
 
         @media (max-width: 560px) {
           .report-shell {
             padding-inline: 16px;
+          }
+
+          .coach-confidence {
+            flex-direction: column;
+            align-items: flex-start;
           }
 
           .section-heading {
@@ -681,7 +1134,20 @@ export default function ReportScreen({
             align-items: flex-start;
             flex-direction: column;
           }
+
+          .performance-gain {
+            padding: 26px 20px;
+          }
+          
+          .gain-grid {
+            grid-template-columns: 1fr;
+          }
+
+          .next-focus-grid {
+            grid-template-columns: 1fr;
+          }
         }
+      
 
         @media (prefers-reduced-motion: reduce) {
           .reveal,

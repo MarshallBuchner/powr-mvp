@@ -105,51 +105,51 @@ export default function AnalysisScreen({
     [activeStep, isComplete],
   );
   const confidence =
-  activeStep > 2 ||
-  (activeStep === 2 && brainProgress >= 2) ||
-  isComplete
-    ? Math.min(99.2, 60 + progress * 0.392)
-    : 0;
+    activeStep > 2 ||
+      (activeStep === 2 && brainProgress >= 2) ||
+      isComplete
+      ? Math.min(99.2, 60 + progress * 0.392)
+      : 0;
 
   const framesProcessed = Math.round(progress * 48.12);
-  
+
   const strideCycles =
-  activeStep > 2 ||
-  (activeStep === 2 && brainProgress >= 3) ||
-  isComplete
-    ? Math.max(1, Math.round(progress / 8))
-    : 0;
-  
+    activeStep > 2 ||
+      (activeStep === 2 && brainProgress >= 3) ||
+      isComplete
+      ? Math.max(1, Math.round(progress / 8))
+      : 0;
+
   const landmarks =
-  activeStep > 2 ||
-  (activeStep === 2 && brainProgress >= 2) ||
-  isComplete
-    ? 18
-    : 0;
-  
+    activeStep > 2 ||
+      (activeStep === 2 && brainProgress >= 2) ||
+      isComplete
+      ? 18
+      : 0;
+
   const edgeStability =
     progress < 35
       ? "Scanning"
       : progress < 65
-      ? "Calculating"
-      : progress < 90
-      ? "Good"
-      : "Excellent";
+        ? "Calculating"
+        : progress < 90
+          ? "Good"
+          : "Excellent";
 
-      const headDetected = activeStep >= 2 || isComplete;
+  const headDetected = activeStep >= 2 || isComplete;
 
-const shouldersDetected = activeStep >= 2 || isComplete;
+  const shouldersDetected = activeStep >= 2 || isComplete;
 
-const hipsDetected = activeStep >= 3 || isComplete;
+  const hipsDetected = activeStep >= 3 || isComplete;
 
-const kneesDetected = activeStep >= 3 || isComplete;
+  const kneesDetected = activeStep >= 3 || isComplete;
 
-const anklesDetected = activeStep >= 4 || isComplete;
+  const anklesDetected = activeStep >= 4 || isComplete;
 
-const currentBrain =
-  isComplete
-    ? brainMessages[brainMessages.length - 1]
-    : brainMessages[activeStep];
+  const currentBrain =
+    isComplete
+      ? brainMessages[brainMessages.length - 1]
+      : brainMessages[activeStep];
   useEffect(() => {
     const totalDuration = 12_000;
     const updateInterval = 120;
@@ -183,13 +183,13 @@ const currentBrain =
 
   useEffect(() => {
     setBrainProgress(0);
-  
+
     const timers = [
       window.setTimeout(() => setBrainProgress(1), 300),
       window.setTimeout(() => setBrainProgress(2), 700),
       window.setTimeout(() => setBrainProgress(3), 1100),
     ];
-  
+
     return () => timers.forEach(window.clearTimeout);
   }, [activeStep]);
 
@@ -198,23 +198,23 @@ const currentBrain =
       setTypedBrainText("");
       return;
     }
-  
+
     const activeMessage = currentBrain.items[brainProgress - 1];
-  
+
     setTypedBrainText("");
-  
+
     let characterIndex = 0;
-  
+
     const typingTimer = window.setInterval(() => {
       characterIndex += 1;
-  
+
       setTypedBrainText(activeMessage.slice(0, characterIndex));
-  
+
       if (characterIndex >= activeMessage.length) {
         window.clearInterval(typingTimer);
       }
     }, 28);
-  
+
     return () => window.clearInterval(typingTimer);
   }, [brainProgress, currentBrain, isComplete]);
 
@@ -236,150 +236,139 @@ const currentBrain =
               : "POWR is reviewing your movement frame by frame."}
           </p>
         </div>
-        
+
         <div className="analysis-video">
-  <video
-    src={request.videoUrl}
-    className="analysis-video-player"
-    autoPlay
-    muted
-    loop
-    playsInline
-    preload="auto"
-  />
-  <div
-  className={`scan-line ${
-    activeStep < 2 && !isComplete ? "scan-active" : ""
-  }`}
-/>
-<div
-  className={`body-tracking-overlay ${
-    (activeStep > 2 ||
-      (activeStep === 2 && brainProgress >= 2) ||
-      isComplete)
-      ? "tracking-visible"
-      : ""
-  }`}
-  aria-hidden="true"
->
+          <video
+            src={request.videoUrl}
+            className="analysis-video-player"
+            autoPlay
+            muted
+            loop
+            playsInline
+            preload="auto"
+          />
+          <div
+            className={`scan-line ${activeStep < 2 && !isComplete ? "scan-active" : ""
+              }`}
+          />
+          <div
+            className={`body-tracking-overlay ${(activeStep > 2 ||
+                (activeStep === 2 && brainProgress >= 2) ||
+                isComplete)
+                ? "tracking-visible"
+                : ""
+              }`}
+            aria-hidden="true"
+          >
 
-  <div className="tracking-skeleton">
-  <span
-  className={`joint joint-head ${
-    headDetected ? "joint-visible" : ""
-  }`}
-/>
-<span
-  className={`joint joint-shoulder-left ${
-    shouldersDetected ? "joint-visible" : ""
-  }`}
-/>
+            <div className="tracking-skeleton">
+              <span
+                className={`joint joint-head ${headDetected ? "joint-visible" : ""
+                  }`}
+              />
+              <span
+                className={`joint joint-shoulder-left ${shouldersDetected ? "joint-visible" : ""
+                  }`}
+              />
 
-<span
-  className={`joint joint-shoulder-right ${
-    shouldersDetected ? "joint-visible" : ""
-  }`}
-/>
-<span
-  className={`joint joint-hip-left ${
-    hipsDetected ? "joint-visible" : ""
-  }`}
-/>
+              <span
+                className={`joint joint-shoulder-right ${shouldersDetected ? "joint-visible" : ""
+                  }`}
+              />
+              <span
+                className={`joint joint-hip-left ${hipsDetected ? "joint-visible" : ""
+                  }`}
+              />
 
-<span
-  className={`joint joint-hip-right ${
-    hipsDetected ? "joint-visible" : ""
-  }`}
-/>
-<span
-  className={`joint joint-knee-left ${
-    kneesDetected ? "joint-visible" : ""
-  }`}
-/>
+              <span
+                className={`joint joint-hip-right ${hipsDetected ? "joint-visible" : ""
+                  }`}
+              />
+              <span
+                className={`joint joint-knee-left ${kneesDetected ? "joint-visible" : ""
+                  }`}
+              />
 
-<span
-  className={`joint joint-knee-right ${
-    kneesDetected ? "joint-visible" : ""
-  }`}
-/>
-<span
-  className={`joint joint-ankle-left ${
-    anklesDetected ? "joint-visible" : ""
-  }`}
-/>
+              <span
+                className={`joint joint-knee-right ${kneesDetected ? "joint-visible" : ""
+                  }`}
+              />
+              <span
+                className={`joint joint-ankle-left ${anklesDetected ? "joint-visible" : ""
+                  }`}
+              />
 
-<span
-  className={`joint joint-ankle-right ${
-    anklesDetected ? "joint-visible" : ""
-  }`}
-/>
+              <span
+                className={`joint joint-ankle-right ${anklesDetected ? "joint-visible" : ""
+                  }`}
+              />
 
-    <span className="skeleton-line line-shoulders" />
-    <span className="skeleton-line line-torso-left" />
-    <span className="skeleton-line line-torso-right" />
-    <span className="skeleton-line line-hips" />
-    <span className="skeleton-line line-leg-left-top" />
-    <span className="skeleton-line line-leg-left-bottom" />
-    <span className="skeleton-line line-leg-right-top" />
-    <span className="skeleton-line line-leg-right-bottom" />
-  </div>
-</div>
-<div className="telemetry-panel">
-  <div className="telemetry-title">AI TRACKING</div>
+              <span className="skeleton-line line-shoulders" />
+              <span className="skeleton-line line-torso-left" />
+              <span className="skeleton-line line-torso-right" />
+              <span className="skeleton-line line-hips" />
+              <span className="skeleton-line line-leg-left-top" />
+              <span className="skeleton-line line-leg-left-bottom" />
+              <span className="skeleton-line line-leg-right-top" />
+              <span className="skeleton-line line-leg-right-bottom" />
+            </div>
+          </div>
+          <div className="telemetry-panel">
+            <div className="telemetry-title">AI TRACKING</div>
 
-  <div className="telemetry-row">
-    <span>Confidence</span>
-    <strong>{confidence.toFixed(1)}%</strong>
-  </div>
+            <div className="telemetry-row">
+              <span>Confidence</span>
+              <strong>{confidence.toFixed(1)}%</strong>
+            </div>
 
-  <div className="telemetry-row">
-    <span>Frames</span>
-    <strong>{framesProcessed.toLocaleString()}</strong>
-  </div>
+            <div className="telemetry-row">
+              <span>Frames</span>
+              <strong>{framesProcessed.toLocaleString()}</strong>
+            </div>
 
-  <div className="telemetry-row">
-    <span>Landmarks</span>
-    <strong>{landmarks}</strong>
-  </div>
+            <div className="telemetry-row">
+              <span>Landmarks</span>
+              <strong>{landmarks}</strong>
+            </div>
 
-  <div className="telemetry-row">
-    <span>Stride Cycles</span>
-    <strong>{strideCycles}</strong>
-  </div>
+            <div className="telemetry-row">
+              <span>Stride Cycles</span>
+              <strong>{strideCycles}</strong>
+            </div>
 
-  <div className="telemetry-row">
-    <span>Edge Stability</span>
-    <strong>{edgeStability}</strong>
-  </div>
-</div>
+            <div className="telemetry-row">
+              <span>Edge Stability</span>
+              <strong>{edgeStability}</strong>
+            </div>
+          </div>
 
-<div className="brain-panel">
-  <div className="brain-title">{currentBrain.title}</div>
+          <div className="brain-panel">
+            <div className="brain-title">{currentBrain.title}</div>
 
-  <div className="brain-items">
-  {currentBrain.items
-  .slice(0, isComplete ? currentBrain.items.length : brainProgress)
-  .map((item, index) => (
-      <div className="brain-item" key={item}>
-        <span className="brain-check">
-          {index < 2 || isComplete ? "✓" : "•"}
-        </span>
+            <div className="brain-items">
+              {currentBrain.items
+                .slice(0, isComplete ? currentBrain.items.length : brainProgress)
+                .map((item, index) => (
+                  <div className="brain-item" key={item}>
+                    <span className="brain-check">
+                      {index < 2 || isComplete ? "✓" : "•"}
+                    </span>
 
-        <span>
-  {!isComplete && index === brainProgress - 1
-    ? typedBrainText
-    : item}
-</span>
-      </div>
-    ))}
-  </div>
-</div>
+                    <span>
+                      {!isComplete && index === brainProgress - 1
+                        ? typedBrainText
+                        : item}
+                    </span>
+                  </div>
+                ))}
+            </div>
+          </div>
 
-  <div className="analysis-video-status">
-    <span className="tracking-dot" />
-    <span>{isComplete ? "Analysis complete" : "AI tracking active"}</span>
-  </div>
-</div>
+          <div className="analysis-video-status">
+            <span className="tracking-dot" />
+            <span>{isComplete ? "Analysis complete" : "AI tracking active"}</span>
+          </div>
+        </div>
         <div className="analysis-card">
           <div className="clip-summary">
             <div className="clip-icon" aria-hidden="true">
@@ -451,9 +440,8 @@ const currentBrain =
 
               return (
                 <div
-                  className={`analysis-step ${
-                    isStepComplete ? "step-complete" : ""
-                  } ${isStepActive ? "step-active" : ""}`}
+                  className={`analysis-step ${isStepComplete ? "step-complete" : ""
+                    } ${isStepActive ? "step-active" : ""}`}
                   key={step.label}
                 >
                   <div className="step-status">

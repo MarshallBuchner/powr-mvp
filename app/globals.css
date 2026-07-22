@@ -23,11 +23,9 @@ body {
   margin: 0;
   color: var(--text);
   background:
-    radial-gradient(
-      circle at 88% 2%,
+    radial-gradient(circle at 88% 2%,
       rgba(184, 255, 59, 0.12),
-      transparent 24rem
-    ),
+      transparent 24rem),
     linear-gradient(180deg, #090b0d 0%, #0b0e11 100%);
   font-family:
     Arial,
@@ -277,13 +275,12 @@ button {
     grid-template-columns: 1fr;
   }
 }
+
 .upload-zone.dragging {
   background:
-    linear-gradient(
-      180deg,
+    linear-gradient(180deg,
       rgba(184, 255, 59, 0.08),
-      rgba(184, 255, 59, 0.02)
-    ),
+      rgba(184, 255, 59, 0.02)),
     var(--panel-deep);
   border-color: var(--accent);
   box-shadow:
@@ -316,11 +313,9 @@ button {
   overflow: hidden;
   aspect-ratio: 16 / 9;
   background:
-    radial-gradient(
-      circle at center,
+    radial-gradient(circle at center,
       rgba(184, 255, 59, 0.07),
-      transparent 45%
-    ),
+      transparent 45%),
     #050607;
 }
 

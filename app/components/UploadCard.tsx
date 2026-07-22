@@ -62,7 +62,7 @@ export default function UploadCard({
       setPreviewUrl("");
       return;
     }
-  
+
     const objectUrl = URL.createObjectURL(selectedFile);
     setPreviewUrl(objectUrl);
   }, [selectedFile]);
@@ -131,7 +131,7 @@ export default function UploadCard({
     if (!selectedFile || !previewUrl) {
       return;
     }
-  
+
     onAnalyze({
       file: selectedFile,
       fileName: selectedFile.name,
@@ -199,18 +199,18 @@ export default function UploadCard({
       ) : (
         <div className="video-preview-card">
           <div className="video-frame">
-          {previewUrl && (
-  <video
-    className="video-preview"
-    src={previewUrl}
-    controls
-    playsInline
-    preload="metadata"
-              onLoadedMetadata={(event) => {
-                setDuration(event.currentTarget.duration);
-              }}
-            />
-          )}
+            {previewUrl && (
+              <video
+                className="video-preview"
+                src={previewUrl}
+                controls
+                playsInline
+                preload="metadata"
+                onLoadedMetadata={(event) => {
+                  setDuration(event.currentTarget.duration);
+                }}
+              />
+            )}
 
             <div className="video-badge">READY TO ANALYZE</div>
           </div>
