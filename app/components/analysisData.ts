@@ -58,17 +58,9 @@ export interface AnalysisResult {
 }
 
 export const demoAnalysis: AnalysisResult = {
-  // all of your current report data goes here
-};
-
-export const demoAnalysis: AnalysisResult = {
-
-};
-
-export const demoAnalysis: AnalysisResult = {
   overallScore: 84,
   tier: "⚡ Competitive",
-  percentile: "Top 22% of recreational players",
+  percentile: "Competitive development tier",
   scoreNote:
     "Strong mechanics with clear opportunities to improve power and acceleration.",
 
@@ -117,12 +109,11 @@ export const demoAnalysis: AnalysisResult = {
         "Good extension, with room to finish each push more completely.",
     },
   ],
-  
+
   strengths: [
     {
       title: "Edge Control",
-      description:
-        "Strong stability through directional changes and turns.",
+      description: "Strong stability through directional changes and turns.",
       score: 88,
     },
     {
@@ -196,7 +187,6 @@ export const demoAnalysis: AnalysisResult = {
         "Use three powerful opening strides before transitioning into full speed.",
     },
   ],
-  
 
   finalRecommendation: {
     heading: "You're closer than you think.",

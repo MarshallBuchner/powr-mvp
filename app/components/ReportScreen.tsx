@@ -1,5 +1,7 @@
 "use client";
 
+import { demoAnalysis } from "./analysisData";
+
 import { useEffect, useState } from "react";
 
 import type { AnalysisRequest } from "./types";
@@ -9,127 +11,8 @@ type ReportScreenProps = {
   onRestart: () => void;
 };
 
-const overallScore = 84;
+const analysis = demoAnalysis;
 
-const powrTier = "⚡ Competitive";
-const percentile = "Competitive development tier";
-
-const coachSummary =
-  "Your skating profile shows strong balance, edge control, and consistent stride rhythm. Your biggest opportunity is completing each stride with greater extension and maintaining a deeper knee bend. Improving those two areas should help you generate more power, accelerate faster, and conserve energy during longer shifts.";
-
-const analysisConfidence = 97;
-const analyzedFrames = 512;
-const trackedLandmarks = 18;
-const strideCycles = 12;
-
-const movementMetrics = [
-  {
-    title: "Acceleration",
-    score: 86,
-    explanation: "Strong opening strides with good forward momentum.",
-  },
-  {
-    title: "Edge Control",
-    score: 88,
-    explanation: "Stable weight transfer through turns and direction changes.",
-  },
-  {
-    title: "Balance",
-    score: 84,
-    explanation: "Controlled upper body with consistent skating posture.",
-  },
-  {
-    title: "Stride Recovery",
-    score: 78,
-    explanation: "Recovery is consistent but can return beneath the body faster.",
-  },
-  {
-    title: "Knee Bend",
-    score: 76,
-    explanation: "A deeper stance would improve power and acceleration.",
-  },
-  {
-    title: "Hip Extension",
-    score: 81,
-    explanation: "Good extension, with room to finish each push more completely.",
-  },
-];
-
-const performanceGains = [
-  {
-    label: "Acceleration",
-    value: "+8%",
-  },
-  {
-    label: "Top Speed",
-    value: "+4%",
-  },
-  {
-    label: "Skating Efficiency",
-    value: "+12%",
-  },
-  {
-    label: "Blue-Line Sprint",
-    value: "-0.18 sec",
-  },
-];
-
-const strengths = [
-  {
-    title: "Edge Control",
-    description: "Strong stability through directional changes and turns.",
-    score: 88,
-  },
-  {
-    title: "Balance",
-    description: "Maintains a controlled upper body throughout the stride.",
-    score: 84,
-  },
-  {
-    title: "Stride Rhythm",
-    description: "Consistent tempo with efficient recovery between pushes.",
-    score: 81,
-  },
-];
-
-const improvements = [
-  {
-    title: "Stride Extension",
-    description:
-      "Finish each push farther behind the body to generate more speed.",
-    impact: "Highest impact",
-  },
-  {
-    title: "Knee Bend",
-    description:
-      "A deeper skating position will improve power, balance, and acceleration.",
-    impact: "High impact",
-  },
-];
-
-const drills = [
-  {
-    number: "01",
-    title: "Full-Extension Strides",
-    duration: "3 sets · 30 seconds",
-    description:
-      "Focus on completing every push through the heel before recovering.",
-  },
-  {
-    number: "02",
-    title: "Low-Stance Glides",
-    duration: "4 repetitions · full ice",
-    description:
-      "Hold a deep knee bend while keeping the chest upright and stable.",
-  },
-  {
-    number: "03",
-    title: "Explosive Starts",
-    duration: "5 repetitions · 10 metres",
-    description:
-      "Use three powerful opening strides before transitioning into full speed.",
-  },
-];
 
 export default function ReportScreen({
   request,
@@ -147,7 +30,7 @@ export default function ReportScreen({
       const progress = Math.min(elapsed / duration, 1);
       const easedProgress = 1 - Math.pow(1 - progress, 3);
 
-      setDisplayScore(Math.round(overallScore * easedProgress));
+      setDisplayScore(Math.round(analysis.overallScore * easedProgress));
 
       if (progress < 1) {
         animationFrame = requestAnimationFrame(animateScore);
@@ -191,13 +74,12 @@ export default function ReportScreen({
             <span>{displayScore}</span>
           </div>
 
-          <p className="level">{powrTier}</p>
+          <p className="level">{analysis.tier}</p>
 
-          <p className="percentile">{percentile}</p>
+          <p className="percentile">{analysis.percentile}</p>
 
           <p className="score-note">
-            Strong mechanics with clear opportunities to improve power and
-            acceleration.
+            {analysis.scoreNote}
           </p>
         </div>
       </section>
@@ -211,19 +93,19 @@ export default function ReportScreen({
           <h2>Assessment summary</h2>
 
           <p className="coach-summary-text">
-            {coachSummary}
+            {analysis.coachSummary}
           </p>
 
           <div className="coach-confidence">
             <div className="confidence-score">
-              <span>{analysisConfidence}%</span>
+              <span>{analysis.confidence.score}%%</span>
               <small>AI Confidence</small>
             </div>
 
             <div className="confidence-details">
-              <div>✓ {analyzedFrames} analyzed frames</div>
-              <div>✓ {trackedLandmarks} tracked landmarks</div>
-              <div>✓ {strideCycles} completed stride cycles</div>
+              <div>✓ {analysis.confidence.analyzedFrames} analyzed frames</div>
+              <div>✓ {analysis.confidence.trackedLandmarks} tracked landmarks</div>
+              <div>✓ {analysis.confidence.strideCycles} completed stride cycles</div>
             </div>
           </div>
         </div>
@@ -240,7 +122,7 @@ export default function ReportScreen({
         </div>
 
         <div className="strength-grid">
-          {strengths.map((strength, index) => (
+          {analysis.strengths.map((strength, index) => (
             <article
               className="metric-card animated-card"
               style={{ animationDelay: `${500 + index * 130}ms` }}
@@ -278,7 +160,7 @@ export default function ReportScreen({
         </div>
 
         <div className="movement-grid">
-          {movementMetrics.map((metric, index) => (
+          {analysis.movementMetrics.map((metric, index) => (
             <article
               className="movement-card animated-card"
               style={{ animationDelay: `${650 + index * 110}ms` }}
@@ -318,7 +200,7 @@ export default function ReportScreen({
         </div>
 
         <div className="improvement-grid">
-          {improvements.map((item, index) => (
+          {analysis.improvements.map((item, index) => (
             <article
               className="improvement-card animated-card"
               style={{ animationDelay: `${850 + index * 140}ms` }}
@@ -348,7 +230,7 @@ export default function ReportScreen({
         </p>
 
         <div className="gain-grid">
-          {performanceGains.map((gain) => (
+          {analysis.projectedGains.map((gain) => (
             <div className="gain-stat" key={gain.label}>
               <span>{gain.value}</span>
               <p>{gain.label}</p>
@@ -374,7 +256,7 @@ export default function ReportScreen({
         </div>
 
         <div className="drill-list">
-          {drills.map((drill, index) => (
+          {analysis.drills.map((drill, index) => (
             <article
               className="drill-card animated-card"
               style={{ animationDelay: `${1050 + index * 130}ms` }}
