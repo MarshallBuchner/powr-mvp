@@ -6,6 +6,8 @@ import { useEffect, useState } from "react";
 
 import type { AnalysisRequest } from "./types";
 
+import { goalProfiles } from "./goalProfiles";
+
 type ReportScreenProps = {
   request: AnalysisRequest;
   onRestart: () => void;
@@ -18,7 +20,15 @@ export default function ReportScreen({
   request,
   onRestart,
 }: ReportScreenProps) {
+
+  const goalProfile =
+  goalProfiles[request.goal] ?? goalProfiles.Acceleration;
+
+const personalizedCoachSummary =
+  goalProfile.coachSummary;
   const [displayScore, setDisplayScore] = useState(0);
+
+
 
   useEffect(() => {
     let animationFrame = 0;
@@ -93,8 +103,8 @@ export default function ReportScreen({
           <h2>Assessment summary</h2>
 
           <p className="coach-summary-text">
-            {analysis.coachSummary}
-          </p>
+  {personalizedCoachSummary}
+</p>
 
           <div className="coach-confidence">
             <div className="confidence-score">
@@ -302,26 +312,26 @@ export default function ReportScreen({
         <div className="coach-final">
           <p className="eyebrow">Coach's Recommendation</p>
 
-          <h2>{analysis.finalRecommendation.heading}</h2>
+          <h2>{goalProfile.finalRecommendation.heading}</h2>
 
           <p className="coach-final-text">
-            {analysis.finalRecommendation.summary}
+          {goalProfile.finalRecommendation.summary}
           </p>
 
           <div className="next-focus-grid">
             <div className="focus-box">
               <small>🎯 Primary Focus</small>
-              <strong>{analysis.finalRecommendation.primaryFocus}</strong>
+              <strong>{goalProfile.finalRecommendation.primaryFocus}</strong>
             </div>
 
             <div className="focus-box">
               <small>📅 Reassessment</small>
-              <strong>{analysis.finalRecommendation.reassessment}</strong>
+              <strong>{goalProfile.finalRecommendation.reassessment}</strong>
             </div>
 
             <div className="focus-box">
               <small>⏱ Practice Goal</small>
-              <strong>{analysis.finalRecommendation.practiceGoal}</strong>
+              <strong>{goalProfile.finalRecommendation.practiceGoal}</strong>
             </div>
           </div>
         </div>

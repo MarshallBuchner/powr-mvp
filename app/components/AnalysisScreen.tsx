@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { goalProfiles } from "./goalProfiles";
 import type { AnalysisRequest } from "./types";
 
 type AnalysisScreenProps = {
@@ -91,6 +92,7 @@ const brainMessages = [
   },
 ];
 
+
 export default function AnalysisScreen({
   request,
   onComplete,
@@ -100,6 +102,10 @@ export default function AnalysisScreen({
   const [isComplete, setIsComplete] = useState(false);
   const [brainProgress, setBrainProgress] = useState(0);
   const [typedBrainText, setTypedBrainText] = useState("");
+  const goalProfile =
+  goalProfiles[request.goal] ?? goalProfiles.Acceleration;
+
+const selectedGoalMessages = goalProfile.analysisMessages;
   const completedSteps = useMemo(
     () => (isComplete ? analysisSteps.length : activeStep),
     [activeStep, isComplete],
@@ -147,8 +153,13 @@ export default function AnalysisScreen({
   const anklesDetected = activeStep >= 4 || isComplete;
 
   const currentBrain =
-    isComplete
-      ? brainMessages[brainMessages.length - 1]
+  isComplete
+    ? brainMessages[brainMessages.length - 1]
+    : activeStep === 3
+      ? {
+          ...brainMessages[activeStep],
+          items: selectedGoalMessages,
+        }
       : brainMessages[activeStep];
   useEffect(() => {
     const totalDuration = 12_000;
@@ -174,9 +185,14 @@ export default function AnalysisScreen({
       setIsComplete(true);
     }, totalDuration);
 
+    const reportTimer = window.setTimeout(() => {
+      onComplete();
+    }, totalDuration + 1000);
+
     return () => {
       window.clearInterval(progressTimer);
       window.clearTimeout(completionTimer);
+      window.clearTimeout(reportTimer);
       stepTimers.forEach((timer) => window.clearTimeout(timer));
     };
   }, []);
@@ -225,15 +241,15 @@ export default function AnalysisScreen({
           <span className="eyebrow">POWR ANALYSIS</span>
 
           <h1>
-            {isComplete
-              ? "Your development report is ready."
-              : "Analyzing your skating."}
+          {isComplete
+  ? "Your development report is ready."
+  : `Reviewing your ${request.goal.toLowerCase()} mechanics.`}
           </h1>
 
           <p>
-            {isComplete
-              ? "Your movement data has been processed into personalized feedback."
-              : "POWR is reviewing your movement frame by frame."}
+          {isComplete
+  ? "Your movement data has been turned into personalized coaching feedback."
+  : `I'm taking a closer look at the movement patterns that affect your ${request.goal.toLowerCase()}.`}
           </p>
         </div>
 
