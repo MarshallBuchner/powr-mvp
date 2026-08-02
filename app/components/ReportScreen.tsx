@@ -76,7 +76,7 @@ export default function ReportScreen({
 
           <p className="level">{analysis.tier}</p>
 
-          <p className="percentile">{analysis.percentile}</p>
+          <p className="percentile">{analysis.tierDescription}</p>
 
           <p className="score-note">
             {analysis.scoreNote}
@@ -98,7 +98,7 @@ export default function ReportScreen({
 
           <div className="coach-confidence">
             <div className="confidence-score">
-              <span>{analysis.confidence.score}%%</span>
+              <span>{analysis.confidence.score}%</span>
               <small>AI Confidence</small>
             </div>
 
@@ -281,30 +281,26 @@ export default function ReportScreen({
         <div className="coach-final">
           <p className="eyebrow">Coach's Recommendation</p>
 
-          <h2>You're closer than you think.</h2>
+          <h2>{analysis.finalRecommendation.heading}</h2>
 
           <p className="coach-final-text">
-            Your balance and edge control already provide an excellent
-            foundation. Over the next two weeks, focus on completing every
-            stride and maintaining a deeper knee bend instead of simply skating
-            harder. Small technical improvements should produce the biggest
-            gains.
+            {analysis.finalRecommendation.summary}
           </p>
 
           <div className="next-focus-grid">
             <div className="focus-box">
               <small>🎯 Primary Focus</small>
-              <strong>Stride Extension</strong>
+              <strong>{analysis.finalRecommendation.primaryFocus}</strong>
             </div>
 
             <div className="focus-box">
               <small>📅 Reassessment</small>
-              <strong>2 Weeks</strong>
+              <strong>{analysis.finalRecommendation.reassessment}</strong>
             </div>
 
             <div className="focus-box">
               <small>⏱ Practice Goal</small>
-              <strong>2–3 Sessions / Week</strong>
+              <strong>{analysis.finalRecommendation.practiceGoal}</strong>
             </div>
           </div>
         </div>

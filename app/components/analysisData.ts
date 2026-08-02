@@ -31,7 +31,7 @@ export interface Drill {
 export interface AnalysisResult {
   overallScore: number;
   tier: string;
-  percentile: string;
+  tierDescription: string;
   scoreNote: string;
   coachSummary: string;
 
@@ -60,7 +60,7 @@ export interface AnalysisResult {
 export const demoAnalysis: AnalysisResult = {
   overallScore: 84,
   tier: "⚡ Competitive",
-  percentile: "Competitive development tier",
+  tierDescription: "Competitive development tier",
   scoreNote:
     "Strong mechanics with clear opportunities to improve power and acceleration.",
 
