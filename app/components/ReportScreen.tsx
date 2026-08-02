@@ -160,35 +160,56 @@ export default function ReportScreen({
         </div>
 
         <div className="movement-grid">
-          {analysis.movementMetrics.map((metric, index) => (
-            <article
-              className="movement-card animated-card"
-              style={{ animationDelay: `${650 + index * 110}ms` }}
-              key={metric.title}
-            >
-              <div className="movement-card-top">
-                <div>
-                  <h3>{metric.title}</h3>
-                  <p>{metric.explanation}</p>
-                </div>
+  {analysis.movementMetrics.map((metric, index) => (
+    <article
+      className="movement-card animated-card"
+      style={{ animationDelay: `${650 + index * 110}ms` }}
+      key={metric.title}
+    >
+      <div className="movement-card-top">
+        <div>
+          <h3>{metric.title}</h3>
 
-                <span className="movement-score">{metric.score}</span>
-              </div>
+          <p>{metric.explanation}</p>
 
-              <div className="metric-track">
-                <div
-                  className="metric-fill"
-                  style={{
-                    width: `${metric.score}%`,
-                    animationDelay: `${850 + index * 110}ms`,
-                  }}
-                />
+          <div className="ai-observations">
+            <p className="observation-title">Coach&apos;s Notes</p>
+
+            {metric.observations.map((item, observationIndex) => (
+              <div
+                className="observation-row"
+                key={`${metric.title}-${observationIndex}`}
+              >
+                <span>{item.type === "good" ? "✅" : "⚠️"}</span>
+                <p>{item.text}</p>
               </div>
-            </article>
-          ))}
+            ))}
+          </div>
+
+          {metric.whyItMatters && (
+            <div className="why-it-matters">
+              <h4>💡 Why This Matters</h4>
+              <p>{metric.whyItMatters}</p>
+            </div>
+          )}
         </div>
-      </section>
 
+        <span className="movement-score">{metric.score}</span>
+      </div>
+
+      <div className="metric-track">
+        <div
+          className="metric-fill"
+          style={{
+            width: `${metric.score}%`,
+            animationDelay: `${850 + index * 110}ms`,
+          }}
+        />
+      </div>
+    </article>
+  ))}
+</div>
+</section>
       <section className="report-section reveal reveal-third">
         <div className="section-heading">
           <div>
@@ -498,6 +519,26 @@ export default function ReportScreen({
           color: #b1c2b9;
           font-size: 1.05rem;
           line-height: 1.75;
+        }
+
+        .why-it-matters {
+          margin-top: 18px;
+          padding-top: 18px;
+          border-top: 1px solid rgba(255,255,255,.08);
+        }
+        
+        .why-it-matters h4 {
+          margin: 0 0 10px;
+          color: #72f2ac;
+          font-size: .82rem;
+          font-weight: 700;
+          letter-spacing: .05em;
+        }
+        
+        .why-it-matters p {
+          margin: 0;
+          color: #b1c2b9;
+          line-height: 1.6;
         }
 
         .coach-confidence {
