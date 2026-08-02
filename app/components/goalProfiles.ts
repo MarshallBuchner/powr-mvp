@@ -1,6 +1,14 @@
+export interface GoalDrill {
+  number: string;
+  title: string;
+  duration: string;
+  description: string;
+}
+
 export interface GoalProfile {
   analysisMessages: string[];
   coachSummary: string;
+  drills: GoalDrill[];
 
   finalRecommendation: {
     heading: string;
@@ -22,6 +30,30 @@ export const goalProfiles: Record<string, GoalProfile> = {
     coachSummary:
       "I focused today’s assessment on your acceleration mechanics. You already create strong forward momentum and maintain good balance through your opening strides. The biggest opportunity is completing each push farther behind your body and staying lower through the full stride so you can generate more power early.",
 
+      drills: [
+        {
+          number: "01",
+          title: "Three-Step Starts",
+          duration: "5 repetitions · 10 metres",
+          description:
+            "Focus on creating maximum power through your first three strides while staying low and driving forward.",
+        },
+        {
+          number: "02",
+          title: "Falling Starts",
+          duration: "4 sets · 4 repetitions",
+          description:
+            "Lean forward until balance forces the first step, then explode into three quick, powerful strides.",
+        },
+        {
+          number: "03",
+          title: "Full-Extension Strides",
+          duration: "3 sets · 30 seconds",
+          description:
+            "Finish every push through the heel before recovering the skate beneath your hips.",
+        },
+      ],
+
     finalRecommendation: {
       heading: "Build more power into your first three strides.",
       summary:
@@ -32,45 +64,6 @@ export const goalProfiles: Record<string, GoalProfile> = {
     },
   },
 
-  "Edge Control": {
-    analysisMessages: [
-      "Tracking edge transitions",
-      "Measuring turning mechanics",
-      "Evaluating edge stability",
-    ],
-
-    coachSummary:
-      "I focused today’s assessment on your edge control. You show strong stability through turns and directional changes, with controlled weight transfer throughout the movement. The next step is holding each edge slightly longer and staying centered as you transition from one edge to the other.",
-
-    finalRecommendation: {
-      heading: "Make each edge feel more deliberate.",
-      summary:
-        "You already show good control during turns and transitions. Over the next two weeks, focus on staying centered over the blade and holding each edge slightly longer before changing direction. Smooth, patient transitions should improve both control and speed.",
-      primaryFocus: "Edge Transitions",
-      reassessment: "2 Weeks",
-      practiceGoal: "2–3 Sessions / Week",
-    },
-  },
-
-  Balance: {
-    analysisMessages: [
-      "Tracking upper-body stability",
-      "Measuring weight transfer",
-      "Evaluating body control",
-    ],
-
-    coachSummary:
-      "I focused today’s assessment on your balance and body control. Your upper body stays composed through most of the movement, giving you a strong foundation to build from. Maintaining a deeper stance and keeping your chest centered during longer pushes should improve your stability even further.",
-
-    finalRecommendation: {
-      heading: "Stay centered and let the lower body do the work.",
-      summary:
-        "Your upper-body control gives you a solid foundation. Over the next two weeks, focus on keeping your chest centered, maintaining a deeper stance, and avoiding unnecessary movement above the waist. Better stability should make every stride feel more controlled.",
-      primaryFocus: "Body Control",
-      reassessment: "2 Weeks",
-      practiceGoal: "2–3 Sessions / Week",
-    },
-  },
 
   "Stride efficiency": {
     analysisMessages: [
@@ -82,6 +75,30 @@ export const goalProfiles: Record<string, GoalProfile> = {
     coachSummary:
       "I focused today’s assessment on your stride efficiency. Your rhythm is consistent and your recovery movement remains controlled. The biggest gains should come from finishing each stride more completely and returning the recovery skate beneath your hips more quickly.",
   
+      drills: [
+        {
+          number: "01",
+          title: "Full-Extension Strides",
+          duration: "3 sets · 30 seconds",
+          description:
+            "Finish each push completely before recovering the skate beneath your hips.",
+        },
+        {
+          number: "02",
+          title: "Quick-Recovery Strides",
+          duration: "4 repetitions · half ice",
+          description:
+            "Focus on returning the recovery skate quickly under the body without shortening the push.",
+        },
+        {
+          number: "03",
+          title: "Tempo Strides",
+          duration: "3 sets · 20 seconds",
+          description:
+            "Maintain a smooth, repeatable stride rhythm while minimizing unnecessary upper-body movement.",
+        },
+      ],
+
     finalRecommendation: {
       heading: "Get more from every stride.",
       summary:
@@ -101,7 +118,31 @@ export const goalProfiles: Record<string, GoalProfile> = {
   
     coachSummary:
       "I focused today's assessment on your overall skating mechanics. I looked at your balance, stride quality, edge control, and movement efficiency to identify the areas that will have the biggest impact on your skating.",
-  
+
+      drills: [
+        {
+          number: "01",
+          title: "Full-Extension Strides",
+          duration: "3 sets · 30 seconds",
+          description:
+            "Finish each push through the heel while maintaining a deep, stable skating stance.",
+        },
+        {
+          number: "02",
+          title: "Edge-Control Figure Eights",
+          duration: "4 repetitions · each direction",
+          description:
+            "Use controlled inside and outside edges while keeping your upper body centered.",
+        },
+        {
+          number: "03",
+          title: "Low-Stance Glides",
+          duration: "4 repetitions · full ice",
+          description:
+            "Hold a deep knee bend with the chest upright to improve balance, control, and efficiency.",
+        },
+      ],
+
     finalRecommendation: {
       heading: "Build on your skating foundation.",
       summary:
@@ -122,6 +163,30 @@ export const goalProfiles: Record<string, GoalProfile> = {
     coachSummary:
       "I focused today’s assessment on your crossover mechanics. Your movement stays controlled through the turn, and you maintain a good base of balance. The biggest opportunity is generating more power from the underneath leg and keeping your weight transfer smooth throughout each crossover.",
   
+      drills: [
+        {
+          number: "01",
+          title: "Circle Crossovers",
+          duration: "5 laps · each direction",
+          description:
+            "Focus on smooth weight transfer and driving through the underneath leg on every crossover.",
+        },
+        {
+          number: "02",
+          title: "Figure-8 Crossovers",
+          duration: "4 repetitions",
+          description:
+            "Maintain speed while transitioning smoothly between left and right crossovers.",
+        },
+        {
+          number: "03",
+          title: "Power Crossovers",
+          duration: "3 sets · 20 seconds",
+          description:
+            "Generate maximum speed by pushing aggressively underneath your body while staying low.",
+        },
+      ],
+
     finalRecommendation: {
       heading: "Create more power through every crossover.",
       summary:
@@ -142,6 +207,30 @@ export const goalProfiles: Record<string, GoalProfile> = {
     coachSummary:
       "I focused today’s assessment on your backward skating. You maintain good control and stay balanced through most of the movement. The biggest opportunity is staying lower through each stride and generating more power from every C-cut.",
   
+      drills: [
+        {
+          number: "01",
+          title: "Backward C-Cuts",
+          duration: "5 repetitions · full ice",
+          description:
+            "Generate powerful C-cuts while staying low and allowing each push to finish completely.",
+        },
+        {
+          number: "02",
+          title: "Backward Starts",
+          duration: "4 sets · 5 metres",
+          description:
+            "Explode backwards from a stationary position using strong first C-cuts and controlled balance.",
+        },
+        {
+          number: "03",
+          title: "Backward Glide & Recover",
+          duration: "3 sets · 30 seconds",
+          description:
+            "Alternate between powerful backward pushes and controlled recovery to build efficiency.",
+        },
+      ],
+
     finalRecommendation: {
       heading: "Generate more power skating backwards.",
       summary:
@@ -161,6 +250,30 @@ export const goalProfiles: Record<string, GoalProfile> = {
     coachSummary:
       "I focused today’s assessment on your transitions. You stay composed while changing direction and maintain good balance through most of the movement. The biggest opportunity is improving foot timing and staying lower as you move between forward and backward skating.",
   
+      drills: [
+        {
+          number: "01",
+          title: "Forward-to-Backward Transitions",
+          duration: "5 repetitions · each direction",
+          description:
+            "Focus on smooth edge changes while keeping your chest centered and your feet moving quickly.",
+        },
+        {
+          number: "02",
+          title: "Mohawk Transitions",
+          duration: "4 repetitions · each side",
+          description:
+            "Develop balance and edge control by opening the hips and transitioning without losing speed.",
+        },
+        {
+          number: "03",
+          title: "Transition Acceleration",
+          duration: "3 sets · full ice",
+          description:
+            "Accelerate immediately after every transition to eliminate hesitation between direction changes.",
+        },
+      ],
+
     finalRecommendation: {
       heading: "Make every transition smoother and more controlled.",
       summary:

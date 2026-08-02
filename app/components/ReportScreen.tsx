@@ -287,7 +287,7 @@ const personalizedCoachSummary =
         </div>
 
         <div className="drill-list">
-          {analysis.drills.map((drill, index) => (
+        {goalProfile.drills.map((drill, index) => (
             <article
               className="drill-card animated-card"
               style={{ animationDelay: `${1050 + index * 130}ms` }}
