@@ -153,6 +153,20 @@ export default function UploadCard({
         onSelectGoal={setSelectedGoal}
       />
 
+<div className="upload-guidance">
+  <div className="upload-guidance-heading">
+    <span>📹</span>
+    <strong>Record your best skating clip</strong>
+  </div>
+
+  <div className="upload-guidance-list">
+    <span>✓ Keep your full body visible</span>
+    <span>✓ Record from the side when possible</span>
+    <span>✓ Use a clear, well-lit skating clip</span>
+    <span>✓ Record 10–30 seconds of skating</span>
+  </div>
+</div>
+
       {!selectedFile ? (
         <label
           className={`upload-zone ${isDragging ? "dragging" : ""}`}

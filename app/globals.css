@@ -519,3 +519,39 @@ button {
     gap: 6px;
   }
 }
+
+.upload-guidance {
+  display: grid;
+  gap: 14px;
+  margin: 20px 0;
+  padding: 18px 20px;
+  border: 1px solid rgba(109, 255, 174, 0.14);
+  border-radius: 18px;
+  background: rgba(109, 255, 174, 0.045);
+}
+
+.upload-guidance-heading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #f5fff9;
+}
+
+.upload-guidance-heading strong {
+  font-size: 0.95rem;
+}
+
+.upload-guidance-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 18px;
+  color: #91a39a;
+  font-size: 0.86rem;
+  line-height: 1.5;
+}
+
+@media (max-width: 640px) {
+  .upload-guidance-list {
+    grid-template-columns: 1fr;
+  }
+}

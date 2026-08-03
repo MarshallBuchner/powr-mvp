@@ -27,7 +27,8 @@ export default function ReportScreen({
 const personalizedCoachSummary =
   goalProfile.coachSummary;
   const [displayScore, setDisplayScore] = useState(0);
-
+  const [feedbackRating, setFeedbackRating] = useState(0);
+  const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
 
 
   useEffect(() => {
@@ -109,7 +110,7 @@ const personalizedCoachSummary =
           <div className="coach-confidence">
             <div className="confidence-score">
               <span>{analysis.confidence.score}%</span>
-              <small>AI Confidence</small>
+              <small>Assessment Confidence</small>
             </div>
 
             <div className="confidence-details">
@@ -1004,6 +1005,119 @@ const personalizedCoachSummary =
           }
         }
 
+        .feedback-section {
+          margin-top: 72px;
+        }
+        
+        .feedback-section h2 {
+          margin-bottom: 14px;
+        }
+        
+        .feedback-intro {
+          max-width: 680px;
+          margin: 0 0 28px;
+          color: #91a39a;
+          line-height: 1.7;
+        }
+        
+        .feedback-card {
+          display: grid;
+          gap: 16px;
+          padding: 30px;
+          border: 1px solid rgba(109, 255, 174, 0.16);
+          border-radius: 26px;
+          background: rgba(255, 255, 255, 0.035);
+        }
+        
+        .feedback-card label {
+          color: #f5fff9;
+          font-size: 0.9rem;
+          font-weight: 700;
+        }
+        
+        .feedback-stars {
+          display: flex;
+          gap: 8px;
+          margin-bottom: 8px;
+        }
+        
+        .feedback-stars button {
+          padding: 0;
+          background: transparent;
+          color: #63756b;
+          font-size: 2rem;
+          line-height: 1;
+        }
+        
+        .feedback-stars button:hover {
+          color: #72f2ac;
+          box-shadow: none;
+          transform: scale(1.08);
+        }
+
+        .feedback-stars button.star-selected {
+          color: #72f2ac;
+        }
+        
+        .feedback-card textarea,
+        .feedback-card select {
+          width: 100%;
+          padding: 14px 16px;
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          border-radius: 14px;
+          outline: none;
+          background: rgba(5, 15, 10, 0.5);
+          color: #f5fff9;
+          font: inherit;
+        }
+        
+        .feedback-card textarea {
+          resize: vertical;
+        }
+        
+        .feedback-card textarea::placeholder {
+          color: #718279;
+        }
+        
+        .feedback-card textarea:focus,
+        .feedback-card select:focus {
+          border-color: rgba(109, 255, 174, 0.4);
+        }
+        
+        .submit-feedback {
+          justify-self: start;
+          margin-top: 8px;
+        }
+
+        .feedback-thank-you {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          text-align: center;
+          gap: 14px;
+          padding: 32px 16px;
+        }
+        
+        .feedback-heart {
+          font-size: 3rem;
+          line-height: 1;
+        }
+        
+        .feedback-thank-you h3 {
+          margin: 0;
+          font-size: 1.5rem;
+        }
+        
+        .feedback-thank-you p {
+          max-width: 520px;
+          color: #91a39a;
+          line-height: 1.7;
+        }
+
+        .analyze-another-button {
+          margin-top: 10px;
+        }
+
         @media (max-width: 820px) {
           .report-shell {
             padding-top: 24px;
@@ -1097,6 +1211,94 @@ const personalizedCoachSummary =
           }
         }
       `}</style>
+
+<section className="report-section feedback-section reveal">
+  <h2>❤️ Help Shape POWR</h2>
+
+  <p className="feedback-intro">
+    Thanks for trying the POWR beta. Your feedback helps us build a better
+    hockey coaching experience for players everywhere.
+  </p>
+
+  <div className="feedback-card">
+  {feedbackSubmitted ? (
+    <div className="feedback-thank-you">
+    <div className="feedback-heart">❤️</div>
+  
+    <h3>Thank you for helping build POWR.</h3>
+  
+    <p>
+      Your feedback helps us improve the coaching experience for hockey
+      players everywhere.
+    </p>
+  
+    <button
+      className="analyze-another-button"
+      type="button"
+      onClick={onRestart}
+    >
+      Analyze Another Video →
+    </button>
+  </div>
+  ) : (
+    <>
+      <label>⭐ Overall Experience</label>
+
+      <div className="feedback-stars">
+        {[1, 2, 3, 4, 5].map((star) => (
+          <button
+            key={star}
+            type="button"
+            className={star <= feedbackRating ? "star-selected" : ""}
+            onClick={() => setFeedbackRating(star)}
+            aria-label={`Rate POWR ${star} out of 5 stars`}
+          >
+            ★
+          </button>
+        ))}
+      </div>
+
+      <label>What was the most valuable part of your report?</label>
+
+      <textarea
+        rows={4}
+        placeholder="Tell us what helped you the most..."
+      />
+
+      <label>What could we improve?</label>
+
+      <textarea
+        rows={4}
+        placeholder="Anything confusing or missing?"
+      />
+
+      <label>Would you use POWR again?</label>
+
+      <select defaultValue="">
+        <option value="" disabled>
+          Select an option...
+        </option>
+
+        <option>Definitely</option>
+        <option>Probably</option>
+        <option>Maybe</option>
+        <option>Probably Not</option>
+        <option>No</option>
+      </select>
+
+      <button
+        className="submit-feedback"
+        type="button"
+        onClick={() => setFeedbackSubmitted(true)}
+      >
+        Submit Feedback
+      </button>
+    </>
+  )}
+</div>
+
+</section>
+
     </main>
   );
 }

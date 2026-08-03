@@ -100,6 +100,7 @@ export default function AnalysisScreen({
   const [activeStep, setActiveStep] = useState(0);
   const [progress, setProgress] = useState(4);
   const [isComplete, setIsComplete] = useState(false);
+  const [isLeaving, setIsLeaving] = useState(false);
   const [brainProgress, setBrainProgress] = useState(0);
   const [typedBrainText, setTypedBrainText] = useState("");
   const goalProfile =
@@ -185,13 +186,18 @@ const selectedGoalMessages = goalProfile.analysisMessages;
       setIsComplete(true);
     }, totalDuration);
 
+    const fadeTimer = window.setTimeout(() => {
+      setIsLeaving(true);
+    }, totalDuration + 700);
+    
     const reportTimer = window.setTimeout(() => {
       onComplete();
-    }, totalDuration + 1000);
+    }, totalDuration + 1200);
 
     return () => {
       window.clearInterval(progressTimer);
       window.clearTimeout(completionTimer);
+      window.clearTimeout(fadeTimer);
       window.clearTimeout(reportTimer);
       stepTimers.forEach((timer) => window.clearTimeout(timer));
     };
@@ -235,7 +241,7 @@ const selectedGoalMessages = goalProfile.analysisMessages;
   }, [brainProgress, currentBrain, isComplete]);
 
   return (
-    <main className="analysis-page">
+    <main className={`analysis-page ${isLeaving ? "analysis-leaving" : ""}`}>
       <section className="analysis-shell">
         <div className="analysis-heading">
           <span className="eyebrow">POWR ANALYSIS</span>
@@ -509,18 +515,26 @@ const selectedGoalMessages = goalProfile.analysisMessages;
       </section>
 
       <style jsx>{`
-        .analysis-page {
-          min-height: 100vh;
-          padding: 72px 24px;
-          background:
-            radial-gradient(
-              circle at 50% 20%,
-              rgba(184, 255, 46, 0.1),
-              transparent 34%
-            ),
-            #080a08;
-          color: #f7f8f4;
-        }
+  .analysis-page {
+    min-height: 100vh;
+    padding: 72px 24px;
+    background:
+      radial-gradient(
+        circle at 50% 20%,
+        rgba(184, 255, 46, 0.1),
+        transparent 34%
+      ),
+      #080a08;
+    color: #f7f8f4;
+    transition:
+      opacity 500ms ease,
+      transform 500ms ease;
+  }
+
+  .analysis-page.analysis-leaving {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
 
         .analysis-shell {
           width: min(860px, 100%);
