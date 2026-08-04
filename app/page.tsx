@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import Hero from "./components/Hero";
 import UploadCard from "./components/UploadCard";
@@ -16,6 +16,14 @@ export default function Home() {
     useState<AnalysisRequest | null>(null);
 
   const [screen, setScreen] = useState<Screen>("upload");
+
+  useEffect(() => {
+    window.scrollTo({
+      top: 0,
+      left: 0,
+      behavior: "auto",
+    });
+  }, [screen]);
 
   function handleAnalyze(request: AnalysisRequest) {
     setAnalysisRequest(request);

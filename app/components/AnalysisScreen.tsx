@@ -104,9 +104,9 @@ export default function AnalysisScreen({
   const [brainProgress, setBrainProgress] = useState(0);
   const [typedBrainText, setTypedBrainText] = useState("");
   const goalProfile =
-  goalProfiles[request.goal] ?? goalProfiles.Acceleration;
+    goalProfiles[request.goal] ?? goalProfiles.Acceleration;
 
-const selectedGoalMessages = goalProfile.analysisMessages;
+  const selectedGoalMessages = goalProfile.analysisMessages;
   const completedSteps = useMemo(
     () => (isComplete ? analysisSteps.length : activeStep),
     [activeStep, isComplete],
@@ -154,14 +154,14 @@ const selectedGoalMessages = goalProfile.analysisMessages;
   const anklesDetected = activeStep >= 4 || isComplete;
 
   const currentBrain =
-  isComplete
-    ? brainMessages[brainMessages.length - 1]
-    : activeStep === 3
-      ? {
+    isComplete
+      ? brainMessages[brainMessages.length - 1]
+      : activeStep === 3
+        ? {
           ...brainMessages[activeStep],
           items: selectedGoalMessages,
         }
-      : brainMessages[activeStep];
+        : brainMessages[activeStep];
   useEffect(() => {
     const totalDuration = 12_000;
     const updateInterval = 120;
@@ -189,7 +189,7 @@ const selectedGoalMessages = goalProfile.analysisMessages;
     const fadeTimer = window.setTimeout(() => {
       setIsLeaving(true);
     }, totalDuration + 700);
-    
+
     const reportTimer = window.setTimeout(() => {
       onComplete();
     }, totalDuration + 1200);
@@ -247,15 +247,15 @@ const selectedGoalMessages = goalProfile.analysisMessages;
           <span className="eyebrow">POWR ANALYSIS</span>
 
           <h1>
-          {isComplete
-  ? "Your development report is ready."
-  : `Reviewing your ${request.goal.toLowerCase()} mechanics.`}
+            {isComplete
+              ? "Your development report is ready."
+              : `Reviewing your ${request.goal.toLowerCase()} mechanics.`}
           </h1>
 
           <p>
-          {isComplete
-  ? "Your movement data has been turned into personalized coaching feedback."
-  : `I'm taking a closer look at the movement patterns that affect your ${request.goal.toLowerCase()}.`}
+            {isComplete
+              ? "Your movement data has been turned into personalized coaching feedback."
+              : `I'm taking a closer look at the movement patterns that affect your ${request.goal.toLowerCase()}.`}
           </p>
         </div>
 
@@ -275,10 +275,10 @@ const selectedGoalMessages = goalProfile.analysisMessages;
           />
           <div
             className={`body-tracking-overlay ${(activeStep > 2 ||
-                (activeStep === 2 && brainProgress >= 2) ||
-                isComplete)
-                ? "tracking-visible"
-                : ""
+              (activeStep === 2 && brainProgress >= 2) ||
+              isComplete)
+              ? "tracking-visible"
+              : ""
               }`}
             aria-hidden="true"
           >
@@ -1247,6 +1247,19 @@ transition:
           .analysis-page {
             padding: 48px 16px;
           }
+
+          .telemetry-panel,
+.brain-panel {
+  position: relative;
+  top: auto;
+  left: auto;
+  width: auto;
+  margin: 16px;
+}
+
+.brain-panel {
+  margin-top: 0;
+}
 
           .analysis-card {
             border-radius: 24px;

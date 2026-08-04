@@ -77,7 +77,9 @@ export default function UploadCard({
     }
 
     if (file.size > MAX_FILE_SIZE) {
-      setError("Your video must be smaller than 250 MB.");
+      setError(
+        "Your video is a little too large for the beta (250 MB max). Try trimming it to 10–30 seconds and upload again."
+      );
       return;
     }
 
@@ -143,8 +145,11 @@ export default function UploadCard({
   return (
     <section className="card upload-card">
       <div className="section-heading">
-        <p className="eyebrow">START YOUR ANALYSIS</p>
-        <h2>What do you want to improve?</h2>
+        <p className="eyebrow">START YOUR ASSESSMENT</p>
+        <h2>What would you like to improve today?</h2>
+        <p className="section-description">
+  Choose one area you'd like your assessment to focus on.
+</p>
       </div>
 
       <GoalSelector
@@ -226,7 +231,7 @@ export default function UploadCard({
               />
             )}
 
-            <div className="video-badge">READY TO ANALYZE</div>
+            <div className="video-badge">READY FOR ASSESSMENT</div>
           </div>
 
           <div className="video-details">
@@ -296,7 +301,7 @@ export default function UploadCard({
         disabled={!selectedFile}
         onClick={handleAnalyze}
       >
-        <span>Analyze skating</span>
+        <span>Analyze My Skating</span>
         <span className="button-arrow">→</span>
       </button>
 
