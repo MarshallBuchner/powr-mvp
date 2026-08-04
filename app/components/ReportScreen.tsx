@@ -30,6 +30,12 @@ const personalizedCoachSummary =
   const [feedbackRating, setFeedbackRating] = useState(0);
   const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
 
+  const [mostValuable, setMostValuable] = useState("");
+  const [improvements, setImprovements] = useState("");
+  const [useAgain, setUseAgain] = useState("");
+
+  const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
+  const [feedbackError, setFeedbackError] = useState("");
 
   useEffect(() => {
     let animationFrame = 0;
@@ -52,6 +58,43 @@ const personalizedCoachSummary =
 
     return () => cancelAnimationFrame(animationFrame);
   }, []);
+
+  async function handleFeedbackSubmit() {
+    if (isSubmittingFeedback) {
+      return;
+    }
+  
+    setIsSubmittingFeedback(true);
+    setFeedbackError("");
+  
+    try {
+      await fetch(
+        "https://script.google.com/macros/s/AKfycbyqzR6RDZFQWCkhaJr1pu7ez2dQaluNEPtUw3KOLKF_XbZGrOA9pm6f6kJjIp2_HvqUPQ/exec",
+        {
+          method: "POST",
+          mode: "no-cors",
+          headers: {
+            "Content-Type": "text/plain;charset=utf-8",
+          },
+          body: JSON.stringify({
+            rating: feedbackRating,
+            mostValuable,
+            improvements,
+            useAgain,
+            assessmentGoal: request.goal,
+          }),
+        },
+      );
+  
+      setFeedbackSubmitted(true);
+    } catch {
+      setFeedbackError(
+        "We couldn't submit your feedback. Please try again.",
+      );
+    } finally {
+      setIsSubmittingFeedback(false);
+    }
+  }
 
   return (
     <main className="report-shell">
@@ -1261,38 +1304,53 @@ const personalizedCoachSummary =
       <label>What was the most valuable part of your report?</label>
 
       <textarea
-        rows={4}
-        placeholder="Tell us what helped you the most..."
-      />
+  rows={4}
+  placeholder="Tell us what helped you the most..."
+  value={mostValuable}
+  onChange={(e) => setMostValuable(e.target.value)}
+/>
 
       <label>What could we improve?</label>
 
       <textarea
-        rows={4}
-        placeholder="Anything confusing or missing?"
-      />
+  rows={4}
+  placeholder="Anything confusing or missing?"
+  value={improvements}
+  onChange={(e) => setImprovements(e.target.value)}
+/>
 
       <label>Would you use POWR again?</label>
 
-      <select defaultValue="">
-        <option value="" disabled>
-          Select an option...
-        </option>
+      <select
+  value={useAgain}
+  onChange={(e) => setUseAgain(e.target.value)}
+>
+  <option value="" disabled>
+    Select an option...
+  </option>
 
-        <option>Definitely</option>
-        <option>Probably</option>
-        <option>Maybe</option>
-        <option>Probably Not</option>
-        <option>No</option>
-      </select>
+  <option>Definitely</option>
+  <option>Probably</option>
+  <option>Maybe</option>
+  <option>Probably Not</option>
+  <option>No</option>
+</select>
 
-      <button
-        className="submit-feedback"
-        type="button"
-        onClick={() => setFeedbackSubmitted(true)}
-      >
-        Submit Feedback
-      </button>
+<button
+  className="submit-feedback"
+  type="button"
+  onClick={handleFeedbackSubmit}
+  disabled={isSubmittingFeedback}
+>
+  {isSubmittingFeedback ? "Submitting..." : "Submit Feedback"}
+</button>
+
+{feedbackError && (
+  <p className="feedback-error" role="alert">
+    {feedbackError}
+  </p>
+)}
+
     </>
   )}
 </div>
