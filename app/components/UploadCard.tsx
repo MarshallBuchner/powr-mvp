@@ -42,6 +42,71 @@ function formatDuration(seconds: number) {
 
   return `${minutes}:${remainingSeconds}`;
 }
+
+async function extractVideoFrames(
+  file: File,
+  frameCount = 5,
+): Promise<string[]> {
+  return new Promise((resolve, reject) => {
+    const video = document.createElement("video");
+    const canvas = document.createElement("canvas");
+    const context = canvas.getContext("2d");
+
+    if (!context) {
+      reject(new Error("Could not create canvas context."));
+      return;
+    }
+
+    const videoUrl = URL.createObjectURL(file);
+    const frames: string[] = [];
+
+    video.preload = "metadata";
+    video.muted = true;
+    video.playsInline = true;
+    video.src = videoUrl;
+
+    video.onloadedmetadata = async () => {
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+
+      const duration = video.duration;
+
+      for (let i = 0; i < frameCount; i++) {
+        const time =
+          frameCount === 1
+            ? duration / 2
+            : (duration * i) / (frameCount - 1);
+
+        video.currentTime = Math.min(time, Math.max(duration - 0.05, 0));
+
+        await new Promise<void>((seekResolve) => {
+          video.onseeked = () => seekResolve();
+        });
+
+        context.drawImage(
+          video,
+          0,
+          0,
+          canvas.width,
+          canvas.height,
+        );
+
+        frames.push(
+          canvas.toDataURL("image/jpeg", 0.8),
+        );
+      }
+
+      URL.revokeObjectURL(videoUrl);
+      resolve(frames);
+    };
+
+    video.onerror = () => {
+      URL.revokeObjectURL(videoUrl);
+      reject(new Error("Could not read video."));
+    };
+  });
+}
+
 type UploadCardProps = {
   onAnalyze: (request: AnalysisRequest) => void;
 };
@@ -51,6 +116,7 @@ export default function UploadCard({
   const [selectedGoal, setSelectedGoal] = useState("Overall skating");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState("");
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [duration, setDuration] = useState<number | null>(null);
   const [error, setError] = useState("");
   const [isDragging, setIsDragging] = useState(false);
@@ -129,19 +195,54 @@ export default function UploadCard({
     fileInputRef.current?.click();
   }
 
-  function handleAnalyze() {
-    if (!selectedFile || !previewUrl) {
+  async function handleAnalyze() {
+    if (!selectedFile || !previewUrl || isAnalyzing) {
       return;
     }
-
-    onAnalyze({
-      file: selectedFile,
-      fileName: selectedFile.name,
-      videoUrl: previewUrl,
-      goal: selectedGoal,
-      duration,
-    });
+  
+    setIsAnalyzing(true);
+    setError("");
+  
+    try {
+      const frames = await extractVideoFrames(selectedFile, 5);
+  
+      console.log("POWR extracted frames:", frames.length);
+  
+      const response = await fetch("/api/analyze", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          frames,
+          goal: selectedGoal,
+        }),
+      });
+  
+      const result = await response.json();
+  
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || "Analysis failed.");
+      }
+  
+      console.log("POWR AI analysis:", result);
+  
+      onAnalyze({
+        file: selectedFile,
+        fileName: selectedFile.name,
+        videoUrl: previewUrl,
+        goal: selectedGoal,
+        duration,
+        analysis: result.analysis,
+      });
+    } catch (error) {
+      console.error("POWR analysis failed:", error);
+      setError("POWR couldn't analyze this video. Please try again.");
+    } finally {
+      setIsAnalyzing(false);
+    }
   }
+
   return (
     <section className="card upload-card">
       <div className="section-heading">
@@ -296,14 +397,17 @@ export default function UploadCard({
       </div>
 
       <button
-        className="primary-button"
-        type="button"
-        disabled={!selectedFile}
-        onClick={handleAnalyze}
-      >
-        <span>Analyze My Skating</span>
-        <span className="button-arrow">→</span>
-      </button>
+  className="primary-button"
+  type="button"
+  disabled={!selectedFile || isAnalyzing}
+  onClick={handleAnalyze}
+>
+  <span>
+    {isAnalyzing ? "Analyzing Your Skating..." : "Analyze My Skating"}
+  </span>
+
+  {!isAnalyzing && <span className="button-arrow">→</span>}
+</button>
 
       <p className="privacy-note">
         Your selected video stays on this device during prototype mode.

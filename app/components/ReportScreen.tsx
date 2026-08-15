@@ -21,6 +21,8 @@ export default function ReportScreen({
   onRestart,
 }: ReportScreenProps) {
 
+  console.log("REAL POWR ANALYSIS IN REPORT:", request.analysis);
+
   const goalProfile =
   goalProfiles[request.goal] ?? goalProfiles.Acceleration;
 
