@@ -13,15 +13,17 @@ type ReportScreenProps = {
   onRestart: () => void;
 };
 
-const analysis = demoAnalysis;
-
 
 export default function ReportScreen({
   request,
   onRestart,
 }: ReportScreenProps) {
+  const analysis = demoAnalysis;
+  const realAnalysis = request.analysis;
 
-  console.log("REAL POWR ANALYSIS IN REPORT:", request.analysis);
+  // rest of your code...
+
+
 
   const goalProfile =
   goalProfiles[request.goal] ?? goalProfiles.Acceleration;
@@ -49,7 +51,9 @@ const personalizedCoachSummary =
       const progress = Math.min(elapsed / duration, 1);
       const easedProgress = 1 - Math.pow(1 - progress, 3);
 
-      setDisplayScore(Math.round(analysis.overallScore * easedProgress));
+      setDisplayScore(
+        Math.round((realAnalysis?.overallScore ?? analysis.overallScore) * easedProgress)
+      );
 
       if (progress < 1) {
         animationFrame = requestAnimationFrame(animateScore);
@@ -59,7 +63,7 @@ const personalizedCoachSummary =
     animationFrame = requestAnimationFrame(animateScore);
 
     return () => cancelAnimationFrame(animationFrame);
-  }, []);
+}, [realAnalysis?.overallScore, analysis.overallScore]);
 
   async function handleFeedbackSubmit() {
     if (isSubmittingFeedback) {
@@ -130,13 +134,21 @@ const personalizedCoachSummary =
             <span>{displayScore}</span>
           </div>
 
-          <p className="level">{analysis.tier}</p>
+          <p className="level">
+  {realAnalysis ? "Video-Specific Assessment" : analysis.tier}
+</p>
 
-          <p className="percentile">{analysis.tierDescription}</p>
+<p className="percentile">
+  {realAnalysis
+    ? `${request.goal} development focus`
+    : analysis.tierDescription}
+</p>
 
-          <p className="score-note">
-            {analysis.scoreNote}
-          </p>
+<p className="score-note">
+  {realAnalysis
+    ? "Your score reflects the skating mechanics POWR could evaluate from the sampled frames in this video."
+    : analysis.scoreNote}
+</p>
         </div>
       </section>
 
@@ -149,61 +161,88 @@ const personalizedCoachSummary =
           <h2>Assessment summary</h2>
 
           <p className="coach-summary-text">
-  {personalizedCoachSummary}
+  {realAnalysis?.summary ?? personalizedCoachSummary}
 </p>
 
           <div className="coach-confidence">
             <div className="confidence-score">
-              <span>{analysis.confidence.score}%</span>
+            <span>
+  {realAnalysis?.confidence.score ?? analysis.confidence.score}%
+</span>
               <small>Assessment Confidence</small>
             </div>
 
             <div className="confidence-details">
-              <div>✓ {analysis.confidence.analyzedFrames} analyzed frames</div>
-              <div>✓ {analysis.confidence.trackedLandmarks} tracked landmarks</div>
-              <div>✓ {analysis.confidence.strideCycles} completed stride cycles</div>
-            </div>
+  <div>✓ 5 sampled video frames reviewed</div>
+  <div>✓ Goal-specific skating analysis</div>
+  <div>
+    ✓ {realAnalysis?.confidence.label ?? "Assessment"} confidence
+  </div>
+</div>
+
+{realAnalysis?.confidence.reason && (
+  <p className="confidence-reason">
+    {realAnalysis.confidence.reason}
+  </p>
+)}
           </div>
         </div>
       </section>
 
       <section className="report-section reveal reveal-second">
-        <div className="section-heading">
-          <div>
-            <p className="eyebrow">What you do well</p>
-            <h2>Core strengths</h2>
-          </div>
+  <div className="section-heading">
+    <div>
+      <p className="eyebrow">What you do well</p>
+      <h2>Core strengths</h2>
+    </div>
 
-          <span className="section-count">03</span>
-        </div>
+    <span className="section-count">
+      {String(realAnalysis?.strengths.length ?? analysis.strengths.length).padStart(2, "0")}
+    </span>
+  </div>
 
-        <div className="strength-grid">
-          {analysis.strengths.map((strength, index) => (
-            <article
-              className="metric-card animated-card"
-              style={{ animationDelay: `${500 + index * 130}ms` }}
-              key={strength.title}
-            >
-              <div className="metric-top">
-                <h3>{strength.title}</h3>
-                <span>{strength.score}</span>
-              </div>
+  <div className="strength-grid">
+    {realAnalysis
+      ? realAnalysis.strengths.map((strength, index) => (
+          <article
+            className="metric-card animated-card"
+            style={{ animationDelay: `${500 + index * 130}ms` }}
+            key={`${strength}-${index}`}
+          >
+            <div className="metric-top">
+              <h3>Strength {String(index + 1).padStart(2, "0")}</h3>
+              <span>✓</span>
+            </div>
 
-              <p>{strength.description}</p>
+            <p>{strength}</p>
+          </article>
+        ))
+      : analysis.strengths.map((strength, index) => (
+          <article
+            className="metric-card animated-card"
+            style={{ animationDelay: `${500 + index * 130}ms` }}
+            key={strength.title}
+          >
+            <div className="metric-top">
+              <h3>{strength.title}</h3>
+              <span>{strength.score}</span>
+            </div>
 
-              <div className="metric-track">
-                <div
-                  className="metric-fill"
-                  style={{
-                    width: `${strength.score}%`,
-                    animationDelay: `${750 + index * 130}ms`,
-                  }}
-                />
-              </div>
-            </article>
-          ))}
-        </div>
-      </section>
+            <p>{strength.description}</p>
+
+            <div className="metric-track">
+              <div
+                className="metric-fill"
+                style={{
+                  width: `${strength.score}%`,
+                  animationDelay: `${750 + index * 130}ms`,
+                }}
+              />
+            </div>
+          </article>
+        ))}
+  </div>
+</section>
 
       <section className="report-section reveal reveal-third">
         <div className="section-heading">
@@ -212,11 +251,17 @@ const personalizedCoachSummary =
             <h2>Movement breakdown</h2>
           </div>
 
-          <span className="section-count">06</span>
+          <span className="section-count">
+  {String(
+    realAnalysis?.movementMetrics.length ??
+      analysis.movementMetrics.length,
+  ).padStart(2, "0")}
+</span>
         </div>
 
         <div className="movement-grid">
-  {analysis.movementMetrics.map((metric, index) => (
+        {(realAnalysis?.movementMetrics ?? analysis.movementMetrics).map(
+  (metric, index) => (
     <article
       className="movement-card animated-card"
       style={{ animationDelay: `${650 + index * 110}ms` }}
@@ -263,7 +308,8 @@ const personalizedCoachSummary =
         />
       </div>
     </article>
-  ))}
+    ),
+  )}
 </div>
 </section>
       <section className="report-section reveal reveal-third">
@@ -273,114 +319,186 @@ const personalizedCoachSummary =
             <h2>Highest-impact improvements</h2>
           </div>
 
-          <span className="section-count">02</span>
+          <span className="section-count">
+  {realAnalysis ? "01" : "02"}
+</span>
         </div>
 
         <div className="improvement-grid">
-          {analysis.improvements.map((item, index) => (
-            <article
-              className="improvement-card animated-card"
-              style={{ animationDelay: `${850 + index * 140}ms` }}
-              key={item.title}
-            >
-              <span className="impact-pill">{item.impact}</span>
-              <h3>{item.title}</h3>
-              <p>{item.description}</p>
-            </article>
-          ))}
-        </div>
+  {realAnalysis ? (
+    <article className="improvement-card animated-card">
+      <span className="impact-pill">Highest Impact</span>
+
+      <h3>Priority Improvement</h3>
+
+      <p>{realAnalysis.priorityImprovement}</p>
+
+      <div className="why-it-matters">
+        <h4>💡 Why This Matters</h4>
+        <p>{realAnalysis.whyItMatters}</p>
+      </div>
+    </article>
+  ) : (
+    analysis.improvements.map((item, index) => (
+      <article
+        className="improvement-card animated-card"
+        style={{ animationDelay: `${850 + index * 140}ms` }}
+        key={item.title}
+      >
+        <span className="impact-pill">{item.impact}</span>
+        <h3>{item.title}</h3>
+        <p>{item.description}</p>
+      </article>
+    ))
+  )}
+</div>
       </section>
 
       <section className="performance-gain reveal reveal-fourth">
-        <div className="performance-gain-heading">
-          <div>
-            <p className="eyebrow">Projected development impact</p>
-            <h2>Estimated performance gain</h2>
-          </div>
+  <div className="performance-gain-heading">
+    <div>
+      <p className="eyebrow">Development impact</p>
+      <h2>What improvement could unlock</h2>
+    </div>
 
-          <span className="gain-icon">↗</span>
-        </div>
+    <span className="gain-icon">↗</span>
+  </div>
 
-        <p className="performance-gain-intro">
-          By improving your stride extension and knee bend over the next 6–8
-          weeks, your skating profile could show gains in these areas:
-        </p>
+  <p className="performance-gain-intro">
+    {realAnalysis?.whyItMatters ??
+      "Improving the highest-priority skating mechanics should create a stronger, more efficient movement foundation."}
+  </p>
 
-        <div className="gain-grid">
-          {analysis.projectedGains.map((gain) => (
-            <div className="gain-stat" key={gain.label}>
-              <span>{gain.value}</span>
-              <p>{gain.label}</p>
+  <div className="gain-grid">
+    <div className="gain-stat">
+      <span>↑</span>
+      <p>Cleaner movement</p>
+    </div>
+
+    <div className="gain-stat">
+      <span>↑</span>
+      <p>Better efficiency</p>
+    </div>
+
+    <div className="gain-stat">
+      <span>↑</span>
+      <p>More consistency</p>
+    </div>
+
+    <div className="gain-stat">
+      <span>↑</span>
+      <p>Stronger execution</p>
+    </div>
+  </div>
+
+  <p className="gain-disclaimer">
+    POWR will add measured performance gains as repeat assessments and player
+    progress data become available.
+  </p>
+</section>
+
+<section className="report-section reveal reveal-fourth">
+  <div className="section-heading">
+    <div>
+      <p className="eyebrow">Personalized training plan</p>
+      <h2>Recommended drills</h2>
+    </div>
+
+    <span className="section-count">
+      {String(
+        realAnalysis?.drills.length ?? goalProfile.drills.length
+      ).padStart(2, "0")}
+    </span>
+  </div>
+
+  <div className="drill-list">
+    {realAnalysis
+      ? realAnalysis.drills.map((drill, index) => (
+          <article
+            className="drill-card animated-card"
+            style={{ animationDelay: `${1050 + index * 130}ms` }}
+            key={`${drill.title}-${index}`}
+          >
+            <div className="drill-number">
+              {String(index + 1).padStart(2, "0")}
             </div>
-          ))}
-        </div>
 
-        <p className="gain-disclaimer">
-          Prototype projection shown for demonstration purposes. Future estimates
-          will be calculated from the player&apos;s measured skating data and
-          comparable development profiles.
-        </p>
-      </section>
-
-      <section className="report-section reveal reveal-fourth">
-        <div className="section-heading">
-          <div>
-            <p className="eyebrow">Personalized training plan</p>
-            <h2>Recommended drills</h2>
-          </div>
-
-          <span className="section-count">03</span>
-        </div>
-
-        <div className="drill-list">
-        {goalProfile.drills.map((drill, index) => (
-            <article
-              className="drill-card animated-card"
-              style={{ animationDelay: `${1050 + index * 130}ms` }}
-              key={drill.number}
-            >
-              <div className="drill-number">{drill.number}</div>
-
-              <div className="drill-content">
-                <div className="drill-heading">
-                  <h3>{drill.title}</h3>
-                  <span>{drill.duration}</span>
-                </div>
-
-                <p>{drill.description}</p>
+            <div className="drill-content">
+              <div className="drill-heading">
+                <h3>{drill.title}</h3>
+                <span>{drill.duration}</span>
               </div>
-            </article>
-          ))}
-        </div>
-      </section>
+
+              <p>{drill.description}</p>
+            </div>
+          </article>
+        ))
+      : goalProfile.drills.map((drill, index) => (
+          <article
+            className="drill-card animated-card"
+            style={{ animationDelay: `${1050 + index * 130}ms` }}
+            key={drill.number}
+          >
+            <div className="drill-number">{drill.number}</div>
+
+            <div className="drill-content">
+              <div className="drill-heading">
+                <h3>{drill.title}</h3>
+                <span>{drill.duration}</span>
+              </div>
+
+              <p>{drill.description}</p>
+            </div>
+          </article>
+        ))}
+  </div>
+</section>
 
       <section className="report-footer reveal reveal-fifth">
-        <div className="coach-final">
-          <p className="eyebrow">Coach's Recommendation</p>
+      <div className="coach-final">
+  <p className="eyebrow">Coach&apos;s Recommendation</p>
 
-          <h2>{goalProfile.finalRecommendation.heading}</h2>
+  <h2>
+    {realAnalysis
+      ? "Build your next sessions around your highest-priority improvement."
+      : goalProfile.finalRecommendation.heading}
+  </h2>
 
-          <p className="coach-final-text">
-          {goalProfile.finalRecommendation.summary}
-          </p>
+  <p className="coach-final-text">
+    {realAnalysis
+      ? realAnalysis.priorityImprovement
+      : goalProfile.finalRecommendation.summary}
+  </p>
 
-          <div className="next-focus-grid">
-            <div className="focus-box">
-              <small>🎯 Primary Focus</small>
-              <strong>{goalProfile.finalRecommendation.primaryFocus}</strong>
-            </div>
+  <div className="next-focus-grid">
+    <div className="focus-box">
+      <small>🎯 Primary Focus</small>
+      <strong>
+        {realAnalysis
+          ? realAnalysis.priorityImprovement
+          : goalProfile.finalRecommendation.primaryFocus}
+      </strong>
+    </div>
 
-            <div className="focus-box">
-              <small>📅 Reassessment</small>
-              <strong>{goalProfile.finalRecommendation.reassessment}</strong>
-            </div>
+    <div className="focus-box">
+      <small>📅 Reassessment</small>
+      <strong>
+        {realAnalysis
+          ? "Reassess after 3–5 focused skating sessions"
+          : goalProfile.finalRecommendation.reassessment}
+      </strong>
+    </div>
 
-            <div className="focus-box">
-              <small>⏱ Practice Goal</small>
-              <strong>{goalProfile.finalRecommendation.practiceGoal}</strong>
-            </div>
-          </div>
-        </div>
+    <div className="focus-box">
+      <small>⏱ Practice Goal</small>
+      <strong>
+        {realAnalysis
+          ? "Spend 10–15 focused minutes on the recommended drills"
+          : goalProfile.finalRecommendation.practiceGoal}
+      </strong>
+    </div>
+  </div>
+</div>
 
         <button type="button" onClick={onRestart}>
           Upload Your Next Session →
