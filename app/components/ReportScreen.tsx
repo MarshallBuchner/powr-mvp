@@ -8,6 +8,8 @@ import type { AnalysisRequest } from "./types";
 
 import { goalProfiles } from "./goalProfiles";
 
+import { track } from "@vercel/analytics";
+
 type ReportScreenProps = {
   request: AnalysisRequest;
   onRestart: () => void;
@@ -20,8 +22,6 @@ export default function ReportScreen({
 }: ReportScreenProps) {
   const analysis = demoAnalysis;
   const realAnalysis = request.analysis;
-
-  // rest of your code...
 
 
 
@@ -40,6 +40,16 @@ const personalizedCoachSummary =
 
   const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
   const [feedbackError, setFeedbackError] = useState("");
+
+  useEffect(() => {
+    if (!realAnalysis) {
+      return;
+    }
+  
+    track("report_viewed", {
+      goal: request.goal,
+    });
+  }, [realAnalysis, request.goal]);
 
   useEffect(() => {
     let animationFrame = 0;

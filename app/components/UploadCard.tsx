@@ -10,6 +10,8 @@ import {
 
 import GoalSelector from "./GoalSelector";
 import type { AnalysisRequest } from "./types";
+import { track } from "@vercel/analytics";
+
 
 const goals = [
   "Overall skating",
@@ -150,6 +152,10 @@ export default function UploadCard({
     }
 
     setSelectedFile(file);
+
+    track("video_selected", {
+      goal: selectedGoal,
+    });
   }
 
   function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
@@ -200,6 +206,10 @@ export default function UploadCard({
       return;
     }
   
+    track("analyze_clicked", {
+      goal: selectedGoal,
+    });
+  
     setIsAnalyzing(true);
     setError("");
   
@@ -224,6 +234,10 @@ export default function UploadCard({
       if (!response.ok || !result.success) {
         throw new Error(result.error || "Analysis failed.");
       }
+
+      track("analysis_succeeded", {
+        goal: selectedGoal,
+      });
   
       console.log("POWR AI analysis:", result);
   
