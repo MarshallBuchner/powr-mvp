@@ -1,15 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
-
 import Hero from "./components/Hero";
 import UploadCard from "./components/UploadCard";
 import AnalysisScreen from "./components/AnalysisScreen";
 import ReportScreen from "./components/ReportScreen";
-
 import type { AnalysisRequest } from "./components/types";
+import { sampleAnalysis } from "./components/sampleAnalysis";
+import SampleAssessment from "./components/SampleAssessment";
 
-type Screen = "upload" | "analysis" | "report";
+type Screen = "upload" | "sample" | "analysis" | "report";
 
 export default function Home() {
   const [analysisRequest, setAnalysisRequest] =
@@ -39,6 +39,36 @@ export default function Home() {
     setScreen("upload");
   }
 
+  function handleSampleAssessment() {
+    setScreen("sample");
+  }
+  
+  function handleSampleAnalyze() {
+    const sampleFile = new File([""], "sample-skating.mp4", {
+      type: "video/mp4",
+    });
+  
+    setAnalysisRequest({
+      file: sampleFile,
+      fileName: "POWR Sample Skating Assessment",
+      videoUrl: "/sample-skating.mp4",
+      goal: "Acceleration",
+      duration: 13,
+      analysis: sampleAnalysis,
+    });
+  
+    setScreen("analysis");
+  }
+
+  if (screen === "sample") {
+    return (
+      <SampleAssessment
+        onAnalyze={handleSampleAnalyze}
+        onBack={handleRestart}
+      />
+    );
+  }
+
   if (screen === "analysis" && analysisRequest) {
     return (
       <AnalysisScreen
@@ -60,6 +90,26 @@ export default function Home() {
   return (
     <main className="app-shell">
       <Hero />
+  
+      <section className="sample-assessment">
+        <p className="eyebrow">SEE POWR IN ACTION</p>
+  
+        <h2>Not ready to upload your video yet?</h2>
+  
+        <p>
+          Explore a sample skating assessment and see how POWR turns video
+          into scores, coaching insights, and personalized drills.
+        </p>
+  
+        <button
+          className="secondary-button"
+          type="button"
+          onClick={handleSampleAssessment}
+        >
+          View Sample Assessment →
+        </button>
+      </section>
+  
       <UploadCard onAnalyze={handleAnalyze} />
     </main>
   );
