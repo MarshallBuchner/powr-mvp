@@ -112,6 +112,62 @@ const personalizedCoachSummary =
     }
   }
 
+  async function handleShareAssessment() {
+    const score = realAnalysis?.overallScore ?? analysis.overallScore;
+  
+    const priority =
+      realAnalysis?.priorityImprovement ??
+      "Continue developing your skating mechanics.";
+  
+    const isSample =
+      request.fileName === "POWR Sample Skating Assessment";
+  
+    const shareText = isSample
+      ? `Check out this sample POWR AI skating assessment.
+  
+  POWR analyzes hockey footage and turns it into skating scores, coaching feedback, development priorities, and drills.`
+      : `My POWR skating assessment: ${score}/100
+  
+  Focus: ${request.goal}
+  
+  Development priority:
+  ${priority}
+  
+  POWR — AI Hockey Development`;
+  
+    const shareUrl = window.location.origin;
+  
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: isSample
+            ? "POWR Sample Assessment"
+            : "My POWR Skating Assessment",
+          text: shareText,
+          url: shareUrl,
+        });
+  
+        track("assessment_shared", {
+          goal: request.goal,
+        });
+  
+        return;
+      }
+  
+      await navigator.clipboard.writeText(
+        `${shareText}\n\n${shareUrl}`
+      );
+  
+      alert("POWR assessment link copied to your clipboard.");
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") {
+        return;
+      }
+    
+      console.error("POWR share failed:", error);
+    }
+  }
+
   return (
     <main className="report-shell">
       <section className="report-hero reveal reveal-first">
@@ -510,9 +566,19 @@ const personalizedCoachSummary =
   </div>
 </div>
 
-        <button type="button" onClick={onRestart}>
-          Upload Your Next Session →
-        </button>
+<div className="report-actions">
+  <button
+    className="share-assessment-button"
+    type="button"
+    onClick={handleShareAssessment}
+  >
+    Share My POWR Assessment ↗
+  </button>
+
+  <button type="button" onClick={onRestart}>
+    Upload Your Next Session →
+  </button>
+</div>
       </section>
 
       <style jsx>{`
@@ -1382,6 +1448,23 @@ const personalizedCoachSummary =
           button {
             transition: none;
           }
+        }
+        .report-actions {
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+          flex-shrink: 0;
+        }
+        
+        .share-assessment-button {
+          border: 1px solid rgba(109, 255, 174, 0.3);
+          background: rgba(109, 255, 174, 0.08);
+          color: #72f2ac;
+        }
+        
+        .share-assessment-button:hover {
+          background: rgba(109, 255, 174, 0.14);
+          box-shadow: 0 12px 28px rgba(109, 255, 174, 0.12);
         }
       `}</style>
 
