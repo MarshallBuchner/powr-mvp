@@ -8,6 +8,8 @@ import ReportScreen from "./components/ReportScreen";
 import type { AnalysisRequest } from "./components/types";
 import { sampleAnalysis } from "./components/sampleAnalysis";
 import SampleAssessment from "./components/SampleAssessment";
+import HowPowrWorks from "./components/HowPowrWorks";
+
 
 type Screen = "upload" | "sample" | "analysis" | "report";
 
@@ -109,6 +111,8 @@ export default function Home() {
           View Sample Assessment →
         </button>
       </section>
+  
+      <HowPowrWorks />
   
       <UploadCard onAnalyze={handleAnalyze} />
     </main>
