@@ -1,5 +1,5 @@
 export type AnalysisRequest = {
-  file: File;
+  file?: File;
   fileName: string;
   videoUrl: string;
   goal: string;

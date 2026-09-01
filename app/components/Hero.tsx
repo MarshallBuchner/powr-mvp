@@ -1,4 +1,8 @@
-export default function Hero() {
+type HeroProps = {
+  onViewSample: () => void;
+};
+
+export default function Hero({ onViewSample }: HeroProps) {
   return (
     <section className="hero">
       <div className="brand-lockup">
@@ -24,6 +28,20 @@ export default function Hero() {
         <p className="no-account">
           No account required for your first assessment.
         </p>
+
+        <div className="hero-actions">
+          <a className="primary-button" href="#start-assessment">
+            Upload a skating clip
+          </a>
+
+          <button
+            className="secondary-button"
+            type="button"
+            onClick={onViewSample}
+          >
+            View sample assessment
+          </button>
+        </div>
       </div>
     </section>
   );

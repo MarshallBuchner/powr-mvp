@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import type { AnalysisRequest } from "./types";
 
 import { goalProfiles } from "./goalProfiles";
+import { getSharePath, isSampleReport } from "./shareReport";
 
 import { track } from "@vercel/analytics";
 
@@ -40,6 +41,8 @@ const personalizedCoachSummary =
 
   const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
   const [feedbackError, setFeedbackError] = useState("");
+  const [shareStatus, setShareStatus] = useState<"idle" | "copied">("idle");
+  const isSample = isSampleReport(request);
 
   useEffect(() => {
     if (!realAnalysis) {
@@ -119,9 +122,6 @@ const personalizedCoachSummary =
       realAnalysis?.priorityImprovement ??
       "Continue developing your skating mechanics.";
   
-    const isSample =
-      request.fileName === "POWR Sample Skating Assessment";
-  
     const shareText = isSample
       ? `Check out this sample POWR AI skating assessment.
   
@@ -135,7 +135,7 @@ const personalizedCoachSummary =
   
   POWR — AI Hockey Development`;
   
-    const shareUrl = window.location.origin;
+    const shareUrl = `${window.location.origin}${getSharePath(request)}`;
   
     try {
       if (navigator.share) {
@@ -157,8 +157,13 @@ const personalizedCoachSummary =
       await navigator.clipboard.writeText(
         `${shareText}\n\n${shareUrl}`
       );
+
+      setShareStatus("copied");
+      window.setTimeout(() => setShareStatus("idle"), 2200);
   
-      alert("POWR assessment link copied to your clipboard.");
+      track("assessment_shared", {
+        goal: request.goal,
+      });
     } catch (error) {
       if (error instanceof DOMException && error.name === "AbortError") {
         return;
@@ -172,14 +177,27 @@ const personalizedCoachSummary =
     <main className="report-shell">
       <section className="report-hero reveal reveal-first">
         <div>
-          <p className="eyebrow">POWR Development Report</p>
-
-          <h1>Your skating profile is ready.</h1>
-
-          <p className="intro">
-            We analyzed <strong>{request.fileName}</strong> with a focus on{" "}
-            <strong>{request.goal}</strong>.
+          <p className="eyebrow">
+            {isSample ? "POWR Demo Report" : "POWR Development Report"}
           </p>
+
+          <h1>
+            {isSample
+              ? "This is a sample skating profile."
+              : "Your skating profile is ready."}
+          </h1>
+
+          {isSample ? (
+            <p className="intro">
+              Demo from POWR&apos;s example acceleration clip — not your
+              footage. Upload your own video to get a personal assessment.
+            </p>
+          ) : (
+            <p className="intro">
+              We analyzed <strong>{request.fileName}</strong> with a focus on{" "}
+              <strong>{request.goal}</strong>.
+            </p>
+          )}
         </div>
 
         <div className="score-card">
@@ -233,17 +251,31 @@ const personalizedCoachSummary =
           <div className="coach-confidence">
             <div className="confidence-score">
             <span>
-  {realAnalysis?.confidence.score ?? analysis.confidence.score}%
+  {isSample
+    ? "Demo"
+    : `${realAnalysis?.confidence.score ?? analysis.confidence.score}%`}
 </span>
-              <small>Assessment Confidence</small>
+              <small>
+                {isSample ? "Sample clip" : "Assessment Confidence"}
+              </small>
             </div>
 
             <div className="confidence-details">
-  <div>✓ 5 sampled video frames reviewed</div>
-  <div>✓ Goal-specific skating analysis</div>
-  <div>
-    ✓ {realAnalysis?.confidence.label ?? "Assessment"} confidence
-  </div>
+  {isSample ? (
+    <>
+      <div>✓ Example clip, not your footage</div>
+      <div>✓ Same report layout a player receives</div>
+      <div>✓ Upload your own video for a personal score</div>
+    </>
+  ) : (
+    <>
+      <div>✓ 5 sampled video frames reviewed</div>
+      <div>✓ Goal-specific skating analysis</div>
+      <div>
+        ✓ {realAnalysis?.confidence.label ?? "Assessment"} confidence
+      </div>
+    </>
+  )}
 </div>
 
 {realAnalysis?.confidence.reason && (
@@ -572,7 +604,11 @@ const personalizedCoachSummary =
     type="button"
     onClick={handleShareAssessment}
   >
-    Share My POWR Assessment ↗
+    {shareStatus === "copied"
+      ? "Assessment link copied"
+      : isSample
+        ? "Share this demo report ↗"
+        : "Share My POWR Assessment ↗"}
   </button>
 
   <button type="button" onClick={onRestart}>

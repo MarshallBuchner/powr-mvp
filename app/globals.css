@@ -96,6 +96,44 @@ button {
   letter-spacing: 0.03em;
 }
 
+.hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 22px;
+}
+
+.hero-actions .primary-button,
+.hero-actions .secondary-button {
+  width: auto;
+  min-height: 48px;
+  margin-top: 0;
+  padding: 0 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+}
+
+.hero-actions .secondary-button {
+  border: 1px solid rgba(109, 255, 174, 0.28);
+  border-radius: 15px;
+  background: rgba(109, 255, 174, 0.1);
+  color: #8cffbd;
+  font: inherit;
+  font-size: 0.86rem;
+  font-weight: 850;
+  cursor: pointer;
+}
+
+.hero-actions .secondary-button:hover {
+  background: rgba(109, 255, 174, 0.16);
+}
+
+#start-assessment {
+  scroll-margin-top: 24px;
+}
+
 .sample-assessment {
   margin: 10px 0 26px;
   padding: 28px;

@@ -258,7 +258,7 @@ export default function UploadCard({
   }
 
   return (
-    <section className="card upload-card">
+    <section className="card upload-card" id="start-assessment">
       <div className="section-heading">
         <p className="eyebrow">START YOUR ASSESSMENT</p>
         <h2>What would you like to improve today?</h2>

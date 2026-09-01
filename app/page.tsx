@@ -1,23 +1,32 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import Hero from "./components/Hero";
 import UploadCard from "./components/UploadCard";
 import AnalysisScreen from "./components/AnalysisScreen";
-import ReportScreen from "./components/ReportScreen";
 import type { AnalysisRequest } from "./components/types";
-import { sampleAnalysis } from "./components/sampleAnalysis";
 import SampleAssessment from "./components/SampleAssessment";
 import HowPowrWorks from "./components/HowPowrWorks";
+import {
+  createSampleRequest,
+  getSharePath,
+} from "./components/shareReport";
 
 
-type Screen = "upload" | "sample" | "analysis" | "report";
+type Screen = "upload" | "sample" | "analysis";
 
 export default function Home() {
+  const router = useRouter();
   const [analysisRequest, setAnalysisRequest] =
     useState<AnalysisRequest | null>(null);
+  const analysisRequestRef = useRef<AnalysisRequest | null>(null);
 
   const [screen, setScreen] = useState<Screen>("upload");
+
+  useEffect(() => {
+    analysisRequestRef.current = analysisRequest;
+  }, [analysisRequest]);
 
   useEffect(() => {
     window.scrollTo({
@@ -28,12 +37,19 @@ export default function Home() {
   }, [screen]);
 
   function handleAnalyze(request: AnalysisRequest) {
+    analysisRequestRef.current = request;
     setAnalysisRequest(request);
     setScreen("analysis");
   }
 
   function handleAnalysisComplete() {
-    setScreen("report");
+    const request = analysisRequestRef.current;
+
+    if (!request) {
+      return;
+    }
+
+    router.push(getSharePath(request));
   }
 
   function handleRestart() {
@@ -46,19 +62,9 @@ export default function Home() {
   }
   
   function handleSampleAnalyze() {
-    const sampleFile = new File([""], "sample-skating.mp4", {
-      type: "video/mp4",
-    });
-  
-    setAnalysisRequest({
-      file: sampleFile,
-      fileName: "POWR Sample Skating Assessment",
-      videoUrl: "/sample-skating.mp4",
-      goal: "Acceleration",
-      duration: 13,
-      analysis: sampleAnalysis,
-    });
-  
+    const request = createSampleRequest();
+    analysisRequestRef.current = request;
+    setAnalysisRequest(request);
     setScreen("analysis");
   }
 
@@ -80,18 +86,9 @@ export default function Home() {
     );
   }
 
-  if (screen === "report" && analysisRequest) {
-    return (
-      <ReportScreen
-        request={analysisRequest}
-        onRestart={handleRestart}
-      />
-    );
-  }
-
   return (
     <main className="app-shell">
-      <Hero />
+      <Hero onViewSample={handleSampleAssessment} />
   
       <section className="sample-assessment">
         <p className="eyebrow">SEE POWR IN ACTION</p>

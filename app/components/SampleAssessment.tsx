@@ -65,8 +65,8 @@ export default function SampleAssessment({
         </button>
 
         <p className="sample-explainer">
-          POWR will demonstrate the same assessment experience a player
-          receives after uploading their own skating video.
+          This is a demo clip. You will see the same report layout a player
+          gets after uploading their own skating video.
         </p>
 
       </div>
