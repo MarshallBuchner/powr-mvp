@@ -12,6 +12,12 @@ type PageProps = {
 export default async function ThankYouPage({ searchParams }: PageProps) {
   const params = (await searchParams) ?? {};
   const isPreview = params.preview === "1";
+  const sessionId = params.session_id;
+  const downloadHref = sessionId
+    ? `/recruit/download?session_id=${encodeURIComponent(sessionId)}`
+    : isPreview
+      ? "/recruit/download?session_id=preview"
+      : "/recruit/download";
 
   return (
     <>
@@ -25,29 +31,29 @@ export default async function ThankYouPage({ searchParams }: PageProps) {
         </h1>
         <p className="recruit-lead">
           {isPreview
-            ? "Stripe is not configured yet in this environment, so you are seeing the preview success flow. Once STRIPE_SECRET_KEY and STRIPE_RECRUIT_PRICE_ID are added, this page becomes the real post-purchase destination."
+            ? "Stripe is not configured yet in this environment, so you are seeing the preview success flow. Add STRIPE_SECRET_KEY (and optionally STRIPE_RECRUIT_PRICE_ID) to go live."
             : "Next step: download your POWR Recruit files and start with the START HERE guide. Build your profile first, then organize outreach and tracking."}
         </p>
 
         <div className="recruit-page-card">
-          <p className="recruit-panel-title">What happens next</p>
+          <p className="recruit-panel-title">What you can do now</p>
           <ol className="recruit-step-list">
             <li>
               <span>01</span>
-              <p>Open the download page and save your toolkit files.</p>
+              <p>Download the ZIP with designed PDFs + Excel tracker.</p>
             </li>
             <li>
               <span>02</span>
-              <p>Follow the START HERE order of use (about 30–60 minutes).</p>
+              <p>Open START HERE and follow the 30–60 minute setup plan.</p>
             </li>
             <li>
               <span>03</span>
-              <p>Update your tracker as you contact programs.</p>
+              <p>Fill templates, customize coach emails, and track programs.</p>
             </li>
           </ol>
 
           <div style={{ marginTop: 22, display: "flex", flexWrap: "wrap", gap: 12 }}>
-            <Link href="/recruit/download" className="recruit-btn recruit-btn-primary">
+            <Link href={downloadHref} className="recruit-btn recruit-btn-primary">
               Download toolkit
             </Link>
             <Link href="/" className="recruit-btn recruit-btn-secondary">

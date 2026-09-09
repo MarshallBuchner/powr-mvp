@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "build:recruit-toolkit": "python3 scripts/build-recruit-toolkit.py"
   },
   "dependencies": {
     "@vercel/analytics": "^2.0.1",

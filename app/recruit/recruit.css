@@ -1014,6 +1014,48 @@
   letter-spacing: 0.04em;
 }
 
+.recruit-value-label {
+  margin: 10px 0 0;
+  color: var(--recruit-muted);
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.recruit-compare-price {
+  margin: 4px 0 0;
+  color: var(--recruit-muted);
+  font-family: var(--recruit-display);
+  font-size: clamp(1.6rem, 4vw, 2.2rem);
+  letter-spacing: 0.04em;
+  text-decoration: line-through;
+  opacity: 0.72;
+}
+
+.recruit-value-stack li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: baseline;
+}
+
+.recruit-value-stack li em {
+  font-style: normal;
+  color: var(--recruit-soft);
+  font-weight: 800;
+}
+
+.recruit-value-stack li.is-total {
+  margin-top: 6px;
+  border-top: 1px solid var(--recruit-border-green);
+  color: var(--recruit-green);
+}
+
+.recruit-value-stack li.is-total em {
+  color: var(--recruit-green);
+}
+
 .offer-micro {
   margin-bottom: 18px;
 }
