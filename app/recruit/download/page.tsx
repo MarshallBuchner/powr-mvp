@@ -4,12 +4,11 @@ import Link from "next/link";
 import { useEffect } from "react";
 import RecruitHeader from "../components/RecruitHeader";
 import RecruitFooter from "../components/RecruitFooter";
-import { downloadFiles } from "../lib/content";
+import { downloadFiles, toolkitZipPath } from "../lib/content";
 import { trackRecruitEvent } from "../lib/analytics";
 
 /**
  * Delivery page for POWR Recruit toolkit files.
- * Gating/payment verification can be added later without redesigning this UI.
  * TODO(payment): verify purchase entitlement before exposing real file URLs.
  */
 export default function DownloadPage() {
@@ -24,9 +23,10 @@ export default function DownloadPage() {
         <p className="recruit-eyebrow">DOWNLOAD</p>
         <h1>YOUR POWR RECRUIT TOOLKIT</h1>
         <p className="recruit-lead">
-          Files will ship as <strong>POWR-Recruit-Toolkit.zip</strong>. Until
-          checkout is wired, this page shows the package contents and download
-          structure.
+          This launch bundle currently includes nine practical toolkit files:
+          written guides/templates in Markdown plus a recruiting tracker CSV.
+          The current ZIP is a real downloadable starter package and can later
+          be upgraded to polished PDF/XLSX deliverables.
         </p>
 
         <div className="recruit-page-card">
@@ -41,16 +41,16 @@ export default function DownloadPage() {
           </ul>
 
           <div style={{ marginTop: 22, display: "flex", flexWrap: "wrap", gap: 12 }}>
-            <button
-              type="button"
+            <a
+              href={toolkitZipPath}
               className="recruit-btn recruit-btn-primary"
+              download
               onClick={() =>
                 trackRecruitEvent("recruit_download", { action: "zip_click" })
               }
             >
-              {/* TODO(payment): point to hosted zip after purchase verification */}
-              Download ZIP (coming soon)
-            </button>
+              Download ZIP now
+            </a>
             <Link href="/recruit" className="recruit-btn recruit-btn-secondary">
               Back to landing
             </Link>

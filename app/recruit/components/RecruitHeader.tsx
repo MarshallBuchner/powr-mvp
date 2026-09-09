@@ -1,8 +1,6 @@
-"use client";
-
 import Link from "next/link";
 import { PRIMARY_CTA } from "../lib/content";
-import { beginCheckout, CHECKOUT_PREVIEW_PATH } from "../lib/checkout";
+import CheckoutButton from "./CheckoutButton";
 
 type Props = {
   compact?: boolean;
@@ -24,13 +22,12 @@ export default function RecruitHeader({ compact = false }: Props) {
           <Link href="/recruit/sample-profile">Sample profile</Link>
         </nav>
 
-        <Link
-          href={CHECKOUT_PREVIEW_PATH}
+        <CheckoutButton
+          source="header"
           className="recruit-btn recruit-btn-primary recruit-header-cta"
-          onClick={() => beginCheckout("header")}
         >
           {PRIMARY_CTA}
-        </Link>
+        </CheckoutButton>
       </div>
     </header>
   );

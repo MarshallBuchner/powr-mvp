@@ -126,7 +126,7 @@ export const faqItems = [
   },
   {
     q: "What format are the files?",
-    a: "The package includes PDF guides, editable templates, and a recruiting tracker spreadsheet.",
+    a: "The package includes editable written guides/templates in Markdown plus a recruiting tracker CSV for the launch bundle. Those can later be upgraded to PDF/XLSX deliverables if you want polished final exports.",
   },
 ] as const;
 
@@ -204,17 +204,19 @@ Thank you for your time.
 Ethan Carter`,
 };
 
+export const toolkitZipPath = "/recruit/POWR-Recruit-Toolkit.zip";
+
 export const downloadFiles = [
-  { name: "01-START-HERE.pdf", label: "START HERE Guide" },
-  { name: "02-Player-Resume-Template", label: "Player Resume Builder" },
-  { name: "03-Player-Bio-Builder.pdf", label: "Player Bio Builder" },
-  { name: "04-Highlight-Reel-Blueprint.pdf", label: "Highlight Reel Blueprint" },
-  { name: "05-Coach-Contact-Pack.pdf", label: "Coach Contact Pack" },
-  { name: "06-Recruiting-Tracker.xlsx", label: "Recruiting Tracker" },
+  { name: "01-START-HERE.md", label: "START HERE Guide" },
+  { name: "02-Player-Resume-Template.md", label: "Player Resume Builder" },
+  { name: "03-Player-Bio-Builder.md", label: "Player Bio Builder" },
+  { name: "04-Highlight-Reel-Blueprint.md", label: "Highlight Reel Blueprint" },
+  { name: "05-Coach-Contact-Pack.md", label: "Coach Contact Pack" },
+  { name: "06-Recruiting-Tracker.csv", label: "Recruiting Tracker" },
   {
-    name: "07-Tryout-Showcase-Checklist.pdf",
+    name: "07-Tryout-Showcase-Checklist.md",
     label: "Tryout & Showcase Checklist",
   },
-  { name: "08-Recruiting-Roadmap.pdf", label: "Recruiting Roadmap" },
-  { name: "09-Example-Pack.pdf", label: "Example Pack" },
+  { name: "08-Recruiting-Roadmap.md", label: "Recruiting Roadmap" },
+  { name: "09-Example-Pack.md", label: "Example Pack" },
 ] as const;

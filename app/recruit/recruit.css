@@ -186,8 +186,162 @@
 .recruit-hero-content {
   width: min(1120px, calc(100% - 32px));
   margin: 0 auto;
-  padding: 148px 0 80px;
+  padding: 132px 0 72px;
   animation: recruit-rise 700ms ease both;
+}
+
+.recruit-hero-grid {
+  display: grid;
+  gap: 24px;
+}
+
+.recruit-hero-copy-block {
+  position: relative;
+  z-index: 2;
+}
+
+.recruit-hero-visual {
+  position: relative;
+  min-height: 360px;
+  display: grid;
+  align-items: end;
+}
+
+.recruit-hero-note {
+  position: absolute;
+  max-width: 14ch;
+  color: var(--recruit-soft);
+  font-family: var(--recruit-display);
+  font-size: 1.4rem;
+  letter-spacing: 0.04em;
+  line-height: 0.95;
+  opacity: 0.72;
+}
+
+.recruit-note-left {
+  left: 0;
+  top: 20px;
+}
+
+.recruit-note-right {
+  right: 0;
+  top: 6px;
+  text-align: right;
+}
+
+.recruit-device-card {
+  position: relative;
+  border: 1px solid var(--recruit-border);
+  border-radius: 24px;
+  background: linear-gradient(180deg, rgba(20, 26, 22, 0.96) 0%, rgba(12, 16, 14, 0.96) 100%);
+  box-shadow: 0 30px 70px rgba(0, 0, 0, 0.36);
+}
+
+.recruit-device-desktop {
+  padding: 14px;
+}
+
+.recruit-device-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+  color: var(--recruit-soft);
+  font-size: 0.76rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.recruit-device-image {
+  display: block;
+  width: 100%;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.recruit-device-mobile {
+  width: min(220px, 52vw);
+  padding: 10px;
+  position: absolute;
+  right: -2px;
+  bottom: -18px;
+  border-color: var(--recruit-border-green);
+}
+
+.recruit-mobile-frame {
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 16px 14px;
+  background: linear-gradient(180deg, #0b0f0d 0%, #111712 100%);
+}
+
+.recruit-mobile-top {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.recruit-mobile-top span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.recruit-mobile-brand {
+  margin: 0 0 8px;
+  color: var(--recruit-green);
+  font-size: 0.8rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.recruit-mobile-headline {
+  margin: 0 0 14px;
+  font-family: var(--recruit-display);
+  font-size: 1.75rem;
+  line-height: 0.95;
+  letter-spacing: 0.04em;
+}
+
+.recruit-mobile-points {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.recruit-mobile-points li {
+  color: var(--recruit-soft);
+  font-size: 0.86rem;
+  padding-left: 18px;
+  position: relative;
+}
+
+.recruit-mobile-points li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.45rem;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--recruit-green);
+}
+
+.recruit-mobile-cta {
+  margin-top: 14px;
+  min-height: 40px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--recruit-green);
+  color: #041007;
+  font-weight: 900;
+  font-size: 0.88rem;
 }
 
 .recruit-brand-mark {
@@ -1051,6 +1205,25 @@
 }
 
 @media (min-width: 760px) {
+  .recruit-hero-grid {
+    grid-template-columns: minmax(0, 1.02fr) minmax(420px, 0.98fr);
+    align-items: center;
+  }
+
+  .recruit-hero-content {
+    padding-top: 124px;
+  }
+
+  .recruit-hero-visual {
+    min-height: 460px;
+  }
+
+  .recruit-device-mobile {
+    width: 220px;
+    right: -8px;
+    bottom: -22px;
+  }
+
   .recruit-nav {
     display: flex;
   }
@@ -1107,7 +1280,11 @@
 
 @media (min-width: 980px) {
   .recruit-hero-content {
-    padding-top: 160px;
+    padding-top: 138px;
+  }
+
+  .recruit-hero-visual {
+    min-height: 520px;
   }
 
   .recruit-profile-grid {
@@ -1117,5 +1294,35 @@
   .recruit-stat-row {
     grid-column: auto;
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+
+@media (max-width: 759px) {
+  .recruit-hero {
+    min-height: auto;
+  }
+
+  .recruit-hero-content {
+    padding-top: 108px;
+    padding-bottom: 44px;
+  }
+
+  .recruit-hero-visual {
+    min-height: 0;
+    padding-top: 10px;
+  }
+
+  .recruit-hero-note {
+    display: none;
+  }
+
+  .recruit-device-mobile {
+    position: relative;
+    right: auto;
+    bottom: auto;
+    width: 100%;
+    max-width: 220px;
+    margin: -18px 0 0 auto;
   }
 }

@@ -1,10 +1,9 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import Link from "next/link";
 import { offerIncludes, PRIMARY_CTA, PRICE } from "../lib/content";
-import { beginCheckout, CHECKOUT_PREVIEW_PATH } from "../lib/checkout";
 import { trackRecruitEvent } from "../lib/analytics";
+import CheckoutButton from "./CheckoutButton";
 
 export default function OfferStack() {
   const ref = useRef<HTMLElement | null>(null);
@@ -37,13 +36,9 @@ export default function OfferStack() {
           <p className="recruit-micro offer-micro">
             One-time purchase • Instant access • Lifetime access to your files
           </p>
-          <Link
-            href={CHECKOUT_PREVIEW_PATH}
-            className="recruit-btn recruit-btn-primary"
-            onClick={() => beginCheckout("offer")}
-          >
+          <CheckoutButton source="offer" className="recruit-btn recruit-btn-primary">
             {PRIMARY_CTA}
-          </Link>
+          </CheckoutButton>
           <p className="recruit-guarantee">
             Use it for 14 days. If it isn&apos;t useful, request a refund.
           </p>
