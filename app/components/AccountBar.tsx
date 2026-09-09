@@ -13,10 +13,8 @@ export default function AccountBar() {
     return null;
   }
 
-  if (!configured) {
-    return null;
-  }
-
+  // Always show a light home nav so Recruit stays discoverable even before
+  // Supabase accounts are configured.
   return (
     <div className="account-bar">
       <div className="account-bar-inner">
@@ -27,7 +25,7 @@ export default function AccountBar() {
           <Link href="/#start-assessment">Assess</Link>
           <Link href="/assessments">My assessments</Link>
           <Link href="/recruit">Recruit</Link>
-          {loading ? (
+          {!configured ? null : loading ? (
             <span className="account-bar-muted">…</span>
           ) : user ? (
             <>
