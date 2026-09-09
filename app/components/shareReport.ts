@@ -28,9 +28,13 @@ export function createSampleRequest(): AnalysisRequest {
   };
 }
 
-export function getSharePath(request: AnalysisRequest) {
+export function getSharePath(request: AnalysisRequest, savedId?: string) {
   if (isSampleReport(request)) {
     return SAMPLE_SHARE_PATH;
+  }
+
+  if (savedId) {
+    return `/r/${savedId}`;
   }
 
   if (!request.analysis) {

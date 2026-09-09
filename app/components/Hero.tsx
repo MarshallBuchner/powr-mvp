@@ -26,7 +26,8 @@ export default function Hero({ onViewSample }: HeroProps) {
         </p>
 
         <p className="no-account">
-          No account required for your first assessment.
+          No account required for your first assessment. Save it after to come
+          back later.
         </p>
 
         <div className="hero-actions">

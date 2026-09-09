@@ -1028,3 +1028,142 @@ button {
     min-height: 320px;
   }
 }
+/* Account bar + assessments */
+.account-bar {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(9, 11, 13, 0.92);
+  backdrop-filter: blur(12px);
+  position: sticky;
+  top: 0;
+  z-index: 30;
+}
+
+.account-bar-inner {
+  width: min(1120px, calc(100% - 28px));
+  margin: 0 auto;
+  min-height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.account-bar-brand {
+  font-weight: 950;
+  letter-spacing: -0.06em;
+  text-decoration: none;
+  color: var(--text);
+}
+
+.account-bar-nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px 14px;
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
+.account-bar-nav a {
+  color: var(--muted);
+  text-decoration: none;
+}
+
+.account-bar-nav a:hover {
+  color: var(--accent);
+}
+
+.account-bar-muted {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.account-bar-button {
+  appearance: none;
+  border: 1px solid rgba(184, 255, 59, 0.28);
+  background: transparent;
+  color: var(--accent);
+  border-radius: 999px;
+  min-height: 34px;
+  padding: 0 12px;
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 800;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+}
+
+.login-form {
+  display: grid;
+  gap: 10px;
+  margin-top: 22px;
+  max-width: 420px;
+}
+
+.login-form label {
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.login-form input {
+  min-height: 48px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--text);
+  padding: 0 14px;
+}
+
+.login-message {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.login-error {
+  color: var(--danger);
+  font-weight: 700;
+}
+
+.assessment-list {
+  list-style: none;
+  margin: 24px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.assessment-list a {
+  display: grid;
+  gap: 4px;
+  text-decoration: none;
+  color: inherit;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  border-radius: 16px;
+  padding: 16px 18px;
+}
+
+.assessment-list strong {
+  font-size: 1.05rem;
+}
+
+.assessment-list span,
+.assessment-list em {
+  color: var(--muted);
+  font-style: normal;
+  font-size: 0.9rem;
+}
+
+.assessment-empty {
+  margin-top: 22px;
+  padding: 18px;
+  border-radius: 16px;
+  border: 1px dashed var(--border);
+}
