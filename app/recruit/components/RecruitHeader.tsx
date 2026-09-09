@@ -16,9 +16,9 @@ export default function RecruitHeader({ compact = false }: Props) {
         </Link>
 
         <nav className="recruit-nav" aria-label="Recruit navigation">
-          <a href="#whats-inside">What&apos;s inside</a>
-          <a href="#offer">Offer</a>
-          <a href="#faq">FAQ</a>
+          <Link href="/recruit#whats-inside">What&apos;s inside</Link>
+          <Link href="/recruit#offer">Offer</Link>
+          <Link href="/recruit#faq">FAQ</Link>
           <Link href="/recruit/sample-profile">Sample profile</Link>
         </nav>
 

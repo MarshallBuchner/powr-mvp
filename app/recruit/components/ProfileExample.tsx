@@ -75,7 +75,10 @@ export default function ProfileExample() {
         </div>
 
         <div className="recruit-profile-cta-row">
-          <Link href="/recruit/sample-profile" className="recruit-text-link">
+          <Link
+            href="/recruit/sample-profile"
+            className="recruit-btn recruit-btn-secondary"
+          >
             Open full sample profile →
           </Link>
         </div>
