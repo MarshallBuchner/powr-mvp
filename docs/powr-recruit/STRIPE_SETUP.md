@@ -28,10 +28,11 @@ Then checkout uses that Price instead of inline `price_data`.
 1. CTA → `POST /api/recruit/checkout`
 2. Stripe Checkout (or preview fallback if no secret key)
 3. Success → `/recruit/thank-you?session_id=...`
-4. Download → `/recruit/download?session_id=...`
-5. `GET /api/recruit/verify` confirms payment before enabling the ZIP button
+4. Download page → `/recruit/download?session_id=...`
+5. `GET /api/recruit/verify` confirms payment
+6. `GET /api/recruit/download?session_id=...` streams the private ZIP
 
 ## Preview mode
 If `STRIPE_SECRET_KEY` is missing, checkout redirects to:
 `/recruit/thank-you?preview=1`
-so the funnel can still be tested end-to-end.
+so the funnel can still be tested end-to-end. Use download with `session_id=preview`.
