@@ -3,11 +3,14 @@
 import { demoAnalysis } from "./analysisData";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 
 import type { AnalysisRequest } from "./types";
 
 import { goalProfiles } from "./goalProfiles";
 import { getSharePath, isSampleReport } from "./shareReport";
+import { stashPendingAssessment } from "./assessmentStorage";
+import { useAuth } from "./AuthProvider";
 
 import { track } from "@vercel/analytics";
 
@@ -23,6 +26,8 @@ export default function ReportScreen({
 }: ReportScreenProps) {
   const analysis = demoAnalysis;
   const realAnalysis = request.analysis;
+  const router = useRouter();
+  const { configured, user } = useAuth();
 
 
 
@@ -42,6 +47,10 @@ const personalizedCoachSummary =
   const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
   const [feedbackError, setFeedbackError] = useState("");
   const [shareStatus, setShareStatus] = useState<"idle" | "copied">("idle");
+  const [saveStatus, setSaveStatus] = useState<
+    "idle" | "saving" | "saved" | "error"
+  >("idle");
+  const [savedId, setSavedId] = useState<string | null>(null);
   const isSample = isSampleReport(request);
 
   useEffect(() => {
@@ -135,7 +144,7 @@ const personalizedCoachSummary =
   
   POWR — AI Hockey Development`;
   
-    const shareUrl = `${window.location.origin}${getSharePath(request)}`;
+    const shareUrl = `${window.location.origin}${getSharePath(request, savedId ?? undefined)}`;
   
     try {
       if (navigator.share) {
@@ -170,6 +179,49 @@ const personalizedCoachSummary =
       }
     
       console.error("POWR share failed:", error);
+    }
+  }
+
+  async function handleSaveAssessment() {
+    if (!realAnalysis || isSample) {
+      return;
+    }
+
+    const payload = {
+      goal: request.goal,
+      fileName: request.fileName,
+      duration: request.duration,
+      analysis: realAnalysis,
+    };
+
+    if (!configured) {
+      setSaveStatus("error");
+      return;
+    }
+
+    if (!user) {
+      stashPendingAssessment(payload);
+      router.push("/login?next=/assessments");
+      return;
+    }
+
+    setSaveStatus("saving");
+    try {
+      const res = await fetch("/api/assessments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) {
+        throw new Error("save_failed");
+      }
+      const data = (await res.json()) as { id: string };
+      setSavedId(data.id);
+      setSaveStatus("saved");
+      track("assessment_saved", { goal: request.goal });
+    } catch (error) {
+      console.error("POWR save failed:", error);
+      setSaveStatus("error");
     }
   }
 
@@ -599,6 +651,25 @@ const personalizedCoachSummary =
 </div>
 
 <div className="report-actions">
+  {!isSample && realAnalysis ? (
+    <button
+      className="share-assessment-button"
+      type="button"
+      onClick={() => void handleSaveAssessment()}
+      disabled={saveStatus === "saving" || saveStatus === "saved"}
+    >
+      {saveStatus === "saving"
+        ? "Saving…"
+        : saveStatus === "saved"
+          ? "Saved to My Assessments ✓"
+          : saveStatus === "error"
+            ? "Save failed — try again"
+            : user
+              ? "Save to My POWR Account"
+              : "Save & create free account"}
+    </button>
+  ) : null}
+
   <button
     className="share-assessment-button"
     type="button"

@@ -14,11 +14,16 @@ Current Progress
 
 - ✅ Landing Page
 - ✅ Video Upload Experience
-- 🚧 AI Analysis Experience
-- ⏳ Development Report
-- ⏳ Authentication
-- ⏳ Player Dashboard
+- ✅ AI Analysis Experience
+- ✅ Development Report
+- ✅ Shareable reports
+- ✅ POWR Recruit product page (`/recruit`)
+- 🚧 Authentication + saved assessments
+- ⏳ Player Dashboard polish
 - ⏳ Coach Platform
+
+See `docs/AUTH.md` for magic-link account setup.
+See `docs/powr-recruit/` for Recruit launch package.
 
 ---
 

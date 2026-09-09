@@ -1,0 +1,24 @@
+Read every markdown file in the `POWR_Recruit_Cursor_Package` folder before coding.
+
+Start with `CURSOR_MASTER_PROMPT.md`.
+
+Build POWR Recruit as a polished `/recruit` product experience inside the existing POWR app without breaking any current routes or styles.
+
+Use the provided landing page copy, product spec, design system, toolkit content spec, and ad/marketing direction.
+
+Prioritize:
+1. mobile conversion
+2. premium credibility
+3. clear $39 CAD one-time offer
+4. strong product visualization
+5. no fake claims/testimonials
+6. reusable components
+7. clean responsive code
+
+If checkout is not yet configured, create the UI and a clean checkout abstraction with TODO markers rather than blocking the build.
+
+After implementation:
+- run the app
+- fix TypeScript/build errors
+- verify `/recruit` on desktop and mobile
+- summarize all files changed

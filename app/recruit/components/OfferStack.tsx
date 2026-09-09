@@ -1,0 +1,68 @@
+"use client";
+
+import { useEffect, useRef } from "react";
+import {
+  COMPARE_AT_VALUE,
+  PRIMARY_CTA,
+  PRICE,
+  valueStack,
+} from "../lib/content";
+import { trackRecruitEvent } from "../lib/analytics";
+import CheckoutButton from "./CheckoutButton";
+
+export default function OfferStack() {
+  const ref = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    const node = ref.current;
+    if (!node) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry?.isIntersecting) {
+          trackRecruitEvent("recruit_offer_view");
+          observer.disconnect();
+        }
+      },
+      { threshold: 0.35 },
+    );
+
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
+
+  return (
+    <section className="recruit-section" id="offer" ref={ref}>
+      <div className="recruit-offer">
+        <div>
+          <p className="recruit-eyebrow">THE OFFER</p>
+          <h2>THE COMPLETE POWR RECRUIT TOOLKIT</h2>
+          <p className="recruit-value-label">Total toolkit value</p>
+          <p className="recruit-compare-price">{COMPARE_AT_VALUE}</p>
+          <p className="recruit-price">{PRICE}</p>
+          <p className="recruit-micro offer-micro">
+            One-time purchase • Instant access • Lifetime access to your files
+          </p>
+          <CheckoutButton source="offer" className="recruit-btn recruit-btn-primary">
+            {PRIMARY_CTA}
+          </CheckoutButton>
+          <p className="recruit-guarantee">
+            Use it for 14 days. If it isn&apos;t useful, request a refund.
+          </p>
+        </div>
+        <ul className="recruit-offer-list recruit-value-stack">
+          {valueStack.map((row) => (
+            <li key={row.item}>
+              <span>{row.item}</span>
+              <em>{row.value}</em>
+            </li>
+          ))}
+          <li className="is-total">
+            <span>Combined value</span>
+            <em>{COMPARE_AT_VALUE}</em>
+          </li>
+        </ul>
+      </div>
+    </section>
+  );
+}
