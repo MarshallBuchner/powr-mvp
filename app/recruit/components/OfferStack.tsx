@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import Link from "next/link";
 import { offerIncludes, PRIMARY_CTA, PRICE } from "../lib/content";
-import { handleCheckout } from "../lib/checkout";
+import { beginCheckout, CHECKOUT_PREVIEW_PATH } from "../lib/checkout";
 import { trackRecruitEvent } from "../lib/analytics";
 
 export default function OfferStack() {
@@ -36,13 +37,13 @@ export default function OfferStack() {
           <p className="recruit-micro offer-micro">
             One-time purchase • Instant access • Lifetime access to your files
           </p>
-          <button
-            type="button"
+          <Link
+            href={CHECKOUT_PREVIEW_PATH}
             className="recruit-btn recruit-btn-primary"
-            onClick={() => void handleCheckout("offer")}
+            onClick={() => beginCheckout("offer")}
           >
             {PRIMARY_CTA}
-          </button>
+          </Link>
           <p className="recruit-guarantee">
             Use it for 14 days. If it isn&apos;t useful, request a refund.
           </p>

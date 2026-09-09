@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { PRIMARY_CTA } from "../lib/content";
-import { handleCheckout } from "../lib/checkout";
+import { beginCheckout, CHECKOUT_PREVIEW_PATH } from "../lib/checkout";
 
 export default function StickyMobileCTA() {
   const [visible, setVisible] = useState(false);
@@ -22,14 +23,14 @@ export default function StickyMobileCTA() {
       className={`recruit-sticky-cta${visible ? " is-visible" : ""}`}
       aria-hidden={!visible}
     >
-      <button
-        type="button"
+      <Link
+        href={CHECKOUT_PREVIEW_PATH}
         className="recruit-btn recruit-btn-primary"
         tabIndex={visible ? 0 : -1}
-        onClick={() => void handleCheckout("sticky")}
+        onClick={() => beginCheckout("sticky")}
       >
         {PRIMARY_CTA}
-      </button>
+      </Link>
     </div>
   );
 }

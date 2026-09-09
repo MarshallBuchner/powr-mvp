@@ -1,20 +1,15 @@
 "use client";
 
+import Link from "next/link";
 import { PRIMARY_CTA, trustItems } from "../lib/content";
-import { handleCheckout } from "../lib/checkout";
-import { trackRecruitEvent } from "../lib/analytics";
+import { beginCheckout, CHECKOUT_PREVIEW_PATH } from "../lib/checkout";
 
 export default function RecruitHero() {
   return (
     <section className="recruit-hero" aria-labelledby="recruit-hero-heading">
       <div className="recruit-hero-media" aria-hidden="true">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          className="recruit-hero-photo"
-          src="/recruit/01a086b4-f428-74b6-b1ab-5e4badd8a8b6.jpg"
-          alt=""
-        />
-        <div className="recruit-hero-veil" />
+        <div className="recruit-hero-atmosphere" />
+        <div className="recruit-hero-rink" />
         <div className="recruit-hero-grain" />
       </div>
 
@@ -38,16 +33,13 @@ export default function RecruitHero() {
         </p>
 
         <div className="recruit-hero-actions">
-          <button
-            type="button"
+          <Link
+            href={CHECKOUT_PREVIEW_PATH}
             className="recruit-btn recruit-btn-primary"
-            onClick={() => {
-              trackRecruitEvent("recruit_cta_click", { source: "hero" });
-              void handleCheckout("hero");
-            }}
+            onClick={() => beginCheckout("hero")}
           >
             {PRIMARY_CTA}
-          </button>
+          </Link>
           <a className="recruit-btn recruit-btn-secondary" href="#whats-inside">
             SEE WHAT&apos;S INSIDE
           </a>

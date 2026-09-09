@@ -1,7 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import { PRIMARY_CTA } from "../lib/content";
-import { handleCheckout } from "../lib/checkout";
+import { beginCheckout, CHECKOUT_PREVIEW_PATH } from "../lib/checkout";
 
 export default function FinalCTA() {
   return (
@@ -12,13 +13,13 @@ export default function FinalCTA() {
         Get organized. Present yourself better. Make it easier for coaches to
         evaluate you.
       </p>
-      <button
-        type="button"
+      <Link
+        href={CHECKOUT_PREVIEW_PATH}
         className="recruit-btn recruit-btn-primary"
-        onClick={() => void handleCheckout("final")}
+        onClick={() => beginCheckout("final")}
       >
         {PRIMARY_CTA}
-      </button>
+      </Link>
     </section>
   );
 }

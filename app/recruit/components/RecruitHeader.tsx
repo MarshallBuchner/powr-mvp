@@ -2,8 +2,7 @@
 
 import Link from "next/link";
 import { PRIMARY_CTA } from "../lib/content";
-import { handleCheckout } from "../lib/checkout";
-import { trackRecruitEvent } from "../lib/analytics";
+import { beginCheckout, CHECKOUT_PREVIEW_PATH } from "../lib/checkout";
 
 type Props = {
   compact?: boolean;
@@ -25,16 +24,13 @@ export default function RecruitHeader({ compact = false }: Props) {
           <Link href="/recruit/sample-profile">Sample profile</Link>
         </nav>
 
-        <button
-          type="button"
+        <Link
+          href={CHECKOUT_PREVIEW_PATH}
           className="recruit-btn recruit-btn-primary recruit-header-cta"
-          onClick={() => {
-            trackRecruitEvent("recruit_cta_click", { source: "header" });
-            void handleCheckout("header");
-          }}
+          onClick={() => beginCheckout("header")}
         >
           {PRIMARY_CTA}
-        </button>
+        </Link>
       </div>
     </header>
   );
