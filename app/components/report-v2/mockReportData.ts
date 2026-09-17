@@ -6,12 +6,15 @@ export type ReportV2Drill = {
   description: string;
   duration: string;
   difficulty: "Beginner" | "Intermediate" | "Advanced";
-  category: string;
+  category: "Skating" | "Strength" | "On-Ice" | "Off-Ice";
+  image: string;
 };
 
 export type ReportV2Priority = {
   title: string;
   detail: string;
+  image: string;
+  tone: "critical" | "focus" | "steady";
 };
 
 export type ReportV2ProgressPoint = {
@@ -22,9 +25,20 @@ export type ReportV2ProgressPoint = {
 export type ReportV2Model = {
   playerLabel: string;
   goal: string;
+  assessedOn: string;
   coachName: string;
+  coachTitle: string;
+  coachImage: string;
+  heroImage: string;
   analysis: RealAnalysis;
-  categories: { name: string; score: number }[];
+  categories: { name: string; score: number; icon: string }[];
+  comparison: {
+    youImage: string;
+    proImage: string;
+    youAngle: string;
+    proAngle: string;
+    duration: string;
+  };
   priorities: ReportV2Priority[];
   drills: ReportV2Drill[];
   progress: ReportV2ProgressPoint[];
@@ -35,7 +49,11 @@ export type ReportV2Model = {
 export const mockReportV2: ReportV2Model = {
   playerLabel: "Your skating profile",
   goal: "Overall skating",
-  coachName: "POWR Coach",
+  assessedOn: "Mar 8, 2025",
+  coachName: "Coach Jamie",
+  coachTitle: "POWR Coach",
+  coachImage: "/report-v2/report-v2-coach.jpg",
+  heroImage: "/report-v2/report-v2-hero.jpg",
   analysis: {
     ...sampleAnalysis,
     overallScore: 78,
@@ -103,54 +121,78 @@ export const mockReportV2: ReportV2Model = {
     ],
   },
   categories: [
-    { name: "Acceleration", score: 82 },
-    { name: "Stride Power", score: 75 },
-    { name: "Edge Control", score: 71 },
-    { name: "Balance & Stability", score: 80 },
-    { name: "Efficiency", score: 76 },
+    { name: "Acceleration", score: 82, icon: "⚡" },
+    { name: "Stride Power", score: 75, icon: "↗" },
+    { name: "Edge Control", score: 71, icon: "◎" },
+    { name: "Balance & Stability", score: 80, icon: "◇" },
+    { name: "Efficiency", score: 76, icon: "⟳" },
   ],
+  comparison: {
+    youImage: "/report-v2/report-v2-skate-you.jpg",
+    proImage: "/report-v2/report-v2-skate-pro.jpg",
+    youAngle: "142°",
+    proAngle: "126°",
+    duration: "0:38",
+  },
   priorities: [
     {
       title: "Increase Stride Extension",
       detail: "Get more reach and power in each stride.",
+      image: "/report-v2/report-v2-priority-stride.jpg",
+      tone: "critical",
     },
     {
       title: "Improve Knee Bend",
       detail: "Get lower for better power and stability.",
+      image: "/report-v2/report-v2-priority-knee.jpg",
+      tone: "focus",
     },
     {
       title: "Upper Body Stability",
       detail: "Keep your chest over your skates through your stride.",
+      image: "/report-v2/report-v2-priority-stability.jpg",
+      tone: "steady",
     },
   ],
   drills: [
     {
       title: "Power Push",
       description: "Build explosive power and longer strides.",
-      duration: "10 min",
+      duration: "10 MIN",
       difficulty: "Intermediate",
       category: "Skating",
+      image: "/report-v2/report-v2-drill-power.jpg",
     },
     {
       title: "Deep Knee Drive",
       description: "Improve knee bend and edge engagement.",
-      duration: "8 min",
+      duration: "8 MIN",
       difficulty: "Beginner",
-      category: "Skating",
+      category: "On-Ice",
+      image: "/report-v2/report-v2-drill-knee.jpg",
     },
     {
       title: "Balance Under Pressure",
       description: "Stay stable through contact and quick transitions.",
-      duration: "10 min",
+      duration: "10 MIN",
       difficulty: "Intermediate",
-      category: "Skating",
+      category: "Strength",
+      image: "/report-v2/report-v2-drill-balance.jpg",
+    },
+    {
+      title: "Off-Ice Lateral Bounds",
+      description: "Train single-leg power and landing control.",
+      duration: "12 MIN",
+      difficulty: "Advanced",
+      category: "Off-Ice",
+      image: "/report-v2/report-v2-drill-balance.jpg",
     },
   ],
   progress: [
-    { label: "Week 0", score: 56 },
-    { label: "Week 4", score: 64 },
-    { label: "Week 8", score: 71 },
-    { label: "Week 12", score: 78 },
+    { label: "Jan 15", score: 56 },
+    { label: "Feb 5", score: 64 },
+    { label: "Feb 20", score: 71 },
+    { label: "Mar 8", score: 78 },
   ],
   deltaVsLast: 12,
 };
@@ -162,25 +204,44 @@ export function reportV2FromAnalysis(
   return {
     playerLabel: "Your skating profile",
     goal,
+    assessedOn: "Today",
     coachName: "POWR Coach",
+    coachTitle: "AI Coach",
+    coachImage: "/report-v2/report-v2-coach.jpg",
+    heroImage: "/report-v2/report-v2-hero.jpg",
     analysis,
     categories: analysis.movementMetrics.map((m) => ({
       name: m.title,
       score: m.score,
+      icon: "•",
     })),
+    comparison: {
+      youImage: "/report-v2/report-v2-skate-you.jpg",
+      proImage: "/report-v2/report-v2-skate-pro.jpg",
+      youAngle: "—",
+      proAngle: "—",
+      duration: "0:00",
+    },
     priorities: [
       {
         title: analysis.priorityImprovement,
         detail: analysis.whyItMatters,
+        image: "/report-v2/report-v2-priority-stride.jpg",
+        tone: "critical" as const,
       },
       ...analysis.movementMetrics
         .filter((m) => m.score < 80)
         .slice(0, 2)
-        .map((m) => ({
+        .map((m, i) => ({
           title: m.title,
           detail:
             m.observations.find((o) => o.type === "improve")?.text ||
             m.explanation,
+          image:
+            i === 0
+              ? "/report-v2/report-v2-priority-knee.jpg"
+              : "/report-v2/report-v2-priority-stability.jpg",
+          tone: (i === 0 ? "focus" : "steady") as "focus" | "steady",
         })),
     ].slice(0, 3),
     drills: analysis.drills.map((d, i) => ({
@@ -190,11 +251,10 @@ export function reportV2FromAnalysis(
       difficulty: (["Beginner", "Intermediate", "Advanced"] as const)[
         Math.min(i, 2)
       ],
-      category: "Skating",
+      category: "Skating" as const,
+      image: "/report-v2/report-v2-drill-power.jpg",
     })),
-    progress: [
-      { label: "Now", score: analysis.overallScore },
-    ],
+    progress: [{ label: "Now", score: analysis.overallScore }],
     deltaVsLast: null,
   };
 }
