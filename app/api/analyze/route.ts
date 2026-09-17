@@ -10,12 +10,28 @@ import {
   writeEntitlementCookie,
 } from "@/lib/entitlementCookie";
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+function getOpenAIClient() {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) {
+    return null;
+  }
+
+  return new OpenAI({ apiKey });
+}
 
 export async function POST(request: NextRequest) {
   try {
+    const openai = getOpenAIClient();
+    if (!openai) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Analysis is not configured in this environment.",
+        },
+        { status: 503 },
+      );
+    }
+
     const entitlement = readEntitlementCookie(request);
 
     if (!canRunAssessment(entitlement)) {
