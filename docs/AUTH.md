@@ -10,6 +10,7 @@ Accounts are for the **skating assessment product loop** (save reports + come ba
 - `/assessments` history list
 - Stable share links at `/r/[id]` for saved reports
 - Guest first assessment still works with no account
+- Soft upgrade after free assessment (see `docs/ASSESSMENT_BILLING.md`)
 
 ## Setup
 1. Create a Supabase project
