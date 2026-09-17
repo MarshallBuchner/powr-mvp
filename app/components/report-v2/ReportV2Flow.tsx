@@ -17,6 +17,7 @@ import CategoryBar from "./CategoryBar";
 import VideoComparison from "./VideoComparison";
 import DrillCard, { DrillMediaLightbox } from "./DrillCard";
 import ProgressChart from "./ProgressChart";
+import MediaSlideshow from "./MediaSlideshow";
 import type { ReportV2Drill, ReportV2Model } from "./mockReportData";
 import {
   REPORT_V2_STEPS,
@@ -61,6 +62,26 @@ export default function ReportV2Flow({
     if (drillFilter === "All") return model.drills;
     return model.drills.filter((d) => d.category === drillFilter);
   }, [model.drills, drillFilter]);
+
+  const prioritySlides = useMemo(
+    () =>
+      model.priorities.map((p) => ({
+        image: p.image,
+        title: p.title,
+        caption: p.detail,
+      })),
+    [model.priorities],
+  );
+
+  const drillSlides = useMemo(
+    () =>
+      filteredDrills.map((d) => ({
+        image: d.image,
+        title: d.title,
+        caption: `${d.category} · ${d.duration}`,
+      })),
+    [filteredDrills],
+  );
 
   const progressGain =
     model.progress.length > 1
@@ -169,6 +190,22 @@ export default function ReportV2Flow({
           <section className="rv2-panel">
             <p className="rv2-eyebrow">TOP PRIORITIES</p>
             <h2>Focus on these areas for the biggest improvement</h2>
+            <MediaSlideshow
+              slides={prioritySlides}
+              label="Priority clips"
+              onSelect={(slide) => {
+                const match = model.priorities.find((p) => p.title === slide.title);
+                if (!match) return;
+                setActiveDrill({
+                  title: match.title,
+                  description: match.detail,
+                  duration: "CLIP",
+                  difficulty: "Intermediate",
+                  category: "Skating",
+                  image: match.image,
+                });
+              }}
+            />
             <ol className="rv2-priority-list">
               {model.priorities.map((p, i) => (
                 <li key={p.title} className={`is-${p.tone}`}>
@@ -222,6 +259,14 @@ export default function ReportV2Flow({
                 </button>
               ))}
             </div>
+            <MediaSlideshow
+              slides={drillSlides}
+              label="Drill examples"
+              onSelect={(slide) => {
+                const match = filteredDrills.find((d) => d.title === slide.title);
+                if (match) setActiveDrill(match);
+              }}
+            />
             <div className="rv2-drill-list">
               {filteredDrills.map((d) => (
                 <DrillCard key={d.title} drill={d} onOpen={setActiveDrill} />
@@ -282,6 +327,8 @@ export default function ReportV2Flow({
     drillFilter,
     filteredDrills,
     progressGain,
+    prioritySlides,
+    drillSlides,
   ]);
 
   return (
