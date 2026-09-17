@@ -1,8 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import Link from "next/link";
-import { AnimatePresence, motion } from "framer-motion";
 import { ChevronLeft, ChevronRight, Share2 } from "lucide-react";
 import ScoreCircle from "./ScoreCircle";
 import CategoryBar from "./CategoryBar";
@@ -10,27 +9,32 @@ import VideoComparison from "./VideoComparison";
 import DrillCard from "./DrillCard";
 import ProgressChart from "./ProgressChart";
 import type { ReportV2Model } from "./mockReportData";
+import {
+  REPORT_V2_STEPS,
+  reportV2StepHref,
+} from "./reportV2Steps";
 import "./report-v2.css";
-
-const STEPS = [
-  "Overview",
-  "Score",
-  "Breakdown",
-  "Priorities",
-  "Drills",
-  "Progress",
-] as const;
 
 type ReportV2FlowProps = {
   model: ReportV2Model;
   demoMode?: boolean;
+  /** 0-based step from the URL so nav works even if JS fails to hydrate */
+  initialStep?: number;
 };
+
+function stepHref(index: number) {
+  return reportV2StepHref(index);
+}
 
 export default function ReportV2Flow({
   model,
   demoMode = false,
+  initialStep = 0,
 }: ReportV2FlowProps) {
-  const [step, setStep] = useState(0);
+  const step = Math.max(
+    0,
+    Math.min(REPORT_V2_STEPS.length - 1, initialStep),
+  );
   const scoreLabel =
     model.analysis.overallScore >= 85
       ? "EXCELLENT"
@@ -39,20 +43,16 @@ export default function ReportV2Flow({
         : "DEVELOPING";
 
   const stepContent = useMemo(() => {
-    switch (STEPS[step]) {
+    switch (REPORT_V2_STEPS[step]) {
       case "Overview":
         return (
           <section className="rv2-panel rv2-hero-panel">
             <p className="rv2-eyebrow">AI-POWERED SKATING ASSESSMENT</p>
             <h1>Personalized feedback. Real improvement.</h1>
             <p className="rv2-lead">TRAIN SMARTER. PLAY FASTER.</p>
-            <button
-              type="button"
-              className="rv2-primary"
-              onClick={() => setStep(1)}
-            >
+            <Link href={stepHref(1)} className="rv2-primary">
               View My Results →
-            </button>
+            </Link>
             {demoMode ? (
               <p className="rv2-demo-note">
                 Preview UI with mock data. Live analyze → report is unchanged.
@@ -119,13 +119,9 @@ export default function ReportV2Flow({
                 </li>
               ))}
             </ol>
-            <button
-              type="button"
-              className="rv2-primary"
-              onClick={() => setStep(4)}
-            >
+            <Link href={stepHref(4)} className="rv2-primary">
               View Recommended Drills →
-            </button>
+            </Link>
           </section>
         );
       case "Drills":
@@ -138,13 +134,9 @@ export default function ReportV2Flow({
                 <DrillCard key={d.title} drill={d} />
               ))}
             </div>
-            <button
-              type="button"
-              className="rv2-primary"
-              onClick={() => setStep(5)}
-            >
+            <Link href={stepHref(5)} className="rv2-primary">
               View Full Development Plan →
-            </button>
+            </Link>
           </section>
         );
       case "Progress":
@@ -186,53 +178,51 @@ export default function ReportV2Flow({
           POWR
         </Link>
         <span className="rv2-step-label">
-          {step + 1}/{STEPS.length} · {STEPS[step]}
+          {step + 1}/{REPORT_V2_STEPS.length} · {REPORT_V2_STEPS[step]}
         </span>
       </header>
 
       <nav className="rv2-tabs" aria-label="Report sections">
-        {STEPS.map((label, index) => (
-          <button
+        {REPORT_V2_STEPS.map((label, index) => (
+          <Link
             key={label}
-            type="button"
+            href={stepHref(index)}
             className={index === step ? "is-active" : undefined}
-            onClick={() => setStep(index)}
+            aria-current={index === step ? "step" : undefined}
+            scroll={false}
           >
             {label}
-          </button>
+          </Link>
         ))}
       </nav>
 
-      <AnimatePresence mode="wait">
-        <motion.div
-          key={STEPS[step]}
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -8 }}
-          transition={{ duration: 0.22 }}
-          className="rv2-stage"
-        >
-          {stepContent}
-        </motion.div>
-      </AnimatePresence>
+      <div key={REPORT_V2_STEPS[step]} className="rv2-stage">
+        {stepContent}
+      </div>
 
       <footer className="rv2-footer-nav">
-        <button
-          type="button"
-          className="rv2-nav-btn"
-          disabled={step === 0}
-          onClick={() => setStep((s) => Math.max(0, s - 1))}
-        >
-          <ChevronLeft size={18} /> Back
-        </button>
-        <button
-          type="button"
-          className="rv2-nav-btn is-next"
-          disabled={step === STEPS.length - 1}
-          onClick={() => setStep((s) => Math.min(STEPS.length - 1, s + 1))}
-        >
-          Next <ChevronRight size={18} />
-        </button>
+        {step === 0 ? (
+          <span className="rv2-nav-btn is-disabled" aria-disabled="true">
+            <ChevronLeft size={18} /> Back
+          </span>
+        ) : (
+          <Link href={stepHref(step - 1)} className="rv2-nav-btn" scroll={false}>
+            <ChevronLeft size={18} /> Back
+          </Link>
+        )}
+        {step === REPORT_V2_STEPS.length - 1 ? (
+          <span className="rv2-nav-btn is-next is-disabled" aria-disabled="true">
+            Next <ChevronRight size={18} />
+          </span>
+        ) : (
+          <Link
+            href={stepHref(step + 1)}
+            className="rv2-nav-btn is-next"
+            scroll={false}
+          >
+            Next <ChevronRight size={18} />
+          </Link>
+        )}
       </footer>
     </div>
   );

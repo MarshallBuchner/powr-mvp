@@ -49,7 +49,7 @@
   display: none;
 }
 
-.rv2-tabs button {
+.rv2-tabs a {
   flex: 0 0 auto;
   border: 1px solid rgba(255, 255, 255, 0.08);
   background: rgba(255, 255, 255, 0.03);
@@ -60,10 +60,11 @@
   font-weight: 800;
   letter-spacing: 0.04em;
   text-transform: uppercase;
+  text-decoration: none;
   cursor: pointer;
 }
 
-.rv2-tabs button.is-active {
+.rv2-tabs a.is-active {
   color: #041007;
   background: #8cffbd;
   border-color: #8cffbd;
@@ -72,6 +73,24 @@
 .rv2-stage {
   flex: 1;
   padding: 8px 14px 24px;
+  animation: rv2-stage-in 0.22s ease;
+}
+
+@keyframes rv2-stage-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rv2-stage {
+    animation: none;
+  }
 }
 
 .rv2-panel {
@@ -139,6 +158,8 @@
   cursor: pointer;
   font: inherit;
   font-weight: 850;
+  text-decoration: none;
+  box-sizing: border-box;
 }
 
 .rv2-primary {
@@ -147,6 +168,9 @@
   border-radius: 14px;
   background: #8cffbd;
   color: #041007;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .rv2-secondary {
@@ -523,9 +547,11 @@
   gap: 6px;
 }
 
-.rv2-nav-btn:disabled {
+.rv2-nav-btn:disabled,
+.rv2-nav-btn.is-disabled {
   opacity: 0.35;
   cursor: not-allowed;
+  pointer-events: none;
 }
 
 .rv2-nav-btn.is-next {

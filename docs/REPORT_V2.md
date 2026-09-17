@@ -11,6 +11,7 @@ Visual, mobile-first assessment report experience based on the MVP mockups.
 ```bash
 npm run dev
 open http://localhost:3000/r/v2
+# Steps: /r/v2?step=2 … ?step=6 (1 = Overview)
 ```
 
 ## Next steps (later PRs)
