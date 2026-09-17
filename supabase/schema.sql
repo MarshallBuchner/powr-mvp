@@ -7,9 +7,17 @@ create table if not exists public.profiles (
   id uuid primary key references auth.users (id) on delete cascade,
   email text,
   display_name text,
+  free_assessments_used integer not null default 0,
+  assessment_credits integer not null default 0,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+-- Safe to re-run: add entitlement columns if profiles already exists.
+alter table public.profiles
+  add column if not exists free_assessments_used integer not null default 0;
+alter table public.profiles
+  add column if not exists assessment_credits integer not null default 0;
 
 create table if not exists public.assessments (
   id uuid primary key default gen_random_uuid(),

@@ -1,16 +1,41 @@
 import OpenAI from "openai";
+import { NextRequest, NextResponse } from "next/server";
+import {
+  canRunAssessment,
+  consumeAssessment,
+  remainingAssessments,
+} from "@/lib/assessmentBilling";
+import {
+  readEntitlementCookie,
+  writeEntitlementCookie,
+} from "@/lib/entitlementCookie";
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
+    const entitlement = readEntitlementCookie(request);
+
+    if (!canRunAssessment(entitlement)) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "free_assessment_used",
+          message:
+            "You've used your free assessment. Unlock a pack to analyze another clip.",
+          remaining: 0,
+        },
+        { status: 402 },
+      );
+    }
+
     const body = await request.json();
     const { frames, goal } = body;
 
     if (!Array.isArray(frames) || frames.length === 0) {
-      return Response.json(
+      return NextResponse.json(
         {
           success: false,
           error: "No video frames were provided.",
@@ -217,15 +242,20 @@ Return a development assessment suitable for POWR.
     });
 
     const analysis = JSON.parse(response.output_text);
+    const nextEntitlement = consumeAssessment(entitlement);
 
-    return Response.json({
+    const json = NextResponse.json({
       success: true,
       analysis,
+      remaining: remainingAssessments(nextEntitlement),
+      entitlements: nextEntitlement,
     });
+
+    return writeEntitlementCookie(json, nextEntitlement);
   } catch (error) {
     console.error("POWR analysis error:", error);
 
-    return Response.json(
+    return NextResponse.json(
       {
         success: false,
         error: "Analysis request failed.",

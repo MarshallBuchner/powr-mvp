@@ -13,6 +13,11 @@ import { stashPendingAssessment } from "./assessmentStorage";
 import { useAuth } from "./AuthProvider";
 
 import { track } from "@vercel/analytics";
+import UpgradePanel from "./UpgradePanel";
+import {
+  getLocalRemainingAssessments,
+  localCanRunAssessment,
+} from "./assessmentEntitlements";
 
 type ReportScreenProps = {
   request: AnalysisRequest;
@@ -52,6 +57,11 @@ const personalizedCoachSummary =
   >("idle");
   const [savedId, setSavedId] = useState<string | null>(null);
   const isSample = isSampleReport(request);
+  const [remaining, setRemaining] = useState(1);
+
+  useEffect(() => {
+    setRemaining(getLocalRemainingAssessments());
+  }, []);
 
   useEffect(() => {
     if (!realAnalysis) {
@@ -61,7 +71,11 @@ const personalizedCoachSummary =
     track("report_viewed", {
       goal: request.goal,
     });
-  }, [realAnalysis, request.goal]);
+
+    if (!isSample && !localCanRunAssessment()) {
+      track("upgrade_viewed", { source: "report" });
+    }
+  }, [realAnalysis, request.goal, isSample]);
 
   useEffect(() => {
     let animationFrame = 0;
@@ -657,6 +671,12 @@ const personalizedCoachSummary =
 </div>
 
 <div className="report-actions">
+  {!isSample && realAnalysis && remaining <= 0 ? (
+    <div className="report-upgrade-wrap">
+      <UpgradePanel source="report" remaining={remaining} compact />
+    </div>
+  ) : null}
+
   {!isSample && realAnalysis ? (
     <button
       className="share-assessment-button"
@@ -688,7 +708,19 @@ const personalizedCoachSummary =
         : "Share My POWR Assessment ↗"}
   </button>
 
-  <button type="button" onClick={onRestart}>
+  <button
+    type="button"
+    onClick={() => {
+      if (!isSample && !localCanRunAssessment()) {
+        track("upgrade_viewed", { source: "report_next_session" });
+        document
+          .querySelector(".report-upgrade-wrap")
+          ?.scrollIntoView({ behavior: "smooth", block: "center" });
+        return;
+      }
+      onRestart();
+    }}
+  >
     Upload Your Next Session →
   </button>
 </div>
@@ -1585,6 +1617,14 @@ const personalizedCoachSummary =
           flex-direction: column;
           gap: 12px;
           flex-shrink: 0;
+        }
+
+        .report-upgrade-wrap {
+          margin-bottom: 4px;
+        }
+
+        .report-upgrade-wrap :global(.upgrade-panel) {
+          text-align: left;
         }
         
         .share-assessment-button {

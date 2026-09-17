@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Analytics } from "@vercel/analytics/next";
 import { AuthProvider } from "./components/AuthProvider";
 import AccountBar from "./components/AccountBar";
+import CreatorReferralCapture from "./components/CreatorReferralCapture";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -51,6 +53,9 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col">
         <AuthProvider>
           <AccountBar />
+          <Suspense fallback={null}>
+            <CreatorReferralCapture />
+          </Suspense>
           {children}
         </AuthProvider>
         <Analytics />

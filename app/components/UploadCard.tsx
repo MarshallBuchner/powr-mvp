@@ -11,7 +11,16 @@ import {
 import GoalSelector from "./GoalSelector";
 import type { AnalysisRequest } from "./types";
 import { track } from "@vercel/analytics";
-
+import UpgradePanel from "./UpgradePanel";
+import {
+  getLocalRemainingAssessments,
+  localCanRunAssessment,
+  localConsumeAssessment,
+  readLocalEntitlements,
+  syncEntitlementCookie,
+  writeLocalEntitlements,
+} from "./assessmentEntitlements";
+import { remainingAssessments } from "@/lib/assessmentBilling";
 
 const goals = [
   "Overall skating",
@@ -122,8 +131,36 @@ export default function UploadCard({
   const [duration, setDuration] = useState<number | null>(null);
   const [error, setError] = useState("");
   const [isDragging, setIsDragging] = useState(false);
+  const [remaining, setRemaining] = useState(1);
+  const [needsUpgrade, setNeedsUpgrade] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    setRemaining(getLocalRemainingAssessments());
+    setNeedsUpgrade(!localCanRunAssessment());
+
+    void (async () => {
+      try {
+        const res = await fetch("/api/assessments/entitlement");
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data && typeof data.freeUsed === "number") {
+          writeLocalEntitlements({
+            freeUsed: data.freeUsed,
+            credits: data.credits || 0,
+            unlockedSessionIds: data.unlockedSessionIds || [],
+          });
+          setRemaining(data.remaining ?? getLocalRemainingAssessments());
+          setNeedsUpgrade(!(data.canRun ?? localCanRunAssessment()));
+        } else {
+          await syncEntitlementCookie(readLocalEntitlements());
+        }
+      } catch {
+        // Keep local entitlement state if sync is unavailable.
+      }
+    })();
+  }, []);
 
   useEffect(() => {
     if (!selectedFile) {
@@ -205,9 +242,17 @@ export default function UploadCard({
     if (!selectedFile || !previewUrl || isAnalyzing) {
       return;
     }
+
+    if (!localCanRunAssessment()) {
+      setNeedsUpgrade(true);
+      track("upgrade_viewed", { source: "upload_blocked" });
+      setError("You've used your free assessment. Unlock a pack to continue.");
+      return;
+    }
   
     track("analyze_clicked", {
       goal: selectedGoal,
+      remaining: getLocalRemainingAssessments(),
     });
   
     setIsAnalyzing(true);
@@ -230,13 +275,34 @@ export default function UploadCard({
       });
   
       const result = await response.json();
+
+      if (response.status === 402 || result.error === "free_assessment_used") {
+        setNeedsUpgrade(true);
+        setRemaining(0);
+        track("upgrade_viewed", { source: "analyze_402" });
+        throw new Error(
+          result.message ||
+            "You've used your free assessment. Unlock a pack to continue.",
+        );
+      }
   
       if (!response.ok || !result.success) {
         throw new Error(result.error || "Analysis failed.");
       }
 
+      if (result.entitlements) {
+        writeLocalEntitlements(result.entitlements);
+        setRemaining(result.remaining ?? remainingAssessments(result.entitlements));
+        setNeedsUpgrade((result.remaining ?? 0) <= 0);
+      } else {
+        const next = localConsumeAssessment();
+        setRemaining(remainingAssessments(next));
+        setNeedsUpgrade(!localCanRunAssessment());
+      }
+
       track("analysis_succeeded", {
         goal: selectedGoal,
+        remaining: result.remaining,
       });
   
       console.log("POWR AI analysis:", result);
@@ -251,7 +317,11 @@ export default function UploadCard({
       });
     } catch (error) {
       console.error("POWR analysis failed:", error);
-      setError("POWR couldn't analyze this video. Please try again.");
+      setError(
+        error instanceof Error
+          ? error.message
+          : "POWR couldn't analyze this video. Please try again.",
+      );
     } finally {
       setIsAnalyzing(false);
     }
@@ -414,10 +484,20 @@ export default function UploadCard({
         <strong>{selectedGoal}</strong>
       </div>
 
+      <p className="assessment-quota-note">
+        {remaining > 0
+          ? `${remaining} free/paid assessment${remaining === 1 ? "" : "s"} remaining on this device`
+          : "Free assessment used — unlock a pack to continue"}
+      </p>
+
+      {needsUpgrade ? (
+        <UpgradePanel source="upload_card" remaining={remaining} />
+      ) : null}
+
       <button
   className="primary-button"
   type="button"
-  disabled={!selectedFile || isAnalyzing}
+  disabled={!selectedFile || isAnalyzing || needsUpgrade}
   onClick={handleAnalyze}
 >
   <span>
