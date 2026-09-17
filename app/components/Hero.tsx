@@ -1,3 +1,5 @@
+import BetaBadge from "./BetaBadge";
+
 type HeroProps = {
   onViewSample: () => void;
 };
@@ -6,7 +8,10 @@ export default function Hero({ onViewSample }: HeroProps) {
   return (
     <section className="hero">
       <div className="brand-lockup">
-        <div className="brand">POWR</div>
+        <div className="brand-row">
+          <div className="brand">POWR</div>
+          <BetaBadge />
+        </div>
 
         <p className="eyebrow">
           THE HOME OF HOCKEY DEVELOPMENT
@@ -23,6 +28,12 @@ export default function Hero({ onViewSample }: HeroProps) {
         <p>
           Upload a skating clip and receive a clear,
           personalized development report.
+        </p>
+
+        <p className="beta-note">
+          <strong>POWR BETA</strong> — Assessments are AI-assisted and intended
+          for hockey development. Feedback may evolve as we improve with
+          players and coaches.
         </p>
 
         <p className="no-account">

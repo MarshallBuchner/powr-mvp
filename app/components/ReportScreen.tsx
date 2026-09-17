@@ -250,6 +250,12 @@ const personalizedCoachSummary =
               <strong>{request.goal}</strong>.
             </p>
           )}
+
+          <p className="beta-note beta-note-compact">
+            <strong>Beta Assessment</strong> — POWR is still learning and
+            improving. Use this feedback as a development tool alongside
+            qualified coaching.
+          </p>
         </div>
 
         <div className="score-card">
@@ -989,6 +995,24 @@ const personalizedCoachSummary =
         .intro strong {
           color: #f5fff9;
           font-weight: 600;
+        }
+
+        .beta-note {
+          max-width: 620px;
+          margin: 14px 0 0;
+          color: #8fa297;
+          font-size: 0.9rem;
+          line-height: 1.55;
+        }
+
+        .beta-note strong {
+          color: #cfe7d8;
+          font-weight: 800;
+        }
+
+        .beta-note-compact {
+          margin-top: 12px;
+          font-size: 0.84rem;
         }
 
         .score-card {

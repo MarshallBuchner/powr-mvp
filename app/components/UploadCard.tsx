@@ -263,8 +263,12 @@ export default function UploadCard({
         <p className="eyebrow">START YOUR ASSESSMENT</p>
         <h2>What would you like to improve today?</h2>
         <p className="section-description">
-  Choose one area you'd like your assessment to focus on.
-</p>
+          Choose one area you&apos;d like your assessment to focus on.
+        </p>
+        <p className="beta-note beta-note-compact">
+          <strong>POWR BETA</strong> — AI-assisted feedback for development and
+          education. Results may evolve as we improve with players and coaches.
+        </p>
       </div>
 
       <GoalSelector
