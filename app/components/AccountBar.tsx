@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "./AuthProvider";
+import BetaBadge from "./BetaBadge";
 
 export default function AccountBar() {
   const pathname = usePathname();
@@ -21,7 +22,7 @@ export default function AccountBar() {
     <div className="account-bar">
       <div className="account-bar-inner">
         <Link href="/" className="account-bar-brand">
-          POWR
+          POWR <BetaBadge className="beta-badge-inline" />
         </Link>
         <nav className="account-bar-nav">
           <Link href="/#start-assessment">Assess</Link>

@@ -56,6 +56,12 @@ button {
   padding: 8px 2px 36px;
 }
 
+.brand-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
 .brand {
   display: inline-block;
   font-size: clamp(3rem, 14vw, 6.5rem);
@@ -63,6 +69,56 @@ button {
   letter-spacing: -0.09em;
   line-height: 0.88;
   transform: skewX(-8deg);
+}
+
+.beta-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 0.55em;
+  padding: 5px 9px;
+  border: 1px solid rgba(109, 255, 174, 0.35);
+  border-radius: 999px;
+  background: rgba(109, 255, 174, 0.1);
+  color: #8cffbd;
+  font-size: 0.68rem;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  line-height: 1;
+}
+
+.beta-badge-inline {
+  margin-top: 0;
+  margin-left: 8px;
+  padding: 3px 7px;
+  font-size: 0.58rem;
+  vertical-align: middle;
+}
+
+.beta-note {
+  max-width: 560px;
+  margin: 14px 0 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.55;
+}
+
+.beta-note strong {
+  color: #cfe7d8;
+  font-weight: 800;
+}
+
+.beta-note-compact {
+  margin-top: 12px;
+  font-size: 0.84rem;
+}
+
+.section-heading .beta-note {
+  max-width: 520px;
+}
+
+.report-hero .beta-note {
+  margin-top: 12px;
 }
 
 .eyebrow {
@@ -1049,6 +1105,8 @@ button {
 }
 
 .account-bar-brand {
+  display: inline-flex;
+  align-items: center;
   font-weight: 950;
   letter-spacing: -0.06em;
   text-decoration: none;
