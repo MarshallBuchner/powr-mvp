@@ -9,6 +9,8 @@ type VideoComparisonProps = {
   youAngle: string;
   proAngle: string;
   duration: string;
+  /** Override the footer note (live vs demo) */
+  note?: string;
 };
 
 export default function VideoComparison({
@@ -17,6 +19,7 @@ export default function VideoComparison({
   youAngle,
   proAngle,
   duration,
+  note = "Your clip stills with a pro reference. Live pose angles plug in later.",
 }: VideoComparisonProps) {
   const [playing, setPlaying] = useState(false);
   const [slide, setSlide] = useState(12);
@@ -83,10 +86,7 @@ export default function VideoComparison({
         <em>1x</em>
         <Expand size={14} aria-hidden="true" />
       </div>
-      <p className="rv2-video-note">
-        Demo stills with pose-style overlays. Live clips + real angles plug in
-        later — analyze flow stays unchanged.
-      </p>
+      <p className="rv2-video-note">{note}</p>
     </div>
   );
 }

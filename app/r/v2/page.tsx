@@ -16,9 +16,8 @@ type PageProps = {
 };
 
 /**
- * Isolated preview of the new visual report UI.
- * Does not replace /r, /r/sample, or the live analyze → report path.
- * Step is driven by ?step= so navigation works on phones even if JS is slow.
+ * Mock/demo preview of the visual report UI.
+ * Live assessments use the same UI via SharedReportView → ReportV2Flow.
  */
 export default async function ReportV2DemoPage({ searchParams }: PageProps) {
   const params = (await searchParams) ?? {};
@@ -29,6 +28,7 @@ export default async function ReportV2DemoPage({ searchParams }: PageProps) {
       model={mockReportV2}
       demoMode
       initialStep={initialStep}
+      basePath="/r/v2"
     />
   );
 }

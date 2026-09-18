@@ -1,27 +1,28 @@
-# POWR Assessment Report UI v2 (preview)
+# POWR Assessment Report UI v2
 
 Visual, mobile-first assessment report experience based on the MVP mockups.
 
-## Safety
-- Live product path is unchanged: upload → analyze → `/r/...` → existing `ReportScreen`
-- This UI lives at **`/r/v2`** with **mock data** only
-- Safe to develop/test on localhost and Vercel preview before cutover
+## Live path (cutover)
+- Upload → analyze → `/r?d=…`, `/r/sample`, and `/r/[id]` now render **ReportV2Flow** with real `RealAnalysis` via `reportV2FromAnalysis()`
+- Soft upgrade CTAs (UpgradePanel + next session) are preserved on the Progress step
+- `/r/v2` remains a mock/demo preview (`demoMode`)
 
 ## Local test
 ```bash
 npm run dev
+# Live sample (real sampleAnalysis data in v2 UI):
+open http://localhost:3000/r/sample
+# Mock preview:
 open http://localhost:3000/r/v2
-# Steps: /r/v2?step=2 … ?step=6 (1 = Overview)
 ```
 
-## What’s in the visual preview
-- Hero photo, coach card, technique bars, side-by-side comparison stills
-- Priority / drill thumbnails with tap-to-preview lightbox
-- Drill filters + progress range tabs (demo data)
-- Live analyze → report path still unchanged
+## What’s included
+- Hero, score ring, coach summary, technique bars, comparison stills
+- Priorities / drills with slideshow + lightbox
+- Real strengths, priority, drills, confidence from analysis
+- Evidence frame thumbs when available from the same-session stash
 
-## Next steps (later PRs)
-1. Map real `RealAnalysis` via `reportV2FromAnalysis()`
-2. Optional opt-in from sample report
-3. Replace `SharedReportView` → `ReportScreen` only after v2 feels ready
-4. Wire real video comparison + saved progress history
+## Still later
+- Real pose overlays / pro video sync
+- Multi-assessment progress history
+- Saved-account report chrome parity (save CTA)
