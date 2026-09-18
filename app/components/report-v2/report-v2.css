@@ -205,6 +205,76 @@
   gap: 12px;
 }
 
+.rv2-score-interpretation {
+  margin: 4px 0 0;
+  text-align: center;
+  color: #e8f6ee;
+  font-size: 0.95rem;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.rv2-score-disclaimer {
+  margin: 8px 0 0;
+  text-align: center;
+  color: #8fa297;
+  font-size: 0.78rem;
+  font-weight: 650;
+}
+
+.rv2-confidence-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  width: fit-content;
+  margin: 12px auto 0;
+  padding: 8px 12px;
+  border: 1px solid rgba(200, 255, 61, 0.28);
+  border-radius: 999px;
+  background: rgba(200, 255, 61, 0.08);
+  color: #a9b8b0;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.rv2-panel .rv2-confidence-pill {
+  display: flex;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.rv2-confidence-pill strong {
+  color: #c8ff3d;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.rv2-strength-list {
+  margin: 0 0 14px;
+  padding: 12px 14px 12px 28px;
+  border-radius: 14px;
+  background: rgba(200, 255, 61, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  color: #d7e6dd;
+  line-height: 1.55;
+}
+
+.rv2-strength-list li + li {
+  margin-top: 6px;
+}
+
+.rv2-upgrade-wrap {
+  margin: 0 0 12px;
+}
+
+.rv2-upgrade-wrap .upgrade-panel {
+  margin: 0;
+}
+
+.rv2-next-session {
+  margin-top: 10px;
+}
+
 .rv2-date {
   color: #8fa297;
   font-size: 0.78rem;

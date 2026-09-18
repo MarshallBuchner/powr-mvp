@@ -1,4 +1,4 @@
-import type { RealAnalysis } from "../types";
+import type { AnalysisEvidenceMoment, RealAnalysis } from "../types";
 import { sampleAnalysis } from "../sampleAnalysis";
 
 export type ReportV2Drill = {
@@ -45,7 +45,60 @@ export type ReportV2Model = {
   deltaVsLast: number | null;
 };
 
-/** Design-brief mock used by /r/v2 — does not affect live reports. */
+const DRILL_IMAGES = [
+  "/report-v2/report-v2-drill-power.jpg",
+  "/report-v2/report-v2-drill-knee.jpg",
+  "/report-v2/report-v2-drill-balance.jpg",
+] as const;
+
+const PRIORITY_IMAGES = [
+  "/report-v2/report-v2-priority-stride.jpg",
+  "/report-v2/report-v2-priority-knee.jpg",
+  "/report-v2/report-v2-priority-stability.jpg",
+] as const;
+
+function categoryIcon(name: string) {
+  const key = name.toLowerCase();
+  if (key.includes("accel")) return "⚡";
+  if (key.includes("stride") || key.includes("power")) return "↗";
+  if (key.includes("edge")) return "◎";
+  if (key.includes("balance") || key.includes("stabil")) return "◇";
+  if (key.includes("effic")) return "⟳";
+  return "•";
+}
+
+function formatClipDuration(seconds: number | null | undefined) {
+  if (seconds == null || !Number.isFinite(seconds) || seconds <= 0) {
+    return "0:00";
+  }
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.floor(seconds % 60)
+    .toString()
+    .padStart(2, "0");
+  return `${mins}:${secs}`;
+}
+
+function inferDrillCategory(
+  title: string,
+  index: number,
+): ReportV2Drill["category"] {
+  const key = title.toLowerCase();
+  if (key.includes("off-ice") || key.includes("off ice") || key.includes("gym")) {
+    return "Off-Ice";
+  }
+  if (key.includes("strength") || key.includes("bound") || key.includes("press")) {
+    return "Strength";
+  }
+  if (key.includes("on-ice") || key.includes("edge") || key.includes("crossover")) {
+    return "On-Ice";
+  }
+  if (index % 4 === 3) return "Off-Ice";
+  if (index % 4 === 2) return "Strength";
+  if (index % 4 === 1) return "On-Ice";
+  return "Skating";
+}
+
+/** Design-brief mock used by /r/v2 — demo preview only. */
 export const mockReportV2: ReportV2Model = {
   playerLabel: "Your skating profile",
   goal: "Overall skating",
@@ -197,14 +250,34 @@ export const mockReportV2: ReportV2Model = {
   deltaVsLast: 12,
 };
 
+export type ReportV2FromAnalysisOptions = {
+  goal?: string;
+  duration?: number | null;
+  evidenceMoments?: AnalysisEvidenceMoment[];
+  assessedOn?: string;
+};
+
+/** Map a live/sample RealAnalysis into the visual report model. */
 export function reportV2FromAnalysis(
   analysis: RealAnalysis,
-  goal = "Overall skating",
+  options: ReportV2FromAnalysisOptions | string = {},
 ): ReportV2Model {
+  const opts: ReportV2FromAnalysisOptions =
+    typeof options === "string" ? { goal: options } : options;
+  const goal = opts.goal || "Overall skating";
+  const evidence = opts.evidenceMoments ?? [];
+  const evidenceImages = evidence
+    .map((m) => m.dataUrl)
+    .filter((url): url is string => Boolean(url));
+
+  const weakMetrics = analysis.movementMetrics
+    .filter((m) => m.score < 80)
+    .slice(0, 2);
+
   return {
     playerLabel: "Your skating profile",
     goal,
-    assessedOn: "Today",
+    assessedOn: opts.assessedOn || "Today",
     coachName: "POWR Coach",
     coachTitle: "AI Coach",
     coachImage: "/report-v2/report-v2-coach.jpg",
@@ -213,46 +286,45 @@ export function reportV2FromAnalysis(
     categories: analysis.movementMetrics.map((m) => ({
       name: m.title,
       score: m.score,
-      icon: "•",
+      icon: categoryIcon(m.title),
     })),
     comparison: {
-      youImage: "/report-v2/report-v2-skate-you.jpg",
+      youImage:
+        evidenceImages[0] || "/report-v2/report-v2-skate-you.jpg",
       proImage: "/report-v2/report-v2-skate-pro.jpg",
-      youAngle: "—",
-      proAngle: "—",
-      duration: "0:00",
+      youAngle: evidence[0]?.timeLabel || "You",
+      proAngle: "Pro ref",
+      duration: formatClipDuration(opts.duration),
     },
     priorities: [
       {
         title: analysis.priorityImprovement,
         detail: analysis.whyItMatters,
-        image: "/report-v2/report-v2-priority-stride.jpg",
+        image: evidenceImages[0] || PRIORITY_IMAGES[0],
         tone: "critical" as const,
       },
-      ...analysis.movementMetrics
-        .filter((m) => m.score < 80)
-        .slice(0, 2)
-        .map((m, i) => ({
-          title: m.title,
-          detail:
-            m.observations.find((o) => o.type === "improve")?.text ||
-            m.explanation,
-          image:
-            i === 0
-              ? "/report-v2/report-v2-priority-knee.jpg"
-              : "/report-v2/report-v2-priority-stability.jpg",
-          tone: (i === 0 ? "focus" : "steady") as "focus" | "steady",
-        })),
+      ...weakMetrics.map((m, i) => ({
+        title: m.title,
+        detail:
+          m.observations.find((o) => o.type === "improve")?.text ||
+          m.explanation,
+        image:
+          evidenceImages[i + 1] ||
+          PRIORITY_IMAGES[Math.min(i + 1, PRIORITY_IMAGES.length - 1)],
+        tone: (i === 0 ? "focus" : "steady") as "focus" | "steady",
+      })),
     ].slice(0, 3),
     drills: analysis.drills.map((d, i) => ({
       title: d.title,
       description: d.description,
-      duration: d.duration,
+      duration: d.duration.toUpperCase().includes("MIN")
+        ? d.duration.toUpperCase()
+        : d.duration,
       difficulty: (["Beginner", "Intermediate", "Advanced"] as const)[
         Math.min(i, 2)
       ],
-      category: "Skating" as const,
-      image: "/report-v2/report-v2-drill-power.jpg",
+      category: inferDrillCategory(d.title, i),
+      image: DRILL_IMAGES[i % DRILL_IMAGES.length],
     })),
     progress: [{ label: "Now", score: analysis.overallScore }],
     deltaVsLast: null,

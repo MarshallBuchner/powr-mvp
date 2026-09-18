@@ -12,36 +12,48 @@ import {
   Sparkles,
   Play,
 } from "lucide-react";
+import { track } from "@vercel/analytics";
 import ScoreCircle from "./ScoreCircle";
 import CategoryBar from "./CategoryBar";
 import VideoComparison from "./VideoComparison";
 import DrillCard, { DrillMediaLightbox } from "./DrillCard";
 import ProgressChart from "./ProgressChart";
 import MediaSlideshow from "./MediaSlideshow";
+import UpgradePanel from "../UpgradePanel";
 import type { ReportV2Drill, ReportV2Model } from "./mockReportData";
 import {
   REPORT_V2_STEPS,
   reportV2StepHref,
 } from "./reportV2Steps";
+import {
+  getLocalRemainingAssessments,
+  localCanRunAssessment,
+} from "../assessmentEntitlements";
 import "./report-v2.css";
 
 type ReportV2FlowProps = {
   model: ReportV2Model;
   demoMode?: boolean;
+  isSample?: boolean;
   /** 0-based step from the URL so nav works even if JS fails to hydrate */
   initialStep?: number;
+  /** Path for step links — live share uses /r, /r/sample, /r/[id] */
+  basePath?: string;
+  /** Preserve query params like live `d=` when changing steps */
+  searchParams?: string;
+  onRestart?: () => void;
 };
 
 const DRILL_FILTERS = ["All", "Skating", "Strength", "On-Ice", "Off-Ice"] as const;
 
-function stepHref(index: number) {
-  return reportV2StepHref(index);
-}
-
 export default function ReportV2Flow({
   model,
   demoMode = false,
+  isSample = false,
   initialStep = 0,
+  basePath = "/r/v2",
+  searchParams = "",
+  onRestart,
 }: ReportV2FlowProps) {
   const step = Math.max(
     0,
@@ -50,6 +62,11 @@ export default function ReportV2Flow({
   const [drillFilter, setDrillFilter] =
     useState<(typeof DRILL_FILTERS)[number]>("All");
   const [activeDrill, setActiveDrill] = useState<ReportV2Drill | null>(null);
+  const [remaining] = useState(() => getLocalRemainingAssessments());
+  const [shareStatus, setShareStatus] = useState<"idle" | "copied">("idle");
+
+  const stepHref = (index: number) =>
+    reportV2StepHref(index, { basePath, searchParams });
 
   const scoreLabel =
     model.analysis.overallScore >= 85
@@ -57,6 +74,23 @@ export default function ReportV2Flow({
       : model.analysis.overallScore >= 70
         ? "GOOD"
         : "DEVELOPING";
+
+  const confidenceLabel =
+    model.analysis.confidence.label === "Moderate"
+      ? "Medium"
+      : model.analysis.confidence.label;
+
+  const scoreInterpretation = `${
+    model.analysis.overallScore >= 85
+      ? "Strong skating base"
+      : model.analysis.overallScore >= 70
+        ? "Solid skating base"
+        : "Developing skating base"
+  } · Biggest opportunity: ${
+    model.analysis.priorityImprovement.length > 64
+      ? `${model.analysis.priorityImprovement.slice(0, 61).trim()}…`
+      : model.analysis.priorityImprovement
+  }`;
 
   const filteredDrills = useMemo(() => {
     if (drillFilter === "All") return model.drills;
@@ -85,8 +119,39 @@ export default function ReportV2Flow({
 
   const progressGain =
     model.progress.length > 1
-      ? model.progress[model.progress.length - 1].score - model.progress[0].score
+      ? model.progress[model.progress.length - 1].score -
+        model.progress[0].score
       : 0;
+
+  async function handleShare() {
+    const url = typeof window !== "undefined" ? window.location.href : "";
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: "My POWR Assessment",
+          url,
+        });
+      } else if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(url);
+        setShareStatus("copied");
+        window.setTimeout(() => setShareStatus("idle"), 2000);
+      }
+      track("report_shared", { source: "report_v2", sample: isSample });
+    } catch {
+      // User cancelled share sheet — ignore.
+    }
+  }
+
+  function handleNextSession() {
+    if (!isSample && !demoMode && !localCanRunAssessment()) {
+      track("upgrade_viewed", { source: "report_v2_next_session" });
+      document
+        .querySelector(".rv2-upgrade-wrap")
+        ?.scrollIntoView({ behavior: "smooth", block: "center" });
+      return;
+    }
+    onRestart?.();
+  }
 
   const stepContent = useMemo(() => {
     switch (REPORT_V2_STEPS[step]) {
@@ -100,14 +165,18 @@ export default function ReportV2Flow({
               <p className="rv2-eyebrow">AI-POWERED SKATING ASSESSMENT</p>
               <h1>Personalized feedback. Real improvement.</h1>
               <p className="rv2-lead">TRAIN SMARTER. PLAY FASTER.</p>
-              <Link href={stepHref(1)} className="rv2-primary">
+              <Link href={stepHref(1)} className="rv2-primary" scroll={false}>
                 View My Results →
               </Link>
               {demoMode ? (
                 <p className="rv2-demo-note">
-                  Preview UI with demo media. Live analyze → report is unchanged.
+                  Preview UI with demo media.
                 </p>
-              ) : null}
+              ) : (
+                <p className="rv2-demo-note">
+                  Focus: {model.goal} · Score {model.analysis.overallScore}
+                </p>
+              )}
             </div>
           </section>
         );
@@ -126,9 +195,18 @@ export default function ReportV2Flow({
               label={scoreLabel}
               delta={model.deltaVsLast}
             />
+            <p className="rv2-score-interpretation">{scoreInterpretation}</p>
+            <p className="rv2-score-disclaimer">
+              AI development estimate — not a scouting grade.
+            </p>
+            <div className="rv2-confidence-pill">
+              <span>Confidence</span>
+              <strong>{confidenceLabel}</strong>
+            </div>
             <blockquote className="rv2-coach">
               <p>“{model.analysis.summary}”</p>
               <footer className="rv2-coach-meta">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={model.coachImage}
                   alt=""
@@ -142,18 +220,25 @@ export default function ReportV2Flow({
                 </div>
               </footer>
             </blockquote>
+            {model.analysis.strengths?.length ? (
+              <ul className="rv2-strength-list">
+                {model.analysis.strengths.slice(0, 3).map((strength) => (
+                  <li key={strength}>{strength}</li>
+                ))}
+              </ul>
+            ) : null}
             <div className="rv2-quick-grid">
-              <Link href={stepHref(2)} className="rv2-quick-link">
+              <Link href={stepHref(2)} className="rv2-quick-link" scroll={false}>
                 <Sparkles size={16} />
                 <strong>STRENGTHS</strong>
                 <span>What you&apos;re doing well</span>
               </Link>
-              <Link href={stepHref(3)} className="rv2-quick-link">
+              <Link href={stepHref(3)} className="rv2-quick-link" scroll={false}>
                 <Target size={16} />
                 <strong>IMPROVEMENTS</strong>
                 <span>Key areas to focus on</span>
               </Link>
-              <Link href={stepHref(4)} className="rv2-quick-link">
+              <Link href={stepHref(4)} className="rv2-quick-link" scroll={false}>
                 <Dumbbell size={16} />
                 <strong>DRILLS</strong>
                 <span>Built for you</span>
@@ -182,6 +267,11 @@ export default function ReportV2Flow({
               youAngle={model.comparison.youAngle}
               proAngle={model.comparison.proAngle}
               duration={model.comparison.duration}
+              note={
+                demoMode
+                  ? "Demo stills with pose-style overlays. Live clips + real angles plug in later."
+                  : "Your evidence frames next to a pro reference. Pose overlays come next."
+              }
             />
           </section>
         );
@@ -194,7 +284,9 @@ export default function ReportV2Flow({
               slides={prioritySlides}
               label="Priority clips"
               onSelect={(slide) => {
-                const match = model.priorities.find((p) => p.title === slide.title);
+                const match = model.priorities.find(
+                  (p) => p.title === slide.title,
+                );
                 if (!match) return;
                 setActiveDrill({
                   title: match.title,
@@ -235,7 +327,7 @@ export default function ReportV2Flow({
                 </li>
               ))}
             </ol>
-            <Link href={stepHref(4)} className="rv2-primary">
+            <Link href={stepHref(4)} className="rv2-primary" scroll={false}>
               View Recommended Drills →
             </Link>
           </section>
@@ -245,7 +337,11 @@ export default function ReportV2Flow({
           <section className="rv2-panel">
             <p className="rv2-eyebrow">YOUR RECOMMENDED DRILLS</p>
             <h2>AI-built for your development plan</h2>
-            <div className="rv2-filter-row" role="tablist" aria-label="Drill filters">
+            <div
+              className="rv2-filter-row"
+              role="tablist"
+              aria-label="Drill filters"
+            >
               {DRILL_FILTERS.map((filter) => (
                 <button
                   key={filter}
@@ -263,7 +359,9 @@ export default function ReportV2Flow({
               slides={drillSlides}
               label="Drill examples"
               onSelect={(slide) => {
-                const match = filteredDrills.find((d) => d.title === slide.title);
+                const match = filteredDrills.find(
+                  (d) => d.title === slide.title,
+                );
                 if (match) setActiveDrill(match);
               }}
             />
@@ -275,7 +373,7 @@ export default function ReportV2Flow({
                 <p className="rv2-video-note">No drills in this filter yet.</p>
               ) : null}
             </div>
-            <Link href={stepHref(5)} className="rv2-primary">
+            <Link href={stepHref(5)} className="rv2-primary" scroll={false}>
               View Full Development Plan →
             </Link>
           </section>
@@ -292,28 +390,54 @@ export default function ReportV2Flow({
                 <strong>
                   {model.progress.length > 1
                     ? `You're improving: +${progressGain} points.`
-                    : "Save assessments to unlock progress over time."}
+                    : "Reassess after focused practice to unlock progress over time."}
                 </strong>
                 <p>Keep up the work — you&apos;re on the right track.</p>
               </div>
             </div>
             <ul className="rv2-next-steps">
               <li>
-                <Dumbbell size={16} /> Complete Week 2 Drills
+                <Dumbbell size={16} /> Complete recommended drills
                 <ChevronRight size={16} />
               </li>
               <li>
-                <Target size={16} /> Reassess in 4 Weeks
+                <Target size={16} /> Reassess in 3–5 sessions
                 <ChevronRight size={16} />
               </li>
               <li>
-                <Sparkles size={16} /> Explore Coach Feedback
+                <Sparkles size={16} /> Review coach feedback
                 <ChevronRight size={16} />
               </li>
             </ul>
-            <button type="button" className="rv2-secondary">
-              <Share2 size={16} /> Share My Progress
+
+            {!demoMode && !isSample && remaining <= 0 ? (
+              <div className="rv2-upgrade-wrap">
+                <UpgradePanel source="report" remaining={remaining} compact />
+              </div>
+            ) : null}
+
+            <button
+              type="button"
+              className="rv2-secondary"
+              onClick={() => void handleShare()}
+            >
+              <Share2 size={16} />{" "}
+              {shareStatus === "copied"
+                ? "Link copied"
+                : isSample
+                  ? "Share this demo report"
+                  : "Share My Progress"}
             </button>
+
+            {onRestart ? (
+              <button
+                type="button"
+                className="rv2-primary rv2-next-session"
+                onClick={handleNextSession}
+              >
+                Upload Your Next Session →
+              </button>
+            ) : null}
           </section>
         );
       default:
@@ -322,13 +446,21 @@ export default function ReportV2Flow({
   }, [
     model,
     scoreLabel,
+    scoreInterpretation,
+    confidenceLabel,
     step,
     demoMode,
+    isSample,
     drillFilter,
     filteredDrills,
     progressGain,
     prioritySlides,
     drillSlides,
+    remaining,
+    shareStatus,
+    onRestart,
+    basePath,
+    searchParams,
   ]);
 
   return (
@@ -366,7 +498,11 @@ export default function ReportV2Flow({
             <ChevronLeft size={18} /> Back
           </span>
         ) : (
-          <Link href={stepHref(step - 1)} className="rv2-nav-btn" scroll={false}>
+          <Link
+            href={stepHref(step - 1)}
+            className="rv2-nav-btn"
+            scroll={false}
+          >
             <ChevronLeft size={18} /> Back
           </Link>
         )}
