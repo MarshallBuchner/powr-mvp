@@ -10,6 +10,7 @@ type LiveSharePayload = {
   fileName: string;
   duration: number | null;
   analysis: RealAnalysis;
+  evidenceMoments?: { timeLabel: string; caption: string }[];
 };
 
 export function isSampleReport(
@@ -47,6 +48,10 @@ export function getSharePath(request: AnalysisRequest, savedId?: string) {
     fileName: request.fileName,
     duration: request.duration,
     analysis: request.analysis,
+    evidenceMoments: request.evidenceMoments?.map(({ timeLabel, caption }) => ({
+      timeLabel,
+      caption,
+    })),
   };
 
   return `/r?d=${toBase64Url(JSON.stringify(payload))}`;
@@ -68,6 +73,7 @@ export function decodeLiveSharePayload(
       goal: parsed.goal,
       duration: parsed.duration ?? null,
       analysis: parsed.analysis,
+      evidenceMoments: parsed.evidenceMoments,
     };
   } catch {
     return null;

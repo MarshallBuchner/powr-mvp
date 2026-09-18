@@ -433,6 +433,146 @@ button {
   text-align: center;
 }
 
+.assessment-quota-hint {
+  margin: 6px 0 0;
+  color: #91a39a;
+  font-size: 0.8rem;
+  line-height: 1.45;
+  text-align: center;
+}
+
+.upload-best-results {
+  margin: 12px 0 0;
+  color: #91a39a;
+  font-size: 0.84rem;
+  font-weight: 650;
+  line-height: 1.45;
+  text-align: center;
+}
+
+.analysis-processing {
+  margin: 18px 0 8px;
+  padding: 18px 16px 16px;
+  border: 1px solid rgba(109, 255, 174, 0.22);
+  border-radius: 18px;
+  background: rgba(109, 255, 174, 0.05);
+}
+
+.analysis-processing-heading {
+  text-align: center;
+}
+
+.analysis-processing-heading strong {
+  display: block;
+  margin: 8px 0 6px;
+  font-size: 1.15rem;
+  letter-spacing: -0.03em;
+}
+
+.analysis-processing-heading p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+
+.analysis-processing-keep-open {
+  margin-top: 6px !important;
+  color: #c5d5cb !important;
+  font-weight: 650;
+}
+
+.analysis-processing-file {
+  display: inline-block;
+  margin-top: 10px;
+  max-width: 100%;
+  overflow: hidden;
+  color: #8fa297;
+  font-size: 0.76rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.analysis-processing-bar {
+  position: relative;
+  height: 8px;
+  margin: 16px 0 14px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.analysis-processing-bar-fill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 38%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #5dff9d, #c8ff5d);
+  animation: powr-indeterminate 1.35s ease-in-out infinite;
+}
+
+.analysis-processing-stages {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 8px;
+}
+
+.analysis-processing-stages li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #8fa297;
+  font-size: 0.88rem;
+  font-weight: 650;
+}
+
+.analysis-processing-stages li.is-active {
+  color: #f5fff9;
+}
+
+.analysis-processing-stages li.is-done {
+  color: #8cffbd;
+}
+
+.analysis-processing-marker {
+  width: 1.1rem;
+  text-align: center;
+  color: inherit;
+}
+
+.upload-error-body {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  flex: 1;
+}
+
+.retry-analysis-button {
+  justify-self: start;
+  min-height: 40px;
+  padding: 0 14px;
+  border: 1px solid rgba(109, 255, 174, 0.35);
+  border-radius: 999px;
+  background: rgba(109, 255, 174, 0.1);
+  color: #8cffbd;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.86rem;
+  font-weight: 800;
+}
+
+@keyframes powr-indeterminate {
+  0% {
+    transform: translateX(-120%);
+  }
+  100% {
+    transform: translateX(320%);
+  }
+}
+
 .upgrade-panel {
   margin: 18px 0 8px;
   padding: 18px 18px 16px;
@@ -673,7 +813,7 @@ button {
 
 .upload-error {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 10px;
   margin-top: 14px;
   padding: 13px 14px;

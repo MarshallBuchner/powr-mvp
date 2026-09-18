@@ -1,3 +1,10 @@
+export type AnalysisEvidenceMoment = {
+  timeLabel: string;
+  caption: string;
+  /** Same-session thumbnail only — not encoded into share URLs */
+  dataUrl?: string;
+};
+
 export type AnalysisRequest = {
   file?: File;
   fileName: string;
@@ -5,6 +12,7 @@ export type AnalysisRequest = {
   goal: string;
   duration: number | null;
   analysis?: RealAnalysis;
+  evidenceMoments?: AnalysisEvidenceMoment[];
 };
 
 export type RealMovementObservation = {
