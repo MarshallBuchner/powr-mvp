@@ -292,8 +292,8 @@ export function reportV2FromAnalysis(
       youImage:
         evidenceImages[0] || "/report-v2/report-v2-skate-you.jpg",
       proImage: "/report-v2/report-v2-skate-pro.jpg",
-      youAngle: evidence[0]?.timeLabel ? evidence[0].timeLabel : "—",
-      proAngle: "Pro",
+      youAngle: evidence[0]?.timeLabel || "You",
+      proAngle: "Pro ref",
       duration: formatClipDuration(opts.duration),
     },
     priorities: [

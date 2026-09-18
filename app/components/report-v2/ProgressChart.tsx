@@ -55,20 +55,26 @@ export default function ProgressChart({ points }: ProgressChartProps) {
 
   return (
     <div className="rv2-progress-chart">
-      <div className="rv2-range-tabs" role="tablist" aria-label="Progress range">
-        {RANGES.map((r) => (
-          <button
-            key={r.id}
-            type="button"
-            role="tab"
-            aria-selected={range === r.id}
-            className={range === r.id ? "is-active" : undefined}
-            onClick={() => setRange(r.id)}
-          >
-            {r.label}
-          </button>
-        ))}
-      </div>
+      {points.length > 1 ? (
+        <div className="rv2-range-tabs" role="tablist" aria-label="Progress range">
+          {RANGES.map((r) => (
+            <button
+              key={r.id}
+              type="button"
+              role="tab"
+              aria-selected={range === r.id}
+              className={range === r.id ? "is-active" : undefined}
+              onClick={() => setRange(r.id)}
+            >
+              {r.label}
+            </button>
+          ))}
+        </div>
+      ) : (
+        <p className="rv2-video-note" style={{ marginBottom: 10 }}>
+          First assessment on record — reassess to build your trend line.
+        </p>
+      )}
       <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Progress chart">
         {[25, 50, 75].map((tick) => {
           const y = height - padY - ((tick - min) / rangeScore) * (height - padY * 2);
@@ -84,11 +90,13 @@ export default function ProgressChart({ points }: ProgressChartProps) {
           );
         })}
         {area ? <path d={area} className="rv2-progress-area" /> : null}
-        <path d={path} className="rv2-progress-line" />
+        {coords.length > 1 ? (
+          <path d={path} className="rv2-progress-line" />
+        ) : null}
         {coords.map((c) => (
           <g key={c.label}>
-            <circle cx={c.x} cy={c.y} r="5" className="rv2-progress-dot" />
-            <text x={c.x} y={c.y - 10} className="rv2-progress-score" textAnchor="middle">
+            <circle cx={c.x} cy={c.y} r="6" className="rv2-progress-dot" />
+            <text x={c.x} y={c.y - 12} className="rv2-progress-score" textAnchor="middle">
               {c.score}
             </text>
           </g>
