@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   ChevronLeft,
   ChevronRight,
@@ -11,6 +12,7 @@ import {
   Target,
   Sparkles,
   Play,
+  UserPlus,
 } from "lucide-react";
 import { track } from "@vercel/analytics";
 import ScoreCircle from "./ScoreCircle";
@@ -20,11 +22,15 @@ import DrillCard, { DrillMediaLightbox } from "./DrillCard";
 import ProgressChart from "./ProgressChart";
 import MediaSlideshow from "./MediaSlideshow";
 import UpgradePanel from "../UpgradePanel";
+import { useAuth } from "../AuthProvider";
+import { stashPendingAssessment } from "../assessmentStorage";
+import type { PendingAssessmentPayload } from "../assessmentStorage";
 import type { ReportV2Drill, ReportV2Model } from "./mockReportData";
 import {
   REPORT_V2_STEPS,
   reportV2StepHref,
 } from "./reportV2Steps";
+import { skillBandLabel } from "./skillBand";
 import {
   getLocalRemainingAssessments,
   localCanRunAssessment,
@@ -41,6 +47,8 @@ type ReportV2FlowProps = {
   basePath?: string;
   /** Preserve query params like live `d=` when changing steps */
   searchParams?: string;
+  /** Live report payload for optional save / create-account CTA */
+  savePayload?: PendingAssessmentPayload | null;
   onRestart?: () => void;
 };
 
@@ -53,8 +61,12 @@ export default function ReportV2Flow({
   initialStep = 0,
   basePath = "/r/v2",
   searchParams = "",
+  savePayload = null,
   onRestart,
 }: ReportV2FlowProps) {
+  const router = useRouter();
+  const { configured, user } = useAuth();
+  const tabsRef = useRef<HTMLElement | null>(null);
   const step = Math.max(
     0,
     Math.min(REPORT_V2_STEPS.length - 1, initialStep),
@@ -64,16 +76,23 @@ export default function ReportV2Flow({
   const [activeDrill, setActiveDrill] = useState<ReportV2Drill | null>(null);
   const [remaining] = useState(() => getLocalRemainingAssessments());
   const [shareStatus, setShareStatus] = useState<"idle" | "copied">("idle");
+  const [saveStatus, setSaveStatus] = useState<
+    "idle" | "saving" | "saved" | "error"
+  >("idle");
 
   const stepHref = (index: number) =>
     reportV2StepHref(index, { basePath, searchParams });
 
-  const scoreLabel =
-    model.analysis.overallScore >= 85
-      ? "EXCELLENT"
-      : model.analysis.overallScore >= 70
-        ? "GOOD"
-        : "DEVELOPING";
+  const scoreLabel = skillBandLabel(model.analysis.overallScore).toUpperCase();
+
+  useEffect(() => {
+    const active = tabsRef.current?.querySelector<HTMLElement>("a.is-active");
+    active?.scrollIntoView({
+      behavior: "smooth",
+      inline: "center",
+      block: "nearest",
+    });
+  }, [step]);
 
   const confidenceLabel =
     model.analysis.confidence.label === "Moderate"
@@ -123,6 +142,8 @@ export default function ReportV2Flow({
         model.progress[0].score
       : 0;
 
+  const canSave = Boolean(savePayload) && !demoMode && !isSample;
+
   async function handleShare() {
     const url = typeof window !== "undefined" ? window.location.href : "";
     try {
@@ -139,6 +160,42 @@ export default function ReportV2Flow({
       track("report_shared", { source: "report_v2", sample: isSample });
     } catch {
       // User cancelled share sheet — ignore.
+    }
+  }
+
+  async function handleSaveAssessment() {
+    if (!savePayload || !canSave) return;
+
+    if (!configured) {
+      setSaveStatus("error");
+      return;
+    }
+
+    if (!user) {
+      stashPendingAssessment(savePayload);
+      track("save_cta_clicked", { source: "report_v2", signed_in: false });
+      router.push("/login?next=/assessments");
+      return;
+    }
+
+    setSaveStatus("saving");
+    try {
+      const res = await fetch("/api/assessments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(savePayload),
+      });
+      if (!res.ok) {
+        throw new Error("save_failed");
+      }
+      setSaveStatus("saved");
+      track("assessment_saved", {
+        goal: savePayload.goal,
+        source: "report_v2",
+      });
+    } catch (error) {
+      console.error("POWR save failed:", error);
+      setSaveStatus("error");
     }
   }
 
@@ -416,6 +473,33 @@ export default function ReportV2Flow({
               </div>
             ) : null}
 
+            {canSave ? (
+              <button
+                type="button"
+                className="rv2-primary rv2-save-cta"
+                onClick={() => void handleSaveAssessment()}
+                disabled={saveStatus === "saving" || saveStatus === "saved"}
+              >
+                <UserPlus size={16} />{" "}
+                {saveStatus === "saving"
+                  ? "Saving…"
+                  : saveStatus === "saved"
+                    ? "Saved to My Assessments ✓"
+                    : saveStatus === "error"
+                      ? "Save failed — try again"
+                      : user
+                        ? "Save report to my account"
+                        : "Save report & create free account"}
+              </button>
+            ) : null}
+
+            {canSave && !user ? (
+              <p className="rv2-privacy-note">
+                Free account keeps your report so you can reopen it later. Your
+                video file stays on this device — we only save the analysis.
+              </p>
+            ) : null}
+
             <button
               type="button"
               className="rv2-secondary"
@@ -432,7 +516,7 @@ export default function ReportV2Flow({
             {onRestart ? (
               <button
                 type="button"
-                className="rv2-primary rv2-next-session"
+                className="rv2-secondary rv2-next-session"
                 onClick={handleNextSession}
               >
                 Upload Your Next Session →
@@ -458,6 +542,9 @@ export default function ReportV2Flow({
     drillSlides,
     remaining,
     shareStatus,
+    saveStatus,
+    canSave,
+    user,
     onRestart,
     basePath,
     searchParams,
@@ -474,7 +561,11 @@ export default function ReportV2Flow({
         </span>
       </header>
 
-      <nav className="rv2-tabs" aria-label="Report sections">
+      <nav
+        ref={tabsRef}
+        className="rv2-tabs"
+        aria-label="Report sections"
+      >
         {REPORT_V2_STEPS.map((label, index) => (
           <Link
             key={label}

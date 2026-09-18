@@ -81,6 +81,16 @@ function SharedReportViewInner({
       initialStep={initialStep}
       basePath={pathname || "/r"}
       searchParams={preservedQuery}
+      savePayload={
+        !isSample && request.analysis
+          ? {
+              goal: request.goal,
+              fileName: request.fileName,
+              duration: request.duration,
+              analysis: request.analysis,
+            }
+          : null
+      }
       onRestart={() => router.push("/#start-assessment")}
     />
   );

@@ -25,4 +25,3 @@ open http://localhost:3000/r/v2
 ## Still later
 - Real pose overlays / pro video sync
 - Multi-assessment progress history
-- Saved-account report chrome parity (save CTA)

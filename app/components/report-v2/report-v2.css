@@ -38,11 +38,22 @@
 }
 
 .rv2-tabs {
+  position: relative;
   display: flex;
   gap: 6px;
   overflow-x: auto;
-  padding: 8px 14px 4px;
+  overflow-y: hidden;
+  padding: 8px 14px 10px;
+  scroll-snap-type: x proximity;
+  -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
+  mask-image: linear-gradient(
+    90deg,
+    transparent 0,
+    #000 14px,
+    #000 calc(100% - 22px),
+    transparent 100%
+  );
 }
 
 .rv2-tabs::-webkit-scrollbar {
@@ -62,12 +73,27 @@
   text-transform: uppercase;
   text-decoration: none;
   cursor: pointer;
+  scroll-snap-align: center;
+  white-space: nowrap;
 }
 
 .rv2-tabs a.is-active {
   color: #041007;
   background: #c8ff3d;
   border-color: #c8ff3d;
+}
+
+@media (max-width: 420px) {
+  .rv2-tabs {
+    gap: 5px;
+    padding: 8px 12px 10px;
+  }
+
+  .rv2-tabs a {
+    padding: 7px 10px;
+    font-size: 0.68rem;
+    letter-spacing: 0.03em;
+  }
 }
 
 .rv2-stage {
@@ -271,8 +297,23 @@
   margin: 0;
 }
 
+.rv2-save-cta {
+  width: 100%;
+  margin-bottom: 10px;
+}
+
+.rv2-privacy-note {
+  margin: 0 0 12px;
+  color: #8fa297;
+  font-size: 0.78rem;
+  font-weight: 650;
+  line-height: 1.45;
+  text-align: center;
+}
+
 .rv2-next-session {
   margin-top: 10px;
+  width: 100%;
 }
 
 .rv2-date {
@@ -457,11 +498,20 @@
   font-size: 0.72rem;
 }
 
-.rv2-category-meta strong {
+.rv2-category-meta strong,
+.rv2-category-score {
   color: #c8ff3d;
   display: inline-flex;
   align-items: center;
-  gap: 2px;
+  gap: 6px;
+}
+
+.rv2-category-band {
+  color: #9eb0a6;
+  font-size: 0.7rem;
+  font-weight: 750;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 .rv2-category-track {
