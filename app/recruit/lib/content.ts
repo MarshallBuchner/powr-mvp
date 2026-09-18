@@ -153,6 +153,8 @@ export const samplePlayer = {
   league: "CSSHL",
   number: "17",
   tagline: "Disciplined. Competitive. Always looking to improve.",
+  email: "ethan.carter@email.com",
+  phone: "(403) 555-0147",
   stats: [
     { label: "Games", value: "92" },
     { label: "Goals", value: "34" },
@@ -165,7 +167,36 @@ export const samplePlayer = {
     { title: "Skating & Transitions", time: "1:20" },
     { title: "Special Teams", time: "2:05" },
   ],
-  strengths: "Compete, transitional speed, net-front habits",
+  strengths: [
+    "Compete level and puck pressure",
+    "Transitional speed through neutral ice",
+    "Net-front habits and board battles",
+    "Reliable defensive detail",
+  ],
+  experience: [
+    {
+      team: "Calgary AAA",
+      league: "CSSHL",
+      years: "2024–26",
+      note: "Top-six forward · PK / PP utility",
+    },
+    {
+      team: "Calgary AA",
+      league: "CSSHL Prep",
+      years: "2022–24",
+      note: "Assistant captain · +28 point jump Y2",
+    },
+  ],
+  academics: {
+    school: "Westmount Collegiate",
+    grade: "Grade 11",
+    gpa: "3.6 / 4.0",
+    focus: "Business & Leadership",
+  },
+  references: [
+    { role: "Head Coach", name: "M. Sullivan" },
+    { role: "Skills Coach", name: "A. Nguyen" },
+  ],
   bio: "Ethan is a two-way forward who plays with pace and detail. Coaches rely on him to pressure the puck, support the rush, and finish plays around the net. He is working to expand his shot selection while staying reliable in both ends.",
 };
 

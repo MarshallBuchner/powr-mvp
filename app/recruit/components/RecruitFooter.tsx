@@ -14,8 +14,8 @@ export default function RecruitFooter() {
         <nav aria-label="Footer">
           <Link href="/">POWR Home</Link>
           <Link href="/recruit/sample-profile">Sample profile</Link>
-          <a href="#offer">Pricing</a>
-          <a href="#faq">FAQ</a>
+          <Link href="/recruit#offer">Pricing</Link>
+          <Link href="/recruit#faq">FAQ</Link>
         </nav>
       </div>
       <p className="recruit-footer-note">
