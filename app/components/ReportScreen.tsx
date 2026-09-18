@@ -765,8 +765,8 @@ const personalizedCoachSummary =
           : saveStatus === "error"
             ? "Save failed — try again"
             : user
-              ? "Save to My POWR Account"
-              : "Save & create free account"}
+              ? "Save report to my account"
+              : "Save report & create free account"}
     </button>
   ) : null}
 

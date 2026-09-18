@@ -4,10 +4,10 @@ import { useEffect, useState } from "react";
 
 export type ProcessingStageId = "upload" | "analyze" | "report";
 
-const STAGES: { id: ProcessingStageId; label: string }[] = [
-  { id: "upload", label: "Uploading video" },
-  { id: "analyze", label: "Analyzing skating" },
-  { id: "report", label: "Building your report" },
+const STAGES: { id: ProcessingStageId; label: string; progress: number }[] = [
+  { id: "upload", label: "Uploading video", progress: 28 },
+  { id: "analyze", label: "Analyzing skating", progress: 64 },
+  { id: "report", label: "Building your report", progress: 90 },
 ];
 
 type AnalysisProcessingPanelProps = {
@@ -23,6 +23,7 @@ export default function AnalysisProcessingPanel({
     0,
     STAGES.findIndex((item) => item.id === stage),
   );
+  const progress = STAGES[activeIndex]?.progress ?? 28;
 
   return (
     <div className="analysis-processing" role="status" aria-live="polite">
@@ -42,9 +43,17 @@ export default function AnalysisProcessingPanel({
         className="analysis-processing-bar"
         role="progressbar"
         aria-label="Analysis in progress"
-        aria-valuetext="In progress"
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={progress}
+        aria-valuetext={STAGES[activeIndex]?.label ?? "In progress"}
       >
-        <span className="analysis-processing-bar-fill" />
+        <span
+          className="analysis-processing-bar-fill"
+          style={{ width: `${progress}%` }}
+        >
+          <span className="analysis-processing-bar-shimmer" aria-hidden="true" />
+        </span>
       </div>
 
       <ol className="analysis-processing-stages">

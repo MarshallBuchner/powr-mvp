@@ -40,6 +40,7 @@ export default function SampleAssessment({
           <video
             className="sample-video"
             src="/sample-skating.mp4"
+            poster="/sample-skating-poster.jpg"
             controls
             playsInline
             preload="metadata"

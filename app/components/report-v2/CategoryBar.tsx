@@ -1,6 +1,7 @@
 "use client";
 
 import { ChevronRight } from "lucide-react";
+import { skillBandLabel } from "./skillBand";
 
 type CategoryBarProps = {
   name: string;
@@ -14,6 +15,7 @@ export default function CategoryBar({
   icon = "•",
 }: CategoryBarProps) {
   const clamped = Math.max(0, Math.min(100, score));
+  const band = skillBandLabel(clamped);
 
   return (
     <div className="rv2-category-bar">
@@ -22,8 +24,9 @@ export default function CategoryBar({
           <em aria-hidden="true">{icon}</em>
           {name}
         </span>
-        <strong>
-          {clamped}
+        <strong className="rv2-category-score">
+          <span className="rv2-category-band">{band}</span>
+          <span>{clamped}</span>
           <ChevronRight size={16} aria-hidden="true" />
         </strong>
       </div>

@@ -624,7 +624,9 @@ export default function UploadCard({ onAnalyze }: UploadCardProps) {
       </button>
 
       <p className="privacy-note">
-        Your selected video stays on this device during prototype mode.
+        Your video stays on this device for analysis. We use a short clip for
+        coaching feedback and only save the report text — not the video file —
+        if you create a free account later.
       </p>
     </section>
   );
