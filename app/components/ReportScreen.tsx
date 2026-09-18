@@ -18,6 +18,8 @@ import {
   getLocalRemainingAssessments,
   localCanRunAssessment,
 } from "./assessmentEntitlements";
+import { readStashedEvidenceFrames } from "./evidenceStorage";
+import type { AnalysisEvidenceMoment } from "./types";
 
 type ReportScreenProps = {
   request: AnalysisRequest;
@@ -58,10 +60,24 @@ const personalizedCoachSummary =
   const [savedId, setSavedId] = useState<string | null>(null);
   const isSample = isSampleReport(request);
   const [remaining, setRemaining] = useState(1);
+  const [evidenceMoments, setEvidenceMoments] = useState<
+    AnalysisEvidenceMoment[]
+  >(request.evidenceMoments ?? []);
 
   useEffect(() => {
     setRemaining(getLocalRemainingAssessments());
   }, []);
+
+  useEffect(() => {
+    if (request.evidenceMoments?.length) {
+      setEvidenceMoments(request.evidenceMoments);
+      return;
+    }
+    const stashed = readStashedEvidenceFrames();
+    if (stashed.length) {
+      setEvidenceMoments(stashed);
+    }
+  }, [request.evidenceMoments]);
 
   useEffect(() => {
     if (!realAnalysis) {
@@ -291,20 +307,49 @@ const personalizedCoachSummary =
           </div>
 
           <p className="level">
-  {realAnalysis ? "Video-Specific Assessment" : analysis.tier}
-</p>
+            {realAnalysis ? "Video-Specific Assessment" : analysis.tier}
+          </p>
 
-<p className="percentile">
-  {realAnalysis
-    ? `${request.goal} development focus`
-    : analysis.tierDescription}
-</p>
+          <p className="percentile">
+            {realAnalysis
+              ? `${request.goal} development focus`
+              : analysis.tierDescription}
+          </p>
 
-<p className="score-note">
-  {realAnalysis
-    ? "Your score reflects the skating mechanics POWR could evaluate from the sampled frames in this video."
-    : analysis.scoreNote}
-</p>
+          {realAnalysis ? (
+            <p className="score-interpretation">
+              {realAnalysis.overallScore >= 85
+                ? "Strong skating base"
+                : realAnalysis.overallScore >= 70
+                  ? "Solid skating base"
+                  : "Developing skating base"}
+              {" · Biggest opportunity: "}
+              {realAnalysis.priorityImprovement.length > 64
+                ? `${realAnalysis.priorityImprovement.slice(0, 61).trim()}…`
+                : realAnalysis.priorityImprovement}
+            </p>
+          ) : null}
+
+          <p className="score-disclaimer">
+            AI development estimate — not a scouting grade.
+          </p>
+
+          <p className="score-note">
+            {realAnalysis
+              ? "Your score reflects the skating mechanics POWR could evaluate from the sampled frames in this video."
+              : analysis.scoreNote}
+          </p>
+
+          {realAnalysis ? (
+            <div className="score-confidence-pill">
+              <span>Confidence</span>
+              <strong>
+                {realAnalysis.confidence.label === "Moderate"
+                  ? "Medium"
+                  : realAnalysis.confidence.label}
+              </strong>
+            </div>
+          ) : null}
         </div>
       </section>
 
@@ -322,39 +367,44 @@ const personalizedCoachSummary =
 
           <div className="coach-confidence">
             <div className="confidence-score">
-            <span>
-  {isSample
-    ? "Demo"
-    : `${realAnalysis?.confidence.score ?? analysis.confidence.score}%`}
-</span>
+              <span>
+                {isSample
+                  ? "Demo"
+                  : realAnalysis?.confidence.label === "Moderate"
+                    ? "Medium"
+                    : realAnalysis?.confidence.label ?? "High"}
+              </span>
               <small>
                 {isSample ? "Sample clip" : "Assessment Confidence"}
               </small>
             </div>
 
             <div className="confidence-details">
-  {isSample ? (
-    <>
-      <div>✓ Example clip, not your footage</div>
-      <div>✓ Same report layout a player receives</div>
-      <div>✓ Upload your own video for a personal score</div>
-    </>
-  ) : (
-    <>
-      <div>✓ 5 sampled video frames reviewed</div>
-      <div>✓ Goal-specific skating analysis</div>
-      <div>
-        ✓ {realAnalysis?.confidence.label ?? "Assessment"} confidence
-      </div>
-    </>
-  )}
-</div>
+              {isSample ? (
+                <>
+                  <div>✓ Example clip, not your footage</div>
+                  <div>✓ Same report layout a player receives</div>
+                  <div>✓ Upload your own video for a personal score</div>
+                </>
+              ) : (
+                <>
+                  <div>✓ Goal-specific skating analysis</div>
+                  <div>
+                    ✓{" "}
+                    {realAnalysis?.confidence.label === "Moderate"
+                      ? "Medium"
+                      : realAnalysis?.confidence.label ?? "Assessment"}{" "}
+                    confidence in this read
+                  </div>
+                </>
+              )}
+            </div>
 
-{realAnalysis?.confidence.reason && (
-  <p className="confidence-reason">
-    {realAnalysis.confidence.reason}
-  </p>
-)}
+            {realAnalysis?.confidence.reason && (
+              <p className="confidence-reason">
+                {realAnalysis.confidence.reason}
+              </p>
+            )}
           </div>
         </div>
       </section>
@@ -507,6 +557,30 @@ const personalizedCoachSummary =
         <h4>💡 Why This Matters</h4>
         <p>{realAnalysis.whyItMatters}</p>
       </div>
+
+      {evidenceMoments.length > 0 ? (
+        <div className="evidence-moments">
+          <p className="evidence-moments-label">Evidence from your clip</p>
+          <div className="evidence-moments-grid">
+            {evidenceMoments.slice(0, 2).map((moment) => (
+              <figure key={`${moment.timeLabel}-${moment.caption}`}>
+                {moment.dataUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={moment.dataUrl} alt="" />
+                ) : (
+                  <div className="evidence-moment-fallback" aria-hidden="true">
+                    ▶
+                  </div>
+                )}
+                <figcaption>
+                  <strong>{moment.timeLabel}</strong>
+                  <span>{moment.caption}</span>
+                </figcaption>
+              </figure>
+            ))}
+          </div>
+        </div>
+      ) : null}
     </article>
   ) : (
     analysis.improvements.map((item, index) => (
@@ -1106,6 +1180,104 @@ const personalizedCoachSummary =
           color: #91a39a;
           font-size: 0.9rem;
           line-height: 1.55;
+        }
+
+        .score-interpretation {
+          margin: 14px 0 0;
+          color: #e8f6ee;
+          font-size: 0.98rem;
+          font-weight: 700;
+          line-height: 1.45;
+        }
+
+        .score-disclaimer {
+          margin: 10px 0 0;
+          color: #8fa297;
+          font-size: 0.78rem;
+          font-weight: 650;
+          letter-spacing: 0.02em;
+        }
+
+        .score-confidence-pill {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          margin-top: 14px;
+          padding: 8px 12px;
+          border: 1px solid rgba(109, 255, 174, 0.28);
+          border-radius: 999px;
+          background: rgba(109, 255, 174, 0.08);
+          color: #a9b8b0;
+          font-size: 0.78rem;
+          font-weight: 700;
+        }
+
+        .score-confidence-pill strong {
+          color: #8cffbd;
+          letter-spacing: 0.04em;
+          text-transform: uppercase;
+        }
+
+        .evidence-moments {
+          margin-top: 16px;
+          padding-top: 14px;
+          border-top: 1px solid rgba(255, 255, 255, 0.08);
+          text-align: left;
+        }
+
+        .evidence-moments-label {
+          margin: 0 0 10px;
+          color: #8cffbd;
+          font-size: 0.72rem;
+          font-weight: 800;
+          letter-spacing: 0.12em;
+          text-transform: uppercase;
+        }
+
+        .evidence-moments-grid {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 10px;
+        }
+
+        .evidence-moments-grid figure {
+          margin: 0;
+          overflow: hidden;
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          border-radius: 14px;
+          background: rgba(0, 0, 0, 0.28);
+        }
+
+        .evidence-moments-grid img,
+        .evidence-moment-fallback {
+          display: block;
+          width: 100%;
+          aspect-ratio: 16 / 10;
+          object-fit: cover;
+          background: #0b1510;
+        }
+
+        .evidence-moment-fallback {
+          display: grid;
+          place-items: center;
+          color: #8cffbd;
+        }
+
+        .evidence-moments-grid figcaption {
+          display: grid;
+          gap: 2px;
+          padding: 8px 10px 10px;
+        }
+
+        .evidence-moments-grid strong {
+          color: #8cffbd;
+          font-size: 0.78rem;
+        }
+
+        .evidence-moments-grid span {
+          color: #a9b8b0;
+          font-size: 0.78rem;
+          line-height: 1.35;
         }
 
         .report-section {
