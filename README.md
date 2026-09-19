@@ -22,7 +22,7 @@ Current Progress
 - ⏳ Player Dashboard polish
 - ⏳ Coach Platform
 
-See `docs/AUTH.md` for magic-link account setup.
+See `docs/AUTH.md` for email OTP account setup.
 See `docs/powr-recruit/` for Recruit launch package.
 
 ---

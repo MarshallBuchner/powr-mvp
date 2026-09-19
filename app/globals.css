@@ -1547,6 +1547,45 @@ button {
   padding: 0 14px;
 }
 
+.login-otp-input {
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: 0.35em;
+  text-align: center;
+  min-height: 56px;
+}
+
+.login-hint {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--muted, #6b7280);
+}
+
+.login-secondary-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin-top: 4px;
+}
+
+.login-text-button {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--accent);
+  font: inherit;
+  font-weight: 700;
+  padding: 8px 0;
+  min-height: 44px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.login-text-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
 .login-message {
   color: var(--accent);
   font-weight: 700;
@@ -1555,6 +1594,13 @@ button {
 .login-error {
   color: var(--danger);
   font-weight: 700;
+}
+
+@media (max-width: 430px) {
+  .login-otp-input {
+    font-size: 1.35rem;
+    letter-spacing: 0.28em;
+  }
 }
 
 .assessment-list {

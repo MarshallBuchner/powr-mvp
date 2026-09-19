@@ -19,12 +19,31 @@ type AuthContextValue = {
   loading: boolean;
   user: User | null;
   email: string | null;
-  requestMagicLink: (email: string, next?: string) => Promise<{ error?: string }>;
+  sendSignInCode: (email: string) => Promise<{ error?: string }>;
+  verifySignInCode: (
+    email: string,
+    token: string,
+  ) => Promise<{ error?: string }>;
   signOut: () => Promise<void>;
   refresh: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
+
+function formatAuthError(message: string): string {
+  const lower = message.toLowerCase();
+  if (
+    lower.includes("rate limit") ||
+    lower.includes("too many requests") ||
+    lower.includes("security purposes")
+  ) {
+    return "Too many attempts. Wait a minute, then try again.";
+  }
+  if (lower.includes("expired") || lower.includes("invalid")) {
+    return "That code is invalid or expired. Request a new one.";
+  }
+  return message;
+}
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const configured = isSupabaseConfigured();
@@ -71,25 +90,44 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     void mergeDeviceEntitlementsOnLogin(user.id);
   }, [user?.id]);
 
-  const requestMagicLink = useCallback(
-    async (email: string, next: string = "/assessments") => {
+  const sendSignInCode = useCallback(
+    async (email: string) => {
       if (!configured) {
         return { error: "Accounts are not configured yet." };
       }
 
       const supabase = createClient();
-      const redirectTo = `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`;
       const { error } = await supabase.auth.signInWithOtp({
         email: email.trim(),
         options: {
-          emailRedirectTo: redirectTo,
+          shouldCreateUser: true,
         },
       });
 
-      if (error) return { error: error.message };
+      if (error) return { error: formatAuthError(error.message) };
       return {};
     },
     [configured],
+  );
+
+  const verifySignInCode = useCallback(
+    async (email: string, token: string) => {
+      if (!configured) {
+        return { error: "Accounts are not configured yet." };
+      }
+
+      const supabase = createClient();
+      const { error } = await supabase.auth.verifyOtp({
+        email: email.trim(),
+        token: token.trim(),
+        type: "email",
+      });
+
+      if (error) return { error: formatAuthError(error.message) };
+      await refresh();
+      return {};
+    },
+    [configured, refresh],
   );
 
   const signOut = useCallback(async () => {
@@ -105,11 +143,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       loading,
       user,
       email: user?.email ?? null,
-      requestMagicLink,
+      sendSignInCode,
+      verifySignInCode,
       signOut,
       refresh,
     }),
-    [configured, loading, user, requestMagicLink, signOut, refresh],
+    [configured, loading, user, sendSignInCode, verifySignInCode, signOut, refresh],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
