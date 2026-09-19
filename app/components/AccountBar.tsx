@@ -107,9 +107,6 @@ export default function AccountBar() {
           <Link href="/assessments" onClick={() => setMenuOpen(false)}>
             My assessments
           </Link>
-          <Link href="/recruit" onClick={() => setMenuOpen(false)}>
-            Recruit
-          </Link>
 
           {loading ? (
             <span className="account-bar-muted">…</span>
