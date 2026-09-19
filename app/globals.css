@@ -1311,6 +1311,7 @@ button {
 }
 
 .account-bar-inner {
+  position: relative;
   width: min(1120px, calc(100% - 28px));
   margin: 0 auto;
   min-height: 52px;
@@ -1327,6 +1328,28 @@ button {
   letter-spacing: -0.06em;
   text-decoration: none;
   color: var(--text);
+}
+
+.account-bar-actions {
+  display: none;
+  align-items: center;
+  gap: 8px;
+}
+
+.account-bar-menu-toggle {
+  appearance: none;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text);
+  border-radius: 10px;
+  width: 38px;
+  height: 34px;
+  display: inline-grid;
+  place-content: center;
+  font: inherit;
+  font-size: 1rem;
+  font-weight: 800;
+  cursor: pointer;
 }
 
 .account-bar-nav {
@@ -1413,8 +1436,61 @@ button {
   color: inherit;
 }
 
-@media (max-width: 640px) {
-  .account-bar-avatar-label {
+/* Desktop: auth controls live in the horizontal nav; hide mobile strip. */
+@media (min-width: 761px) {
+  .account-bar-actions {
+    display: none;
+  }
+}
+
+/* Mobile: always-visible Sign in / avatar + hamburger panel. */
+@media (max-width: 760px) {
+  .account-bar-actions {
+    display: inline-flex;
+  }
+
+  .account-bar-nav {
+    display: none;
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    left: 0;
+    padding: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 16px;
+    background: rgba(9, 11, 13, 0.98);
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+    flex-direction: column;
+    align-items: stretch;
+    gap: 4px;
+  }
+
+  .account-bar.is-menu-open .account-bar-nav {
+    display: flex;
+  }
+
+  .account-bar-nav a,
+  .account-bar-nav .account-bar-button,
+  .account-bar-nav .account-bar-muted,
+  .account-bar-nav .account-bar-avatar {
+    min-height: 42px;
+    padding: 0 12px;
+    border-radius: 12px;
+    justify-content: flex-start;
+  }
+
+  .account-bar-nav a:hover,
+  .account-bar-nav .account-bar-avatar:hover {
+    background: rgba(184, 255, 59, 0.08);
+  }
+
+  .account-bar-nav .account-bar-button {
+    width: 100%;
+    justify-content: center;
+    margin-top: 4px;
+  }
+
+  .account-bar-actions .account-bar-avatar-label {
     position: absolute;
     width: 1px;
     height: 1px;
@@ -1424,6 +1500,16 @@ button {
     clip: rect(0, 0, 0, 0);
     white-space: nowrap;
     border: 0;
+  }
+
+  .account-bar-nav .account-bar-avatar-label {
+    position: static;
+    width: auto;
+    height: auto;
+    margin: 0;
+    overflow: visible;
+    clip: auto;
+    white-space: normal;
   }
 }
 
