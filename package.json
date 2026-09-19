@@ -10,6 +10,7 @@
     "build:recruit-toolkit": "python3 scripts/build-recruit-toolkit.py"
   },
   "dependencies": {
+    "@mediapipe/tasks-vision": "^1.0.1",
     "@supabase/ssr": "^0.12.7",
     "@supabase/supabase-js": "^2.116.0",
     "@vercel/analytics": "^2.0.1",
