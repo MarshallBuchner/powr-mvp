@@ -170,21 +170,21 @@ export default function PoseVideoPlayer({
     const { width, height } = canvas;
     clearCanvas(ctx, width, height);
 
-    // Only run detection when the video clock advances (and model is ready)
+    // Detect when the clock advances, or once on the first available frame (even if paused)
+    const timeAdvanced = video.currentTime !== lastTsRef.current;
+    const needsFirstFrame =
+      landmarksRef.current == null && video.readyState >= 2;
     if (
       landmarker &&
       video.readyState >= 2 &&
-      !video.paused &&
-      !video.ended &&
-      video.currentTime !== lastTsRef.current
+      (timeAdvanced || needsFirstFrame) &&
+      (!video.paused || needsFirstFrame) &&
+      !video.ended
     ) {
       lastTsRef.current = video.currentTime;
       try {
         // MediaPipe requires monotonically increasing timestamps (ms)
-        const result = landmarker.detectForVideo(
-          video,
-          performance.now(),
-        );
+        const result = landmarker.detectForVideo(video, performance.now());
         const pose = result.landmarks?.[0] ?? null;
         landmarksRef.current = pose;
 
@@ -200,13 +200,14 @@ export default function PoseVideoPlayer({
         // Don't crash the loop if a frame fails
         console.warn("[PoseVideoPlayer] detectForVideo failed", err);
       }
-    } else if (video.paused || video.ended) {
-      // Still emit debug clock while paused
+    } else {
+      // Still emit debug clock while idle
       onDebugRef.current?.({
         currentTime: video.currentTime,
         poseDetected: Boolean(landmarksRef.current?.length),
         landmarkCount: landmarksRef.current?.length ?? 0,
-        confidencePct: computePrototypeMetrics(landmarksRef.current).confidencePct,
+        confidencePct: computePrototypeMetrics(landmarksRef.current)
+          .confidencePct,
       });
     }
 
@@ -286,8 +287,14 @@ export default function PoseVideoPlayer({
           className="skel-player-video"
           controls
           playsInline
+          muted
           crossOrigin="anonymous"
-          onLoadedData={syncCanvasSize}
+          onLoadedData={() => {
+            syncCanvasSize();
+            // Allow a fresh first-frame detection after the clip loads
+            lastTsRef.current = -1;
+            landmarksRef.current = null;
+          }}
         />
         <canvas ref={canvasRef} className="skel-player-canvas" style={overlayStyle} />
         {modelStatus === "loading" ? (
