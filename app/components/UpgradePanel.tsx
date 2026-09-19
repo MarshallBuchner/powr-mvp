@@ -32,7 +32,19 @@ export default function UpgradePanel({ source, remaining, compact = false }: Pro
         }),
       });
 
-      const data = (await response.json()) as { url?: string };
+      const data = (await response.json()) as {
+        url?: string;
+        error?: string;
+        loginUrl?: string;
+      };
+
+      if (response.status === 401 || data.error === "sign_in_required") {
+        window.location.assign(
+          data.loginUrl || "/login?next=%2F%23start-assessment",
+        );
+        return;
+      }
+
       window.location.assign(data.url || "/unlock?preview=1");
     } catch (error) {
       console.error("POWR assessment checkout failed", error);

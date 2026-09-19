@@ -6,6 +6,8 @@ import {
   ASSESSMENT_PRODUCT_ID,
   ASSESSMENT_PRODUCT_NAME,
 } from "@/lib/assessmentBilling";
+import { isSupabaseConfigured } from "@/lib/supabase/config";
+import { createClient } from "@/lib/supabase/server";
 
 const previewUrl = "/unlock?preview=1";
 
@@ -32,6 +34,19 @@ function getStripeClient() {
   });
 }
 
+async function getAuthedUserId() {
+  if (!isSupabaseConfigured()) return null;
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    return user?.id ?? null;
+  } catch {
+    return null;
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const stripe = getStripeClient();
@@ -42,6 +57,7 @@ export async function POST(request: NextRequest) {
     };
     const source = body.source || "upgrade";
     const ref = (body.ref || "").slice(0, 64);
+    const userId = await getAuthedUserId();
 
     if (!stripe) {
       return NextResponse.json({
@@ -51,6 +67,18 @@ export async function POST(request: NextRequest) {
         message:
           "Add STRIPE_SECRET_KEY to enable live Stripe Checkout. Optional: STRIPE_ASSESSMENT_PRICE_ID.",
       });
+    }
+
+    // Live pack purchase requires an account so webhook can credit the profile.
+    if (!userId) {
+      return NextResponse.json(
+        {
+          error: "sign_in_required",
+          message: "Sign in to purchase assessment credits for your account.",
+          loginUrl: `/login?next=${encodeURIComponent("/#start-assessment")}`,
+        },
+        { status: 401 },
+      );
     }
 
     const configuredPriceId =
@@ -82,6 +110,7 @@ export async function POST(request: NextRequest) {
       line_items: lineItems,
       allow_promotion_codes: true,
       billing_address_collection: "auto",
+      client_reference_id: userId,
       success_url: `${baseUrl}/unlock?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${baseUrl}/#start-assessment`,
       metadata: {
@@ -89,6 +118,7 @@ export async function POST(request: NextRequest) {
         credits: String(ASSESSMENT_PACK_CREDITS),
         source,
         ref,
+        user_id: userId,
       },
       custom_text: {
         submit: {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   ChevronLeft,
@@ -28,6 +28,7 @@ import {
 import {
   getLocalRemainingAssessments,
   localCanRunAssessment,
+  fetchEntitlementBalance,
 } from "../assessmentEntitlements";
 import "./report-v2.css";
 
@@ -62,8 +63,21 @@ export default function ReportV2Flow({
   const [drillFilter, setDrillFilter] =
     useState<(typeof DRILL_FILTERS)[number]>("All");
   const [activeDrill, setActiveDrill] = useState<ReportV2Drill | null>(null);
-  const [remaining] = useState(() => getLocalRemainingAssessments());
+  const [remaining, setRemaining] = useState(() => getLocalRemainingAssessments());
   const [shareStatus, setShareStatus] = useState<"idle" | "copied">("idle");
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const balance = await fetchEntitlementBalance();
+      if (!cancelled && balance) {
+        setRemaining(balance.remaining);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const stepHref = (index: number) =>
     reportV2StepHref(index, { basePath, searchParams });

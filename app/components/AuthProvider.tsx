@@ -6,11 +6,13 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import type { User } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
+import { mergeDeviceEntitlementsOnLogin } from "./assessmentEntitlements";
 
 type AuthContextValue = {
   configured: boolean;
@@ -28,6 +30,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const configured = isSupabaseConfigured();
   const [loading, setLoading] = useState(configured);
   const [user, setUser] = useState<User | null>(null);
+  const mergedForUser = useRef<string | null>(null);
 
   const refresh = useCallback(async () => {
     if (!configured) {
@@ -57,6 +60,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     return () => subscription.unsubscribe();
   }, [configured, refresh]);
+
+  useEffect(() => {
+    if (!user?.id) {
+      mergedForUser.current = null;
+      return;
+    }
+    if (mergedForUser.current === user.id) return;
+    mergedForUser.current = user.id;
+    void mergeDeviceEntitlementsOnLogin(user.id);
+  }, [user?.id]);
 
   const requestMagicLink = useCallback(
     async (email: string, next: string = "/assessments") => {

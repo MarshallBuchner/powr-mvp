@@ -17,6 +17,7 @@ import UpgradePanel from "./UpgradePanel";
 import {
   getLocalRemainingAssessments,
   localCanRunAssessment,
+  fetchEntitlementBalance,
 } from "./assessmentEntitlements";
 import { readStashedEvidenceFrames } from "./evidenceStorage";
 import type { AnalysisEvidenceMoment } from "./types";
@@ -66,6 +67,10 @@ const personalizedCoachSummary =
 
   useEffect(() => {
     setRemaining(getLocalRemainingAssessments());
+    void (async () => {
+      const balance = await fetchEntitlementBalance();
+      if (balance) setRemaining(balance.remaining);
+    })();
   }, []);
 
   useEffect(() => {

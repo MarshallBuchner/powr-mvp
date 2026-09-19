@@ -9,6 +9,7 @@ import {
   ASSESSMENT_PACK_PRICE_CAD,
 } from "@/lib/assessmentBilling";
 import {
+  fetchEntitlementBalance,
   localGrantPack,
   syncEntitlementCookie,
   writeLocalEntitlements,
@@ -19,6 +20,8 @@ type VerifyResult = {
   preview?: boolean;
   creditsGranted?: number;
   remaining?: number;
+  awaitingWebhook?: boolean;
+  source?: "profile" | "device";
   entitlements?: {
     freeUsed: number;
     credits: number;
@@ -26,6 +29,17 @@ type VerifyResult = {
   };
   reason?: string;
 };
+
+async function waitForProfileCredits(expectedMinCredits: number) {
+  for (let i = 0; i < 12; i += 1) {
+    const balance = await fetchEntitlementBalance();
+    if (balance && balance.credits >= expectedMinCredits) {
+      return balance;
+    }
+    await new Promise((resolve) => window.setTimeout(resolve, 1000));
+  }
+  return fetchEntitlementBalance();
+}
 
 function UnlockClient() {
   const searchParams = useSearchParams();
@@ -59,19 +73,29 @@ function UnlockClient() {
           return;
         }
 
-        if (data.entitlements) {
+        let remainingBalance = data.remaining || 0;
+
+        if (data.source === "profile") {
+          // Webhook is source of truth — poll briefly if credits not visible yet.
+          const balance = await waitForProfileCredits(1);
+          if (balance) {
+            remainingBalance = balance.remaining;
+          }
+        } else if (data.entitlements) {
           writeLocalEntitlements(data.entitlements);
           await syncEntitlementCookie(data.entitlements);
+          remainingBalance = data.remaining || 0;
         } else if (sessionId || preview) {
           localGrantPack(sessionId || "preview", data.creditsGranted);
         }
 
         setCreditsGranted(data.creditsGranted || ASSESSMENT_PACK_CREDITS);
-        setRemaining(data.remaining || 0);
+        setRemaining(remainingBalance);
         setStatus("success");
         track("assessment_pack_unlocked", {
           preview: Boolean(data.preview),
           credits: data.creditsGranted || ASSESSMENT_PACK_CREDITS,
+          source: data.source || "device",
         });
       } catch (error) {
         console.error("POWR unlock verify failed", error);

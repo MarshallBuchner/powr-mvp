@@ -2,12 +2,34 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 import { useAuth } from "./AuthProvider";
 import BetaBadge from "./BetaBadge";
+import { fetchEntitlementBalance } from "./assessmentEntitlements";
 
 export default function AccountBar() {
   const pathname = usePathname();
   const { configured, loading, user, email, signOut } = useAuth();
+  const [remaining, setRemaining] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!user) {
+      setRemaining(null);
+      return;
+    }
+
+    let cancelled = false;
+    void (async () => {
+      const balance = await fetchEntitlementBalance();
+      if (!cancelled && balance) {
+        setRemaining(balance.remaining);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user, pathname]);
 
   // Recruit stays purchase/download-only — no account chrome there.
   if (pathname?.startsWith("/recruit")) {
@@ -32,6 +54,11 @@ export default function AccountBar() {
             <span className="account-bar-muted">…</span>
           ) : user ? (
             <>
+              {remaining != null ? (
+                <span className="account-bar-muted" title="Assessments remaining">
+                  {remaining} left
+                </span>
+              ) : null}
               <span className="account-bar-muted">{email}</span>
               <button type="button" className="account-bar-button" onClick={() => void signOut()}>
                 Sign out
