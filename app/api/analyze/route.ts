@@ -4,11 +4,18 @@ import {
   canRunAssessment,
   consumeAssessment,
   remainingAssessments,
+  type EntitlementState,
 } from "@/lib/assessmentBilling";
 import {
   readEntitlementCookie,
   writeEntitlementCookie,
 } from "@/lib/entitlementCookie";
+import {
+  consumeProfileAssessment,
+  readProfileEntitlements,
+} from "@/lib/profileEntitlements";
+import { isSupabaseConfigured } from "@/lib/supabase/config";
+import { createClient } from "@/lib/supabase/server";
 
 function getOpenAIClient() {
   const apiKey = process.env.OPENAI_API_KEY;
@@ -17,6 +24,20 @@ function getOpenAIClient() {
   }
 
   return new OpenAI({ apiKey });
+}
+
+async function getAuthedUser() {
+  if (!isSupabaseConfigured()) return null;
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    return user ? { supabase, user } : null;
+  } catch (error) {
+    console.error("POWR analyze auth lookup failed", error);
+    return null;
+  }
 }
 
 export async function POST(request: NextRequest) {
@@ -32,7 +53,28 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const entitlement = readEntitlementCookie(request);
+    const cookieEntitlement = readEntitlementCookie(request);
+    const authed = await getAuthedUser();
+
+    let entitlement: EntitlementState = cookieEntitlement;
+    if (authed) {
+      try {
+        entitlement = await readProfileEntitlements(
+          authed.supabase,
+          authed.user.id,
+          authed.user.email,
+        );
+      } catch (error) {
+        console.error("POWR profile entitlement gate failed", error);
+        return NextResponse.json(
+          {
+            success: false,
+            error: "Could not verify assessment balance.",
+          },
+          { status: 500 },
+        );
+      }
+    }
 
     if (!canRunAssessment(entitlement)) {
       return NextResponse.json(
@@ -258,13 +300,32 @@ Return a development assessment suitable for POWR.
     });
 
     const analysis = JSON.parse(response.output_text);
-    const nextEntitlement = consumeAssessment(entitlement);
+
+    // Consume only after successful analysis (not on retries/errors above).
+    let nextEntitlement: EntitlementState;
+    if (authed) {
+      const consumed = await consumeProfileAssessment(authed.supabase);
+      if (!consumed.ok) {
+        // Extremely rare race after a successful model response — still return
+        // the analysis; balance already reflects empty/competitor win.
+        console.error("POWR consume race after successful analysis", {
+          remaining: consumed.remaining,
+        });
+      }
+      nextEntitlement = {
+        ...consumed.state,
+        unlockedSessionIds: cookieEntitlement.unlockedSessionIds,
+      };
+    } else {
+      nextEntitlement = consumeAssessment(cookieEntitlement);
+    }
 
     const json = NextResponse.json({
       success: true,
       analysis,
       remaining: remainingAssessments(nextEntitlement),
       entitlements: nextEntitlement,
+      source: authed ? "profile" : "device",
     });
 
     return writeEntitlementCookie(json, nextEntitlement);

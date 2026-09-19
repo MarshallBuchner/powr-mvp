@@ -11,6 +11,17 @@ import {
   readEntitlementCookie,
   writeEntitlementCookie,
 } from "@/lib/entitlementCookie";
+import {
+  entitlementResponse,
+  grantPackCreditsToProfile,
+  readProfileEntitlements,
+} from "@/lib/profileEntitlements";
+import {
+  createServiceClient,
+  isServiceRoleConfigured,
+} from "@/lib/supabase/admin";
+import { isSupabaseConfigured } from "@/lib/supabase/config";
+import { createClient } from "@/lib/supabase/server";
 
 function getStripeClient() {
   const secretKey = process.env.STRIPE_SECRET_KEY;
@@ -18,11 +29,49 @@ function getStripeClient() {
   return new Stripe(secretKey, { apiVersion: "2026-08-26.dahlia" });
 }
 
+/**
+ * Confirm payment status for the unlock page.
+ * Authed purchases: credits come from the Stripe webhook (source of truth).
+ * This route only reads profile balance (and may wait briefly for webhook).
+ * Guest/preview: keep legacy cookie grant for local/dev preview only.
+ */
 export async function GET(request: NextRequest) {
   const sessionId = request.nextUrl.searchParams.get("session_id");
   const preview = request.nextUrl.searchParams.get("preview");
 
   if (preview === "1" || sessionId === "preview") {
+    // Dev/preview path only — not used for live webhook-backed purchases.
+    let authedUserId: string | null = null;
+    if (isSupabaseConfigured()) {
+      try {
+        const supabase = await createClient();
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        authedUserId = user?.id ?? null;
+
+        if (authedUserId && isServiceRoleConfigured()) {
+          const admin = createServiceClient();
+          const granted = await grantPackCreditsToProfile(
+            admin,
+            authedUserId,
+            "preview",
+            ASSESSMENT_PACK_CREDITS,
+          );
+          return NextResponse.json({
+            paid: true,
+            preview: true,
+            creditsGranted: granted.creditsGranted,
+            ...entitlementResponse(granted.state, "profile"),
+            entitlements: granted.state,
+            source: "profile",
+          });
+        }
+      } catch (error) {
+        console.error("POWR preview profile grant failed", error);
+      }
+    }
+
     const current = readEntitlementCookie(request);
     const next = grantPackCredits(current, "preview", ASSESSMENT_PACK_CREDITS);
     const response = NextResponse.json({
@@ -32,6 +81,7 @@ export async function GET(request: NextRequest) {
       remaining: remainingAssessments(next),
       canRun: canRunAssessment(next),
       entitlements: next,
+      source: "device",
     });
     return writeEntitlementCookie(response, next);
   }
@@ -77,10 +127,42 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    const credits = Number(session.metadata?.credits) || ASSESSMENT_PACK_CREDITS;
+    const credits =
+      Number(session.metadata?.credits) || ASSESSMENT_PACK_CREDITS;
+    const metaUserId =
+      session.metadata?.user_id || session.client_reference_id || null;
+
+    // Authed purchase: webhook is SoT. Read profile (poll-friendly).
+    if (metaUserId && isSupabaseConfigured()) {
+      const supabase = await createClient();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (user) {
+        const state = await readProfileEntitlements(
+          supabase,
+          user.id,
+          user.email,
+        );
+        return NextResponse.json({
+          paid: true,
+          preview: false,
+          email: session.customer_details?.email ?? null,
+          amountTotal: session.amount_total,
+          currency: session.currency,
+          creditsGranted: credits,
+          ...entitlementResponse(state, "profile"),
+          entitlements: state,
+          ref: session.metadata?.ref || null,
+          source: "profile",
+        });
+      }
+    }
+
+    // Legacy guest cookie grant (sessions without user_id).
     const current = readEntitlementCookie(request);
     const next = grantPackCredits(current, sessionId, credits);
-
     const response = NextResponse.json({
       paid: true,
       preview: false,
@@ -92,6 +174,7 @@ export async function GET(request: NextRequest) {
       canRun: canRunAssessment(next),
       entitlements: next,
       ref: session.metadata?.ref || null,
+      source: "device",
     });
     return writeEntitlementCookie(response, next);
   } catch (error) {

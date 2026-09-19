@@ -86,3 +86,209 @@ drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created
   after insert on auth.users
   for each row execute function public.handle_new_user();
+
+-- Idempotent Stripe pack grants (webhook source of truth).
+create table if not exists public.assessment_credit_grants (
+  stripe_session_id text primary key,
+  user_id uuid not null references auth.users (id) on delete cascade,
+  credits integer not null check (credits > 0),
+  created_at timestamptz not null default now()
+);
+
+create index if not exists assessment_credit_grants_user_id_idx
+  on public.assessment_credit_grants (user_id);
+
+alter table public.assessment_credit_grants enable row level security;
+
+-- Users can see their own grant history; only service role inserts via RPC.
+drop policy if exists "credit_grants_select_own" on public.assessment_credit_grants;
+create policy "credit_grants_select_own"
+  on public.assessment_credit_grants for select
+  using (auth.uid() = user_id);
+
+-- Atomic consume: free first (1 free), then paid credits. FOR UPDATE lock.
+create or replace function public.consume_assessment_credit()
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  uid uuid := auth.uid();
+  fre integer;
+  cred integer;
+begin
+  if uid is null then
+    raise exception 'not_authenticated';
+  end if;
+
+  insert into public.profiles (id)
+  values (uid)
+  on conflict (id) do nothing;
+
+  select free_assessments_used, assessment_credits
+    into fre, cred
+    from public.profiles
+   where id = uid
+   for update;
+
+  if fre < 1 then
+    fre := fre + 1;
+  elsif cred > 0 then
+    cred := cred - 1;
+  else
+    return jsonb_build_object(
+      'ok', false,
+      'free_assessments_used', fre,
+      'assessment_credits', cred
+    );
+  end if;
+
+  update public.profiles
+     set free_assessments_used = fre,
+         assessment_credits = cred,
+         updated_at = now()
+   where id = uid;
+
+  return jsonb_build_object(
+    'ok', true,
+    'free_assessments_used', fre,
+    'assessment_credits', cred
+  );
+end;
+$$;
+
+revoke all on function public.consume_assessment_credit() from public;
+grant execute on function public.consume_assessment_credit() to authenticated;
+
+-- Idempotent merge: profile := greatest(profile, device) on free used + credits.
+create or replace function public.merge_assessment_entitlement(
+  p_free_used integer,
+  p_credits integer
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  uid uuid := auth.uid();
+  fre integer;
+  cred integer;
+begin
+  if uid is null then
+    raise exception 'not_authenticated';
+  end if;
+
+  insert into public.profiles (id)
+  values (uid)
+  on conflict (id) do nothing;
+
+  select free_assessments_used, assessment_credits
+    into fre, cred
+    from public.profiles
+   where id = uid
+   for update;
+
+  fre := greatest(fre, greatest(0, coalesce(p_free_used, 0)));
+  cred := greatest(cred, greatest(0, coalesce(p_credits, 0)));
+
+  update public.profiles
+     set free_assessments_used = fre,
+         assessment_credits = cred,
+         updated_at = now()
+   where id = uid;
+
+  return jsonb_build_object(
+    'ok', true,
+    'free_assessments_used', fre,
+    'assessment_credits', cred
+  );
+end;
+$$;
+
+revoke all on function public.merge_assessment_entitlement(integer, integer) from public;
+grant execute on function public.merge_assessment_entitlement(integer, integer) to authenticated;
+
+-- Service-role only: grant pack credits once per Stripe Checkout session.
+create or replace function public.grant_assessment_pack_credits(
+  p_user_id uuid,
+  p_session_id text,
+  p_credits integer
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  existing public.assessment_credit_grants%rowtype;
+  fre integer;
+  cred integer;
+begin
+  if p_user_id is null or p_session_id is null or p_credits is null or p_credits <= 0 then
+    raise exception 'invalid_grant_args';
+  end if;
+
+  select * into existing
+    from public.assessment_credit_grants
+   where stripe_session_id = p_session_id;
+
+  if found then
+    select free_assessments_used, assessment_credits
+      into fre, cred
+      from public.profiles
+     where id = existing.user_id;
+
+    return jsonb_build_object(
+      'ok', true,
+      'already_granted', true,
+      'credits_granted', existing.credits,
+      'free_assessments_used', coalesce(fre, 0),
+      'assessment_credits', coalesce(cred, 0)
+    );
+  end if;
+
+  insert into public.profiles (id)
+  values (p_user_id)
+  on conflict (id) do nothing;
+
+  insert into public.assessment_credit_grants (stripe_session_id, user_id, credits)
+  values (p_session_id, p_user_id, p_credits);
+
+  update public.profiles
+     set assessment_credits = assessment_credits + p_credits,
+         updated_at = now()
+   where id = p_user_id
+   returning free_assessments_used, assessment_credits into fre, cred;
+
+  return jsonb_build_object(
+    'ok', true,
+    'already_granted', false,
+    'credits_granted', p_credits,
+    'free_assessments_used', fre,
+    'assessment_credits', cred
+  );
+exception
+  when unique_violation then
+    select * into existing
+      from public.assessment_credit_grants
+     where stripe_session_id = p_session_id;
+
+    select free_assessments_used, assessment_credits
+      into fre, cred
+      from public.profiles
+     where id = existing.user_id;
+
+    return jsonb_build_object(
+      'ok', true,
+      'already_granted', true,
+      'credits_granted', existing.credits,
+      'free_assessments_used', coalesce(fre, 0),
+      'assessment_credits', coalesce(cred, 0)
+    );
+end;
+$$;
+
+revoke all on function public.grant_assessment_pack_credits(uuid, text, integer) from public;
+grant execute on function public.grant_assessment_pack_credits(uuid, text, integer) to service_role;
