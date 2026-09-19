@@ -30,7 +30,7 @@ type AuthContextValue = {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-function formatAuthError(message: string): string {
+function formatAuthError(message: string, kind: "send" | "verify" = "send"): string {
   const lower = message.toLowerCase();
   if (
     lower.includes("rate limit") ||
@@ -39,7 +39,10 @@ function formatAuthError(message: string): string {
   ) {
     return "Too many attempts. Wait a minute, then try again.";
   }
-  if (lower.includes("expired") || lower.includes("invalid")) {
+  if (
+    kind === "verify" &&
+    (lower.includes("expired") || lower.includes("invalid"))
+  ) {
     return "That code is invalid or expired. Request a new one.";
   }
   if (
@@ -112,11 +115,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           },
         });
 
-        if (error) return { error: formatAuthError(error.message) };
+        if (error) return { error: formatAuthError(error.message, "send") };
         return {};
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Sign-in failed.";
-        return { error: formatAuthError(msg) };
+        return { error: formatAuthError(msg, "send") };
       }
     },
     [configured],
@@ -136,12 +139,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           type: "email",
         });
 
-        if (error) return { error: formatAuthError(error.message) };
+        if (error) return { error: formatAuthError(error.message, "verify") };
         await refresh();
         return {};
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Verification failed.";
-        return { error: formatAuthError(msg) };
+        return { error: formatAuthError(msg, "verify") };
       }
     },
     [configured, refresh],

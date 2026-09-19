@@ -211,7 +211,7 @@ export default function LoginForm() {
 
       {message ? <p className="login-message">{message}</p> : null}
       {errorMessage ? <p className="login-error">{errorMessage}</p> : null}
-      {error && !errorMessage ? (
+      {error && !errorMessage && !message && !user ? (
         <p className="login-error">
           Sign-in failed{reason ? `: ${reason}` : "."} Request a new code.
         </p>
