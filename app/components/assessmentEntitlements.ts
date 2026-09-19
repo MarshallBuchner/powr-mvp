@@ -17,6 +17,8 @@ export type EntitlementBalance = EntitlementState & {
   remaining: number;
   canRun: boolean;
   source?: "profile" | "device";
+  /** Server-only founder override — never set from the client. */
+  unlimited?: boolean;
 };
 
 export function readLocalEntitlements(): EntitlementState {

@@ -61,6 +61,7 @@ const personalizedCoachSummary =
   const [savedId, setSavedId] = useState<string | null>(null);
   const isSample = isSampleReport(request);
   const [remaining, setRemaining] = useState(1);
+  const [unlimited, setUnlimited] = useState(false);
   const [evidenceMoments, setEvidenceMoments] = useState<
     AnalysisEvidenceMoment[]
   >(request.evidenceMoments ?? []);
@@ -69,7 +70,10 @@ const personalizedCoachSummary =
     setRemaining(getLocalRemainingAssessments());
     void (async () => {
       const balance = await fetchEntitlementBalance();
-      if (balance) setRemaining(balance.remaining);
+      if (balance) {
+        setRemaining(balance.remaining);
+        setUnlimited(Boolean(balance.unlimited));
+      }
     })();
   }, []);
 
@@ -750,7 +754,7 @@ const personalizedCoachSummary =
 </div>
 
 <div className="report-actions">
-  {!isSample && realAnalysis && remaining <= 0 ? (
+  {!isSample && realAnalysis && !unlimited && remaining <= 0 ? (
     <div className="report-upgrade-wrap">
       <UpgradePanel source="report" remaining={remaining} compact />
     </div>

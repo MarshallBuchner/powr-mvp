@@ -189,6 +189,7 @@ export default function UploadCard({ onAnalyze }: UploadCardProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [remaining, setRemaining] = useState(1);
   const [needsUpgrade, setNeedsUpgrade] = useState(false);
+  const [unlimited, setUnlimited] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const processingStage = useProcessingStage(isAnalyzing, stageOverride);
@@ -208,8 +209,12 @@ export default function UploadCard({ onAnalyze }: UploadCardProps) {
             credits: data.credits || 0,
             unlockedSessionIds: data.unlockedSessionIds || [],
           });
+          const isUnlimited = Boolean(data.unlimited);
+          setUnlimited(isUnlimited);
           setRemaining(data.remaining ?? getLocalRemainingAssessments());
-          setNeedsUpgrade(!(data.canRun ?? localCanRunAssessment()));
+          setNeedsUpgrade(
+            isUnlimited ? false : !(data.canRun ?? localCanRunAssessment()),
+          );
         } else {
           await syncEntitlementCookie(readLocalEntitlements());
         }
@@ -312,7 +317,7 @@ export default function UploadCard({ onAnalyze }: UploadCardProps) {
       return;
     }
 
-    if (!localCanRunAssessment()) {
+    if (!unlimited && !localCanRunAssessment()) {
       setNeedsUpgrade(true);
       setCanRetry(false);
       track("upgrade_viewed", { source: "upload_blocked" });
@@ -366,14 +371,16 @@ export default function UploadCard({ onAnalyze }: UploadCardProps) {
 
       if (result.entitlements) {
         writeLocalEntitlements(result.entitlements);
+        const isUnlimited = Boolean(result.unlimited) || unlimited;
+        setUnlimited(isUnlimited);
         setRemaining(
           result.remaining ?? remainingAssessments(result.entitlements),
         );
-        setNeedsUpgrade((result.remaining ?? 0) <= 0);
+        setNeedsUpgrade(isUnlimited ? false : (result.remaining ?? 0) <= 0);
       } else {
         const next = localConsumeAssessment();
         setRemaining(remainingAssessments(next));
-        setNeedsUpgrade(!localCanRunAssessment());
+        setNeedsUpgrade(unlimited ? false : !localCanRunAssessment());
       }
 
       track("analysis_succeeded", {
@@ -403,19 +410,22 @@ export default function UploadCard({ onAnalyze }: UploadCardProps) {
           ? error.message
           : "POWR couldn't analyze this video. Please try again.",
       );
-      setCanRetry(Boolean(selectedFile) && localCanRunAssessment());
+      setCanRetry(
+        Boolean(selectedFile) && (unlimited || localCanRunAssessment()),
+      );
     } finally {
       setIsAnalyzing(false);
       setStageOverride(null);
     }
   }
 
-  const quotaPrimary =
-    remaining > 0
+  const quotaPrimary = unlimited
+    ? "Founder access — unlimited assessments"
+    : remaining > 0
       ? `${remaining} free assessment${remaining === 1 ? "" : "s"} remaining`
       : "Free assessment used — unlock a pack to continue";
 
-  const showPackHint = remaining > 0 && remaining <= 1 && !needsUpgrade;
+  const showPackHint = !unlimited && remaining > 0 && remaining <= 1 && !needsUpgrade;
 
   return (
     <section className="card upload-card" id="start-assessment">

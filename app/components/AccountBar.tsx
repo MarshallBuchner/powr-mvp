@@ -16,12 +16,14 @@ export default function AccountBar() {
   const pathname = usePathname();
   const { configured, loading, user, email, signOut } = useAuth();
   const [remaining, setRemaining] = useState<number | null>(null);
+  const [unlimited, setUnlimited] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const initial = useMemo(() => accountInitial(email), [email]);
 
   useEffect(() => {
     if (!user) {
       setRemaining(null);
+      setUnlimited(false);
       return;
     }
 
@@ -30,6 +32,7 @@ export default function AccountBar() {
       const balance = await fetchEntitlementBalance();
       if (!cancelled && balance) {
         setRemaining(balance.remaining);
+        setUnlimited(Boolean(balance.unlimited));
       }
     })();
 
@@ -112,7 +115,11 @@ export default function AccountBar() {
             <span className="account-bar-muted">…</span>
           ) : user ? (
             <>
-              {remaining != null ? (
+              {unlimited ? (
+                <span className="account-bar-muted" title="Founder unlimited access">
+                  Founder access
+                </span>
+              ) : remaining != null ? (
                 <span className="account-bar-muted" title="Assessments remaining">
                   {remaining} left
                 </span>
