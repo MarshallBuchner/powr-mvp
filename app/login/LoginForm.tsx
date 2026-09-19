@@ -1,39 +1,97 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useMemo, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { FormEvent, useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/app/components/AuthProvider";
 
+const RESEND_COOLDOWN_SEC = 45;
+
 export default function LoginForm() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const next = searchParams.get("next") || "/assessments";
   const error = searchParams.get("error");
   const reason = searchParams.get("reason");
-  const { configured, requestMagicLink, user } = useAuth();
+  const { configured, sendSignInCode, verifySignInCode, user } = useAuth();
+
+  const [step, setStep] = useState<"email" | "code">("email");
   const [email, setEmail] = useState("");
-  const [status, setStatus] = useState<"idle" | "sending" | "sent" | "error">(
-    "idle",
-  );
+  const [code, setCode] = useState("");
+  const [sending, setSending] = useState(false);
+  const [verifying, setVerifying] = useState(false);
   const [message, setMessage] = useState("");
+  const [errorMessage, setErrorMessage] = useState("");
+  const [cooldown, setCooldown] = useState(0);
+
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const id = window.setTimeout(() => setCooldown((s) => s - 1), 1000);
+    return () => window.clearTimeout(id);
+  }, [cooldown]);
 
   const heading = useMemo(() => {
     if (user) return "You're signed in";
-    return "Save your skating assessments";
-  }, [user]);
+    if (step === "code") return "Check your email";
+    return "Sign in to POWR";
+  }, [user, step]);
 
-  async function onSubmit(event: FormEvent) {
-    event.preventDefault();
-    setStatus("sending");
+  async function sendCode(targetEmail: string) {
+    setSending(true);
     setMessage("");
-    const result = await requestMagicLink(email, next);
+    setErrorMessage("");
+    const result = await sendSignInCode(targetEmail);
+    setSending(false);
     if (result.error) {
-      setStatus("error");
-      setMessage(result.error);
+      setErrorMessage(result.error);
+      return false;
+    }
+    setStep("code");
+    setCooldown(RESEND_COOLDOWN_SEC);
+    setMessage("Code sent. Enter the 6-digit code from your email.");
+    return true;
+  }
+
+  async function onSendEmail(event: FormEvent) {
+    event.preventDefault();
+    const trimmed = email.trim();
+    if (!trimmed) return;
+    await sendCode(trimmed);
+  }
+
+  async function onVerifyCode(event: FormEvent) {
+    event.preventDefault();
+    const token = code.replace(/\D/g, "").slice(0, 6);
+    if (token.length !== 6) {
+      setErrorMessage("Enter the 6-digit code from your email.");
       return;
     }
-    setStatus("sent");
-    setMessage("Check your email for a magic link to sign in.");
+    setVerifying(true);
+    setMessage("");
+    setErrorMessage("");
+    const result = await verifySignInCode(email.trim(), token);
+    setVerifying(false);
+    if (result.error) {
+      setErrorMessage(result.error);
+      return;
+    }
+    setMessage("Signed in. Redirecting…");
+    router.replace(next.startsWith("/") ? next : "/assessments");
+    router.refresh();
+  }
+
+  async function onResend() {
+    if (cooldown > 0 || sending) return;
+    const ok = await sendCode(email.trim());
+    if (ok) setCode("");
+  }
+
+  function onDifferentEmail() {
+    setStep("email");
+    setCode("");
+    setMessage("");
+    setErrorMessage("");
+    setCooldown(0);
   }
 
   if (!configured) {
@@ -57,38 +115,105 @@ export default function LoginForm() {
     <main className="app-shell">
       <p className="eyebrow">POWR ACCOUNT</p>
       <h1>{heading}</h1>
-      <p>
-        Sign in with email to save skating assessments and come back later. Your
-        first assessment can still be free — save after you see the report.
-      </p>
 
       {user ? (
         <p>
           Signed in as <strong>{user.email}</strong>.{" "}
           <Link href={next}>Continue →</Link>
         </p>
+      ) : step === "email" ? (
+        <>
+          <p>Enter your email and we&apos;ll send you a 6-digit code.</p>
+          <form onSubmit={onSendEmail} className="login-form">
+            <label htmlFor="email">Email</label>
+            <input
+              id="email"
+              type="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@email.com"
+              autoComplete="email"
+              autoCapitalize="none"
+              spellCheck={false}
+              disabled={sending}
+            />
+            <button
+              className="primary-button"
+              type="submit"
+              disabled={sending || !email.trim()}
+            >
+              {sending ? "Sending…" : "Send sign-in code"}
+            </button>
+          </form>
+        </>
       ) : (
-        <form onSubmit={onSubmit} className="login-form">
-          <label htmlFor="email">Email</label>
-          <input
-            id="email"
-            type="email"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="you@email.com"
-            autoComplete="email"
-          />
-          <button className="primary-button" type="submit" disabled={status === "sending"}>
-            {status === "sending" ? "Sending…" : "Email me a magic link"}
-          </button>
-        </form>
+        <>
+          <p>
+            We sent a 6-digit sign-in code to <strong>{email.trim()}</strong>.
+          </p>
+          <form onSubmit={onVerifyCode} className="login-form">
+            <label htmlFor="otp-code">Sign-in code</label>
+            <input
+              id="otp-code"
+              className="login-otp-input"
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              autoComplete="one-time-code"
+              autoCorrect="off"
+              spellCheck={false}
+              required
+              maxLength={6}
+              value={code}
+              onChange={(e) =>
+                setCode(e.target.value.replace(/\D/g, "").slice(0, 6))
+              }
+              placeholder="000000"
+              disabled={verifying}
+              aria-describedby="otp-hint"
+            />
+            <p id="otp-hint" className="login-hint">
+              Open your email app, copy the code, and paste it here.
+            </p>
+            <button
+              className="primary-button"
+              type="submit"
+              disabled={verifying || code.replace(/\D/g, "").length !== 6}
+            >
+              {verifying ? "Verifying…" : "Verify code"}
+            </button>
+            <div className="login-secondary-actions">
+              <button
+                type="button"
+                className="login-text-button"
+                onClick={onResend}
+                disabled={sending || cooldown > 0}
+              >
+                {sending
+                  ? "Sending…"
+                  : cooldown > 0
+                    ? `Resend code (${cooldown}s)`
+                    : "Resend code"}
+              </button>
+              <button
+                type="button"
+                className="login-text-button"
+                onClick={onDifferentEmail}
+                disabled={sending || verifying}
+              >
+                Use a different email
+              </button>
+            </div>
+          </form>
+        </>
       )}
 
       {message ? <p className="login-message">{message}</p> : null}
-      {error ? (
+      {errorMessage ? <p className="login-error">{errorMessage}</p> : null}
+      {error && !errorMessage && !message && !user ? (
         <p className="login-error">
-          Sign-in failed{reason ? `: ${reason}` : "."} Request a new link.
+          Sign-in failed{reason ? `: ${reason}` : "."} Request a new code.
         </p>
       ) : null}
 
