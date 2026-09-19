@@ -473,6 +473,7 @@ export default function ReportV2Flow({
     prioritySlides,
     drillSlides,
     remaining,
+    unlimited,
     shareStatus,
     onRestart,
     basePath,
