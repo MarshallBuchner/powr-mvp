@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import Hero from "./components/Hero";
 import UploadCard from "./components/UploadCard";
 import AnalysisScreen from "./components/AnalysisScreen";
@@ -110,8 +111,20 @@ export default function Home() {
       </section>
   
       <HowPowrWorks />
-  
+
       <UploadCard onAnalyze={handleAnalyze} />
+
+      <p className="recruit-home-note">
+        Also new:{" "}
+        <Link href="/recruit">POWR Recruit — recruiting toolkit →</Link>
+      </p>
+
+      <footer className="site-footer">
+        <Link href="/">POWR</Link>
+        <Link href="/#start-assessment">Skating assessment</Link>
+        <Link href="/recruit">Recruit toolkit</Link>
+        <Link href="/assessments">My assessments</Link>
+      </footer>
     </main>
   );
 }
