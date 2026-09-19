@@ -1371,6 +1371,62 @@ button {
   cursor: pointer;
 }
 
+.account-bar-button.is-signin {
+  border-color: rgba(184, 255, 59, 0.45);
+  background: rgba(184, 255, 59, 0.12);
+}
+
+.account-bar-button.is-signin:hover {
+  background: rgba(184, 255, 59, 0.2);
+  color: var(--accent);
+}
+
+.account-bar-avatar {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text);
+  text-decoration: none;
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+.account-bar-avatar:hover {
+  color: var(--accent);
+}
+
+.account-bar-avatar-mark {
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  display: grid;
+  place-content: center;
+  background: rgba(184, 255, 59, 0.16);
+  border: 1px solid rgba(184, 255, 59, 0.4);
+  color: var(--accent);
+  font-size: 0.78rem;
+  font-weight: 900;
+  letter-spacing: 0;
+}
+
+.account-bar-avatar-label {
+  color: inherit;
+}
+
+@media (max-width: 640px) {
+  .account-bar-avatar-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+}
+
 .login-form {
   display: grid;
   gap: 10px;
