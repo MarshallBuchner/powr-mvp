@@ -1639,3 +1639,334 @@ button {
   border-radius: 16px;
   border: 1px dashed var(--border);
 }
+
+/* ——— Skeleton overlay prototype (/prototype/skeleton) ——— */
+.skel-page {
+  width: min(1120px, calc(100% - 28px));
+  margin: 0 auto;
+  padding: 18px 0 70px;
+}
+
+.skel-back {
+  margin: 0 0 18px;
+}
+
+.skel-back a {
+  color: var(--muted);
+  text-decoration: none;
+  font-weight: 700;
+}
+
+.skel-back a:hover {
+  color: var(--accent);
+}
+
+.skel-demo-header h1 {
+  margin: 6px 0 10px;
+  font-size: clamp(1.7rem, 4vw, 2.4rem);
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+}
+
+.skel-demo-lead {
+  margin: 0 0 8px;
+  font-size: 1.05rem;
+  color: var(--text);
+}
+
+.skel-demo-note {
+  margin: 0 0 28px;
+  max-width: 52rem;
+  color: var(--muted);
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
+
+.skel-dropzone {
+  display: grid;
+  gap: 10px;
+  justify-items: start;
+  padding: 36px 28px;
+  border: 1px dashed rgba(184, 255, 59, 0.35);
+  border-radius: 18px;
+  background: var(--panel);
+}
+
+.skel-dropzone.is-dragover {
+  border-color: var(--accent);
+  background: var(--panel-soft);
+}
+
+.skel-dropzone-title {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 800;
+}
+
+.skel-dropzone-sub {
+  margin: 0 0 8px;
+  color: var(--muted);
+  max-width: 36rem;
+  line-height: 1.45;
+}
+
+.skel-btn {
+  appearance: none;
+  border: 1px solid var(--border);
+  background: var(--panel-soft);
+  color: var(--text);
+  border-radius: 12px;
+  padding: 10px 14px;
+  min-height: 44px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.skel-btn:hover {
+  border-color: rgba(184, 255, 59, 0.45);
+}
+
+.skel-btn.is-primary {
+  background: var(--accent);
+  color: #0b0e11;
+  border-color: var(--accent);
+}
+
+.skel-file-label {
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+}
+
+.skel-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1.55fr) minmax(240px, 0.85fr);
+  gap: 22px;
+  align-items: start;
+}
+
+.skel-workspace-main {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
+
+.skel-file-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.skel-file-name {
+  font-weight: 700;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+.skel-file-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.skel-player {
+  display: grid;
+  gap: 10px;
+}
+
+.skel-player-stage {
+  position: relative;
+  width: 100%;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  background: #000;
+  line-height: 0;
+}
+
+.skel-player-video {
+  display: block;
+  width: 100%;
+  height: auto;
+  background: #000;
+}
+
+.skel-player-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.skel-player-badge {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 2;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  background: rgba(9, 11, 13, 0.78);
+  border: 1px solid var(--border);
+  color: var(--muted);
+}
+
+.skel-player-badge.is-ready {
+  color: var(--accent);
+  border-color: rgba(184, 255, 59, 0.4);
+}
+
+.skel-player-badge.is-error {
+  color: var(--danger);
+  border-color: rgba(255, 125, 125, 0.45);
+}
+
+.skel-player-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.skel-player-placeholder {
+  display: grid;
+  place-items: center;
+  min-height: 220px;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--muted);
+}
+
+.skel-toggles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 18px;
+  align-items: center;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+}
+
+.skel-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.skel-toggle input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent);
+}
+
+.skel-toggle select {
+  margin-left: 4px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--panel-deep);
+  color: var(--text);
+  padding: 6px 8px;
+}
+
+.skel-workspace-side {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+}
+
+.skel-side-header h2 {
+  margin: 0 0 4px;
+  font-size: 1.05rem;
+}
+
+.skel-side-header p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.88rem;
+  line-height: 1.4;
+}
+
+.skel-metric-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.skel-metric-card {
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--panel-deep);
+}
+
+.skel-metric-label {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.skel-metric-value {
+  margin: 6px 0 0;
+  font-size: 1.35rem;
+  font-weight: 850;
+  letter-spacing: -0.02em;
+}
+
+.skel-metric-hint {
+  margin: 4px 0 0;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.skel-debug {
+  padding-top: 4px;
+  border-top: 1px solid var(--border);
+}
+
+.skel-debug h3 {
+  margin: 0 0 8px;
+  font-size: 0.85rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.skel-debug ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+.skel-debug strong {
+  color: var(--text);
+}
+
+@media (max-width: 860px) {
+  .skel-workspace {
+    grid-template-columns: 1fr;
+  }
+}
