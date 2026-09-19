@@ -42,6 +42,13 @@ function formatAuthError(message: string): string {
   if (lower.includes("expired") || lower.includes("invalid")) {
     return "That code is invalid or expired. Request a new one.";
   }
+  if (
+    lower.includes("fetch failed") ||
+    lower.includes("failed to fetch") ||
+    lower.includes("network")
+  ) {
+    return "Could not reach sign-in service. Check your connection and try again.";
+  }
   return message;
 }
 
@@ -96,16 +103,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { error: "Accounts are not configured yet." };
       }
 
-      const supabase = createClient();
-      const { error } = await supabase.auth.signInWithOtp({
-        email: email.trim(),
-        options: {
-          shouldCreateUser: true,
-        },
-      });
+      try {
+        const supabase = createClient();
+        const { error } = await supabase.auth.signInWithOtp({
+          email: email.trim(),
+          options: {
+            shouldCreateUser: true,
+          },
+        });
 
-      if (error) return { error: formatAuthError(error.message) };
-      return {};
+        if (error) return { error: formatAuthError(error.message) };
+        return {};
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "Sign-in failed.";
+        return { error: formatAuthError(msg) };
+      }
     },
     [configured],
   );
@@ -116,16 +128,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { error: "Accounts are not configured yet." };
       }
 
-      const supabase = createClient();
-      const { error } = await supabase.auth.verifyOtp({
-        email: email.trim(),
-        token: token.trim(),
-        type: "email",
-      });
+      try {
+        const supabase = createClient();
+        const { error } = await supabase.auth.verifyOtp({
+          email: email.trim(),
+          token: token.trim(),
+          type: "email",
+        });
 
-      if (error) return { error: formatAuthError(error.message) };
-      await refresh();
-      return {};
+        if (error) return { error: formatAuthError(error.message) };
+        await refresh();
+        return {};
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "Verification failed.";
+        return { error: formatAuthError(msg) };
+      }
     },
     [configured, refresh],
   );
