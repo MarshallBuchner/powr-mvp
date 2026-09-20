@@ -6,6 +6,16 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/app/components/AuthProvider";
 
 const RESEND_COOLDOWN_SEC = 45;
+const OTP_MIN_LEN = 4;
+const OTP_MAX_LEN = 10;
+
+function digitsOnly(value: string) {
+  return value.replace(/\D/g, "");
+}
+
+function isValidOtpLength(token: string) {
+  return token.length >= OTP_MIN_LEN && token.length <= OTP_MAX_LEN;
+}
 
 export default function LoginForm() {
   const router = useRouter();
@@ -48,7 +58,7 @@ export default function LoginForm() {
     }
     setStep("code");
     setCooldown(RESEND_COOLDOWN_SEC);
-    setMessage("Code sent. Enter the 6-digit code from your email.");
+    setMessage("Code sent. Enter the sign-in code from your email.");
     return true;
   }
 
@@ -61,9 +71,9 @@ export default function LoginForm() {
 
   async function onVerifyCode(event: FormEvent) {
     event.preventDefault();
-    const token = code.replace(/\D/g, "").slice(0, 6);
-    if (token.length !== 6) {
-      setErrorMessage("Enter the 6-digit code from your email.");
+    const token = digitsOnly(code);
+    if (!isValidOtpLength(token)) {
+      setErrorMessage("Enter the sign-in code from your email.");
       return;
     }
     setVerifying(true);
@@ -123,7 +133,7 @@ export default function LoginForm() {
         </p>
       ) : step === "email" ? (
         <>
-          <p>Enter your email and we&apos;ll send you a 6-digit code.</p>
+          <p>Enter your email and we&apos;ll send you a sign-in code.</p>
           <form onSubmit={onSendEmail} className="login-form">
             <label htmlFor="email">Email</label>
             <input
@@ -150,7 +160,7 @@ export default function LoginForm() {
       ) : (
         <>
           <p>
-            We sent a 6-digit sign-in code to <strong>{email.trim()}</strong>.
+            We sent a sign-in code to <strong>{email.trim()}</strong>.
           </p>
           <form onSubmit={onVerifyCode} className="login-form">
             <label htmlFor="otp-code">Sign-in code</label>
@@ -164,12 +174,12 @@ export default function LoginForm() {
               autoCorrect="off"
               spellCheck={false}
               required
-              maxLength={6}
+              maxLength={OTP_MAX_LEN}
               value={code}
               onChange={(e) =>
-                setCode(e.target.value.replace(/\D/g, "").slice(0, 6))
+                setCode(digitsOnly(e.target.value).slice(0, OTP_MAX_LEN))
               }
-              placeholder="000000"
+              placeholder="Enter code"
               disabled={verifying}
               aria-describedby="otp-hint"
             />
@@ -179,7 +189,7 @@ export default function LoginForm() {
             <button
               className="primary-button"
               type="submit"
-              disabled={verifying || code.replace(/\D/g, "").length !== 6}
+              disabled={verifying || !isValidOtpLength(digitsOnly(code))}
             >
               {verifying ? "Verifying…" : "Verify code"}
             </button>
