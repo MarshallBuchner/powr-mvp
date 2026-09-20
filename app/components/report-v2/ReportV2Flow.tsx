@@ -64,6 +64,7 @@ export default function ReportV2Flow({
     useState<(typeof DRILL_FILTERS)[number]>("All");
   const [activeDrill, setActiveDrill] = useState<ReportV2Drill | null>(null);
   const [remaining, setRemaining] = useState(() => getLocalRemainingAssessments());
+  const [unlimited, setUnlimited] = useState(false);
   const [shareStatus, setShareStatus] = useState<"idle" | "copied">("idle");
 
   useEffect(() => {
@@ -72,6 +73,7 @@ export default function ReportV2Flow({
       const balance = await fetchEntitlementBalance();
       if (!cancelled && balance) {
         setRemaining(balance.remaining);
+        setUnlimited(Boolean(balance.unlimited));
       }
     })();
     return () => {
@@ -424,7 +426,7 @@ export default function ReportV2Flow({
               </li>
             </ul>
 
-            {!demoMode && !isSample && remaining <= 0 ? (
+            {!demoMode && !isSample && !unlimited && remaining <= 0 ? (
               <div className="rv2-upgrade-wrap">
                 <UpgradePanel source="report" remaining={remaining} compact />
               </div>
@@ -471,6 +473,7 @@ export default function ReportV2Flow({
     prioritySlides,
     drillSlides,
     remaining,
+    unlimited,
     shareStatus,
     onRestart,
     basePath,

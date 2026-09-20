@@ -150,11 +150,14 @@ export async function grantPackCreditsToProfile(
 export function entitlementResponse(
   state: EntitlementState,
   source: "profile" | "device",
+  options?: { unlimited?: boolean },
 ) {
+  const unlimited = Boolean(options?.unlimited);
   return {
     ...state,
     remaining: remainingAssessments(state),
-    canRun: canRunAssessment(state),
+    canRun: unlimited || canRunAssessment(state),
     source,
+    unlimited,
   };
 }

@@ -62,8 +62,13 @@ STRIPE_SECRET_KEY=
 STRIPE_WEBHOOK_SECRET=
 STRIPE_ASSESSMENT_PRICE_ID=         # optional
 OPENAI_API_KEY=
+FOUNDER_UNLIMITED_EMAIL=            # optional; exact email for founder unlimited access
 ```
 
+### Founder unlimited access (optional)
+Set `FOUNDER_UNLIMITED_EMAIL` (server-only) to one exact email. That authenticated
+user skips free/credit consume on `POST /api/analyze` and never receives a `402`.
+Everyone else is unchanged. UI shows “Founder access” instead of a remaining count.
 ## Auth redirect URLs (Supabase)
 - Site URL: `https://trainwithpowr.com`
 - Redirect URLs:

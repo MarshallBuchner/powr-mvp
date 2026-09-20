@@ -4,6 +4,7 @@ import {
   readEntitlementCookie,
   writeEntitlementCookie,
 } from "@/lib/entitlementCookie";
+import { isFounderUnlimited } from "@/lib/founderAccess";
 import {
   entitlementResponse,
   mergeDeviceIntoProfile,
@@ -37,8 +38,9 @@ export async function GET(request: NextRequest) {
         authed.user.id,
         authed.user.email,
       );
+      const unlimited = isFounderUnlimited(authed.user.email);
       const response = NextResponse.json(
-        entitlementResponse(state, "profile"),
+        entitlementResponse(state, "profile", { unlimited }),
       );
       return writeEntitlementCookie(response, {
         ...state,
@@ -82,8 +84,9 @@ export async function POST(request: NextRequest) {
   if (authed) {
     try {
       const profile = await mergeDeviceIntoProfile(authed.supabase, deviceMerged);
+      const unlimited = isFounderUnlimited(authed.user.email);
       const response = NextResponse.json(
-        entitlementResponse(profile, "profile"),
+        entitlementResponse(profile, "profile", { unlimited }),
       );
       return writeEntitlementCookie(response, {
         ...profile,

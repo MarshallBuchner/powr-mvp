@@ -10,6 +10,7 @@ import {
   readEntitlementCookie,
   writeEntitlementCookie,
 } from "@/lib/entitlementCookie";
+import { isFounderUnlimited } from "@/lib/founderAccess";
 import {
   consumeProfileAssessment,
   readProfileEntitlements,
@@ -55,6 +56,9 @@ export async function POST(request: NextRequest) {
 
     const cookieEntitlement = readEntitlementCookie(request);
     const authed = await getAuthedUser();
+    const founderUnlimited = Boolean(
+      authed && isFounderUnlimited(authed.user.email),
+    );
 
     let entitlement: EntitlementState = cookieEntitlement;
     if (authed) {
@@ -76,7 +80,8 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    if (!canRunAssessment(entitlement)) {
+    // Founder override: never 402; balances are not consumed below.
+    if (!founderUnlimited && !canRunAssessment(entitlement)) {
       return NextResponse.json(
         {
           success: false,
@@ -302,8 +307,14 @@ Return a development assessment suitable for POWR.
     const analysis = JSON.parse(response.output_text);
 
     // Consume only after successful analysis (not on retries/errors above).
+    // Founder unlimited: skip consume entirely — balances stay untouched.
     let nextEntitlement: EntitlementState;
-    if (authed) {
+    if (founderUnlimited && authed) {
+      nextEntitlement = {
+        ...entitlement,
+        unlockedSessionIds: cookieEntitlement.unlockedSessionIds,
+      };
+    } else if (authed) {
       const consumed = await consumeProfileAssessment(authed.supabase);
       if (!consumed.ok) {
         // Extremely rare race after a successful model response — still return
@@ -326,6 +337,7 @@ Return a development assessment suitable for POWR.
       remaining: remainingAssessments(nextEntitlement),
       entitlements: nextEntitlement,
       source: authed ? "profile" : "device",
+      unlimited: founderUnlimited,
     });
 
     return writeEntitlementCookie(json, nextEntitlement);
