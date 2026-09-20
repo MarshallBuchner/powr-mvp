@@ -38,22 +38,29 @@ export type PoseDebugInfo = {
 
 export type PoseVideoPlayerProps = {
   src: string;
-  showSkeleton: boolean;
-  showKeypoints: boolean;
-  showLabels: boolean;
-  skeletonColor: SkeletonColor;
+  showSkeleton?: boolean;
+  showKeypoints?: boolean;
+  showLabels?: boolean;
+  skeletonColor?: SkeletonColor;
+  /** Lab mode: autoplay + loop + hide transport chrome */
+  labMode?: boolean;
+  showScanLine?: boolean;
   onMetrics?: (metrics: PrototypeMetrics) => void;
   onDebug?: (info: PoseDebugInfo) => void;
+  onModelStatus?: (status: "loading" | "ready" | "error") => void;
 };
 
 export default function PoseVideoPlayer({
   src,
-  showSkeleton,
-  showKeypoints,
-  showLabels,
-  skeletonColor,
+  showSkeleton = true,
+  showKeypoints = true,
+  showLabels = false,
+  skeletonColor = "green",
+  labMode = false,
+  showScanLine = false,
   onMetrics,
   onDebug,
+  onModelStatus,
 }: PoseVideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -99,6 +106,7 @@ export default function PoseVideoPlayer({
     (async () => {
       try {
         setModelStatus("loading");
+        onModelStatus?.("loading");
         const vision = await FilesetResolver.forVisionTasks(WASM_BASE);
         const create = (delegate: "GPU" | "CPU") =>
           PoseLandmarker.createFromOptions(vision, {
@@ -125,6 +133,7 @@ export default function PoseVideoPlayer({
         }
         landmarkerRef.current = landmarker;
         setModelStatus("ready");
+        onModelStatus?.("ready");
       } catch (err) {
         console.error("[PoseVideoPlayer] model load failed", err);
         if (!cancelled) {
@@ -132,6 +141,7 @@ export default function PoseVideoPlayer({
           setModelError(
             err instanceof Error ? err.message : "Failed to load pose model",
           );
+          onModelStatus?.("error");
         }
       }
     })();
@@ -142,6 +152,8 @@ export default function PoseVideoPlayer({
       landmarkerRef.current?.close();
       landmarkerRef.current = null;
     };
+    // Intentionally mount-once for the landmarker lifecycle
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const syncCanvasSize = useCallback(() => {
@@ -269,6 +281,16 @@ export default function PoseVideoPlayer({
     else video.pause();
   };
 
+  // Lab mode: keep the clip looping so pose tracking stays visible
+  useEffect(() => {
+    if (!labMode) return;
+    const video = videoRef.current;
+    if (!video) return;
+    video.muted = true;
+    video.loop = true;
+    void video.play().catch(() => undefined);
+  }, [labMode, src, modelStatus]);
+
   const overlayStyle: CSSProperties = {
     position: "absolute",
     inset: 0,
@@ -278,46 +300,67 @@ export default function PoseVideoPlayer({
   };
 
   return (
-    <div className="skel-player">
+    <div className={`skel-player${labMode ? " is-lab" : ""}`}>
       <div className="skel-player-stage" ref={wrapRef}>
         {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
         <video
           ref={videoRef}
           src={src}
           className="skel-player-video"
-          controls
+          controls={!labMode}
           playsInline
           muted
+          loop={labMode}
+          autoPlay={labMode}
           crossOrigin="anonymous"
           onLoadedData={() => {
             syncCanvasSize();
-            // Allow a fresh first-frame detection after the clip loads
             lastTsRef.current = -1;
             landmarksRef.current = null;
+            if (labMode) {
+              void videoRef.current?.play().catch(() => undefined);
+            }
           }}
         />
         <canvas ref={canvasRef} className="skel-player-canvas" style={overlayStyle} />
-        {modelStatus === "loading" ? (
+        {showScanLine && modelStatus !== "error" ? (
+          <div className="skel-scan-line" aria-hidden="true" />
+        ) : null}
+        {!labMode && modelStatus === "loading" ? (
           <div className="skel-player-badge">Loading pose model…</div>
         ) : null}
-        {modelStatus === "error" ? (
+        {!labMode && modelStatus === "error" ? (
           <div className="skel-player-badge is-error">
             Pose model failed{modelError ? `: ${modelError}` : ""}
           </div>
         ) : null}
-        {modelStatus === "ready" ? (
+        {!labMode && modelStatus === "ready" ? (
           <div className="skel-player-badge is-ready">Pose ready</div>
+        ) : null}
+        {labMode ? (
+          <div className="skel-lab-status">
+            <span className="tracking-dot" />
+            <span>
+              {modelStatus === "loading"
+                ? "Loading pose model…"
+                : modelStatus === "error"
+                  ? "Pose tracking limited"
+                  : "AI tracking active"}
+            </span>
+          </div>
         ) : null}
       </div>
 
-      <div className="skel-player-controls">
-        <button type="button" className="skel-btn" onClick={handlePlayPause}>
-          Play / Pause
-        </button>
-        <button type="button" className="skel-btn" onClick={handleRestart}>
-          Restart
-        </button>
-      </div>
+      {!labMode ? (
+        <div className="skel-player-controls">
+          <button type="button" className="skel-btn" onClick={handlePlayPause}>
+            Play / Pause
+          </button>
+          <button type="button" className="skel-btn" onClick={handleRestart}>
+            Restart
+          </button>
+        </div>
+      ) : null}
     </div>
   );
 }

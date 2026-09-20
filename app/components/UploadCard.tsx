@@ -9,17 +9,12 @@ import {
 } from "react";
 
 import GoalSelector from "./GoalSelector";
-import type { AnalysisEvidenceMoment, AnalysisRequest } from "./types";
+import type { AnalysisRequest } from "./types";
 import { track } from "@vercel/analytics";
 import UpgradePanel from "./UpgradePanel";
-import AnalysisProcessingPanel, {
-  type ProcessingStageId,
-  useProcessingStage,
-} from "./AnalysisProcessingPanel";
 import {
   getLocalRemainingAssessments,
   localCanRunAssessment,
-  localConsumeAssessment,
   readLocalEntitlements,
   syncEntitlementCookie,
   writeLocalEntitlements,
@@ -27,9 +22,7 @@ import {
 import {
   ASSESSMENT_PACK_CREDITS,
   ASSESSMENT_PACK_PRICE_CAD,
-  remainingAssessments,
 } from "@/lib/assessmentBilling";
-import { stashEvidenceFrames } from "./evidenceStorage";
 
 const goals = [
   "Overall skating",
@@ -63,114 +56,6 @@ function formatDuration(seconds: number) {
   return `${minutes}:${remainingSeconds}`;
 }
 
-function formatTimestamp(seconds: number) {
-  if (!Number.isFinite(seconds) || seconds < 0) {
-    return "0:00";
-  }
-  const minutes = Math.floor(seconds / 60);
-  const remainingSeconds = Math.floor(seconds % 60)
-    .toString()
-    .padStart(2, "0");
-  return `${minutes}:${remainingSeconds}`;
-}
-
-type ExtractedFrame = {
-  dataUrl: string;
-  timeSeconds: number;
-  timeLabel: string;
-};
-
-async function extractVideoFrames(
-  file: File,
-  frameCount = 5,
-): Promise<ExtractedFrame[]> {
-  return new Promise((resolve, reject) => {
-    const video = document.createElement("video");
-    const canvas = document.createElement("canvas");
-    const context = canvas.getContext("2d");
-
-    if (!context) {
-      reject(new Error("Could not create canvas context."));
-      return;
-    }
-
-    const videoUrl = URL.createObjectURL(file);
-    const frames: ExtractedFrame[] = [];
-
-    video.preload = "metadata";
-    video.muted = true;
-    video.playsInline = true;
-    video.src = videoUrl;
-
-    video.onloadedmetadata = async () => {
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-
-      const duration = video.duration;
-
-      for (let i = 0; i < frameCount; i++) {
-        const time =
-          frameCount === 1
-            ? duration / 2
-            : (duration * i) / (frameCount - 1);
-
-        const seekTime = Math.min(time, Math.max(duration - 0.05, 0));
-        video.currentTime = seekTime;
-
-        await new Promise<void>((seekResolve) => {
-          video.onseeked = () => seekResolve();
-        });
-
-        context.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-        frames.push({
-          dataUrl: canvas.toDataURL("image/jpeg", 0.72),
-          timeSeconds: seekTime,
-          timeLabel: formatTimestamp(seekTime),
-        });
-      }
-
-      URL.revokeObjectURL(videoUrl);
-      resolve(frames);
-    };
-
-    video.onerror = () => {
-      URL.revokeObjectURL(videoUrl);
-      reject(new Error("Could not read video."));
-    };
-  });
-}
-
-function buildEvidenceMoments(
-  frames: ExtractedFrame[],
-  priorityText: string,
-): AnalysisEvidenceMoment[] {
-  if (!frames.length) return [];
-
-  const mid = frames[Math.floor(frames.length / 2)];
-  const late = frames[frames.length - 1] ?? mid;
-  const caption =
-    priorityText.trim() || "Primary development moment from your clip";
-
-  const moments: AnalysisEvidenceMoment[] = [
-    {
-      timeLabel: mid.timeLabel,
-      caption,
-      dataUrl: mid.dataUrl,
-    },
-  ];
-
-  if (late.timeLabel !== mid.timeLabel) {
-    moments.push({
-      timeLabel: late.timeLabel,
-      caption: "Supporting moment from the same clip",
-      dataUrl: late.dataUrl,
-    });
-  }
-
-  return moments.slice(0, 2);
-}
-
 type UploadCardProps = {
   onAnalyze: (request: AnalysisRequest) => void;
 };
@@ -179,20 +64,14 @@ export default function UploadCard({ onAnalyze }: UploadCardProps) {
   const [selectedGoal, setSelectedGoal] = useState("Overall skating");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState("");
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [stageOverride, setStageOverride] = useState<ProcessingStageId | null>(
-    null,
-  );
   const [duration, setDuration] = useState<number | null>(null);
   const [error, setError] = useState("");
-  const [canRetry, setCanRetry] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [remaining, setRemaining] = useState(1);
   const [needsUpgrade, setNeedsUpgrade] = useState(false);
   const [unlimited, setUnlimited] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const processingStage = useProcessingStage(isAnalyzing, stageOverride);
 
   useEffect(() => {
     setRemaining(getLocalRemainingAssessments());
@@ -246,7 +125,6 @@ export default function UploadCard({ onAnalyze }: UploadCardProps) {
 
   function validateAndSelectFile(file: File) {
     setError("");
-    setCanRetry(false);
     setDuration(null);
 
     if (!file.type.startsWith("video/")) {
@@ -301,7 +179,6 @@ export default function UploadCard({ onAnalyze }: UploadCardProps) {
     setSelectedFile(null);
     setDuration(null);
     setError("");
-    setCanRetry(false);
 
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
@@ -312,14 +189,13 @@ export default function UploadCard({ onAnalyze }: UploadCardProps) {
     fileInputRef.current?.click();
   }
 
-  async function handleAnalyze() {
-    if (!selectedFile || !previewUrl || isAnalyzing) {
+  function handleAnalyze() {
+    if (!selectedFile || !previewUrl) {
       return;
     }
 
     if (!unlimited && !localCanRunAssessment()) {
       setNeedsUpgrade(true);
-      setCanRetry(false);
       track("upgrade_viewed", { source: "upload_blocked" });
       setError("You've used your free assessment. Unlock a pack to continue.");
       return;
@@ -330,93 +206,16 @@ export default function UploadCard({ onAnalyze }: UploadCardProps) {
       remaining: getLocalRemainingAssessments(),
     });
 
-    setIsAnalyzing(true);
-    setStageOverride("upload");
     setError("");
-    setCanRetry(false);
 
-    try {
-      const frames = await extractVideoFrames(selectedFile, 5);
-      setStageOverride("analyze");
-
-      const response = await fetch("/api/analyze", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          frames: frames.map((frame) => frame.dataUrl),
-          goal: selectedGoal,
-        }),
-      });
-
-      const result = await response.json();
-
-      if (response.status === 402 || result.error === "free_assessment_used") {
-        setNeedsUpgrade(true);
-        setRemaining(0);
-        setCanRetry(false);
-        track("upgrade_viewed", { source: "analyze_402" });
-        throw new Error(
-          result.message ||
-            "You've used your free assessment. Unlock a pack to continue.",
-        );
-      }
-
-      if (!response.ok || !result.success) {
-        throw new Error(result.error || "Analysis failed.");
-      }
-
-      setStageOverride("report");
-
-      if (result.entitlements) {
-        writeLocalEntitlements(result.entitlements);
-        const isUnlimited = Boolean(result.unlimited) || unlimited;
-        setUnlimited(isUnlimited);
-        setRemaining(
-          result.remaining ?? remainingAssessments(result.entitlements),
-        );
-        setNeedsUpgrade(isUnlimited ? false : (result.remaining ?? 0) <= 0);
-      } else {
-        const next = localConsumeAssessment();
-        setRemaining(remainingAssessments(next));
-        setNeedsUpgrade(unlimited ? false : !localCanRunAssessment());
-      }
-
-      track("analysis_succeeded", {
-        goal: selectedGoal,
-        remaining: result.remaining,
-      });
-
-      const evidenceMoments = buildEvidenceMoments(
-        frames,
-        result.analysis?.priorityImprovement || "",
-      );
-      stashEvidenceFrames(evidenceMoments);
-
-      onAnalyze({
-        file: selectedFile,
-        fileName: selectedFile.name,
-        videoUrl: previewUrl,
-        goal: selectedGoal,
-        duration,
-        analysis: result.analysis,
-        evidenceMoments,
-      });
-    } catch (error) {
-      console.error("POWR analysis failed:", error);
-      setError(
-        error instanceof Error
-          ? error.message
-          : "POWR couldn't analyze this video. Please try again.",
-      );
-      setCanRetry(
-        Boolean(selectedFile) && (unlimited || localCanRunAssessment()),
-      );
-    } finally {
-      setIsAnalyzing(false);
-      setStageOverride(null);
-    }
+    // Open Analysis Lab immediately — /api/analyze runs there with pose overlay.
+    onAnalyze({
+      file: selectedFile,
+      fileName: selectedFile.name,
+      videoUrl: previewUrl,
+      goal: selectedGoal,
+      duration,
+    });
   }
 
   const quotaPrimary = unlimited
@@ -547,7 +346,6 @@ export default function UploadCard({ onAnalyze }: UploadCardProps) {
                 className="secondary-button"
                 type="button"
                 onClick={openFilePicker}
-                disabled={isAnalyzing}
               >
                 Replace
               </button>
@@ -556,7 +354,6 @@ export default function UploadCard({ onAnalyze }: UploadCardProps) {
                 className="remove-button"
                 type="button"
                 onClick={removeFile}
-                disabled={isAnalyzing}
               >
                 Remove
               </button>
@@ -578,27 +375,11 @@ export default function UploadCard({ onAnalyze }: UploadCardProps) {
         Best results: full body visible, side view, 10–30 seconds.
       </p>
 
-      {isAnalyzing ? (
-        <AnalysisProcessingPanel
-          stage={processingStage}
-          fileName={selectedFile?.name}
-        />
-      ) : null}
-
       {error && (
         <div className="upload-error" role="alert">
           <span className="error-icon">!</span>
           <div className="upload-error-body">
             <span>{error}</span>
-            {canRetry && selectedFile ? (
-              <button
-                type="button"
-                className="retry-analysis-button"
-                onClick={() => void handleAnalyze()}
-              >
-                Retry analysis
-              </button>
-            ) : null}
           </div>
         </div>
       )}
@@ -623,14 +404,11 @@ export default function UploadCard({ onAnalyze }: UploadCardProps) {
       <button
         className="primary-button"
         type="button"
-        disabled={!selectedFile || isAnalyzing || needsUpgrade}
-        onClick={() => void handleAnalyze()}
+        disabled={!selectedFile || needsUpgrade}
+        onClick={() => handleAnalyze()}
       >
-        <span>
-          {isAnalyzing ? "Analyzing your skating…" : "Analyze My Skating"}
-        </span>
-
-        {!isAnalyzing && <span className="button-arrow">→</span>}
+        <span>Analyze My Skating</span>
+        <span className="button-arrow">→</span>
       </button>
 
       <p className="privacy-note">

@@ -1,18 +1,17 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import Hero from "./components/Hero";
-import UploadCard from "./components/UploadCard";
+import { useEffect, useRef, useState } from "react";
 import AnalysisScreen from "./components/AnalysisScreen";
-import type { AnalysisRequest } from "./components/types";
-import SampleAssessment from "./components/SampleAssessment";
+import Hero from "./components/Hero";
 import HowPowrWorks from "./components/HowPowrWorks";
+import SampleAssessment from "./components/SampleAssessment";
+import UploadCard from "./components/UploadCard";
+import type { AnalysisRequest } from "./components/types";
 import {
   createSampleRequest,
   getSharePath,
 } from "./components/shareReport";
-
 
 type Screen = "upload" | "sample" | "analysis";
 
@@ -21,7 +20,6 @@ export default function Home() {
   const [analysisRequest, setAnalysisRequest] =
     useState<AnalysisRequest | null>(null);
   const analysisRequestRef = useRef<AnalysisRequest | null>(null);
-
   const [screen, setScreen] = useState<Screen>("upload");
 
   useEffect(() => {
@@ -29,27 +27,30 @@ export default function Home() {
   }, [analysisRequest]);
 
   useEffect(() => {
-    window.scrollTo({
-      top: 0,
-      left: 0,
-      behavior: "auto",
-    });
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
   }, [screen]);
 
+  /** Opens Analysis Lab immediately (API may still be pending). */
   function handleAnalyze(request: AnalysisRequest) {
     analysisRequestRef.current = request;
     setAnalysisRequest(request);
     setScreen("analysis");
   }
 
+  function handleAnalysisReady(request: AnalysisRequest) {
+    analysisRequestRef.current = request;
+    setAnalysisRequest(request);
+  }
+
   function handleAnalysisComplete() {
     const request = analysisRequestRef.current;
-
-    if (!request) {
-      return;
-    }
-
+    if (!request?.analysis) return;
     router.push(getSharePath(request));
+  }
+
+  function handleAnalysisBack() {
+    setAnalysisRequest(null);
+    setScreen("upload");
   }
 
   function handleRestart() {
@@ -60,7 +61,7 @@ export default function Home() {
   function handleSampleAssessment() {
     setScreen("sample");
   }
-  
+
   function handleSampleAnalyze() {
     const request = createSampleRequest();
     analysisRequestRef.current = request;
@@ -81,7 +82,9 @@ export default function Home() {
     return (
       <AnalysisScreen
         request={analysisRequest}
+        onReady={handleAnalysisReady}
         onComplete={handleAnalysisComplete}
+        onBack={handleAnalysisBack}
       />
     );
   }
@@ -89,17 +92,17 @@ export default function Home() {
   return (
     <main className="app-shell">
       <Hero onViewSample={handleSampleAssessment} />
-  
+
       <section className="sample-assessment">
         <p className="eyebrow">SEE POWR IN ACTION</p>
-  
+
         <h2>Not ready to upload your video yet?</h2>
-  
+
         <p>
-          Explore a sample skating assessment and see how POWR turns video
-          into scores, coaching insights, and personalized drills.
+          Explore a sample skating assessment and see how POWR turns video into
+          scores, coaching insights, and personalized drills.
         </p>
-  
+
         <button
           className="secondary-button"
           type="button"
@@ -108,9 +111,9 @@ export default function Home() {
           View Sample Assessment →
         </button>
       </section>
-  
+
       <HowPowrWorks />
-  
+
       <UploadCard onAnalyze={handleAnalyze} />
     </main>
   );
