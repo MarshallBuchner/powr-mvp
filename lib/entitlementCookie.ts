@@ -7,7 +7,11 @@ import {
 } from "@/lib/assessmentBilling";
 
 export function readEntitlementCookie(request: NextRequest): EntitlementState {
-  return parseEntitlementJson(request.cookies.get(ENTITLEMENT_COOKIE)?.value);
+  const state = parseEntitlementJson(request.cookies.get(ENTITLEMENT_COOKIE)?.value);
+  // Paid balances belong to authenticated profiles, never unsigned device data.
+  return process.env.NODE_ENV === "production"
+    ? { ...state, credits: 0, unlockedSessionIds: [] }
+    : state;
 }
 
 export function entitlementCookieOptions() {

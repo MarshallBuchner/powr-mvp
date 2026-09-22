@@ -4,16 +4,7 @@ import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { track } from "@vercel/analytics";
-import {
-  ASSESSMENT_PACK_CREDITS,
-  ASSESSMENT_PACK_PRICE_CAD,
-} from "@/lib/assessmentBilling";
-import {
-  fetchEntitlementBalance,
-  localGrantPack,
-  syncEntitlementCookie,
-  writeLocalEntitlements,
-} from "../components/assessmentEntitlements";
+import { ASSESSMENT_PACK_CREDITS } from "@/lib/assessmentBilling";
 
 type VerifyResult = {
   paid?: boolean;
@@ -30,20 +21,9 @@ type VerifyResult = {
   reason?: string;
 };
 
-async function waitForProfileCredits(expectedMinCredits: number) {
-  for (let i = 0; i < 12; i += 1) {
-    const balance = await fetchEntitlementBalance();
-    if (balance && balance.credits >= expectedMinCredits) {
-      return balance;
-    }
-    await new Promise((resolve) => window.setTimeout(resolve, 1000));
-  }
-  return fetchEntitlementBalance();
-}
-
 function UnlockClient() {
   const searchParams = useSearchParams();
-  const [status, setStatus] = useState<"loading" | "success" | "error">(
+  const [status, setStatus] = useState<"loading" | "success" | "pending" | "error">(
     "loading",
   );
   const [remaining, setRemaining] = useState(0);
@@ -58,39 +38,29 @@ function UnlockClient() {
         ? `session_id=${encodeURIComponent(sessionId)}`
         : "";
 
-    if (!query) {
-      setStatus("error");
-      return;
-    }
-
     void (async () => {
       try {
-        const res = await fetch(`/api/assessments/verify?${query}`);
-        const data = (await res.json()) as VerifyResult;
-
-        if (!data.paid) {
+        if (!query) {
           setStatus("error");
           return;
         }
-
-        let remainingBalance = data.remaining || 0;
-
-        if (data.source === "profile") {
-          // Webhook is source of truth — poll briefly if credits not visible yet.
-          const balance = await waitForProfileCredits(1);
-          if (balance) {
-            remainingBalance = balance.remaining;
+        let data: VerifyResult = {};
+        for (let attempt = 0; attempt < 12; attempt += 1) {
+          const res = await fetch(`/api/assessments/verify?${query}`, { cache: "no-store" });
+          data = (await res.json()) as VerifyResult;
+          if (!res.ok || !data.paid) {
+            setStatus("error");
+            return;
           }
-        } else if (data.entitlements) {
-          writeLocalEntitlements(data.entitlements);
-          await syncEntitlementCookie(data.entitlements);
-          remainingBalance = data.remaining || 0;
-        } else if (sessionId || preview) {
-          localGrantPack(sessionId || "preview", data.creditsGranted);
+          if (!data.awaitingWebhook) break;
+          await new Promise((resolve) => window.setTimeout(resolve, 1000));
         }
-
+        if (data.awaitingWebhook) {
+          setStatus("pending");
+          return;
+        }
         setCreditsGranted(data.creditsGranted || ASSESSMENT_PACK_CREDITS);
-        setRemaining(remainingBalance);
+        setRemaining(data.remaining || 0);
         setStatus("success");
         track("assessment_pack_unlocked", {
           preview: Boolean(data.preview),
@@ -133,13 +103,21 @@ function UnlockClient() {
         </>
       ) : null}
 
+      {status === "pending" ? (
+        <>
+          <h1>Payment received. Adding your credits…</h1>
+          <p className="section-description">
+            Your payment is confirmed. Please refresh this page shortly to check your credits.
+            You do not need to purchase again.
+          </p>
+        </>
+      ) : null}
+
       {status === "error" ? (
         <>
           <h1>Couldn&apos;t confirm payment</h1>
           <p className="section-description">
-            If you were charged, email support with your receipt. You can also
-            retry checkout for the {ASSESSMENT_PACK_CREDITS}-pack (
-            {ASSESSMENT_PACK_PRICE_CAD}).
+            If you were charged, email support with your receipt. Please refresh this page or contact support before purchasing again.
           </p>
           <div className="unlock-actions">
             <Link href="/#start-assessment" className="primary-button">

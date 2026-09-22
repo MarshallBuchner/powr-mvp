@@ -9,8 +9,6 @@ import {
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { createClient } from "@/lib/supabase/server";
 
-const previewUrl = "/unlock?preview=1";
-
 function getBaseUrl(request: NextRequest) {
   const configured =
     process.env.NEXT_PUBLIC_SITE_URL ||
@@ -60,13 +58,10 @@ export async function POST(request: NextRequest) {
     const userId = await getAuthedUserId();
 
     if (!stripe) {
-      return NextResponse.json({
-        url: `${baseUrl}${previewUrl}`,
-        provider: "preview",
-        configured: false,
-        message:
-          "Add STRIPE_SECRET_KEY to enable live Stripe Checkout. Optional: STRIPE_ASSESSMENT_PRICE_ID.",
-      });
+      return NextResponse.json(
+        { error: "billing_unconfigured", message: "Purchases are not available yet." },
+        { status: 503 },
+      );
     }
 
     // Live pack purchase requires an account so webhook can credit the profile.
