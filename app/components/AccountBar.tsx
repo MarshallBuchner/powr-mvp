@@ -110,6 +110,9 @@ export default function AccountBar() {
           <Link href="/assessments" onClick={() => setMenuOpen(false)}>
             My assessments
           </Link>
+          <Link href="/privacy" onClick={() => setMenuOpen(false)}>
+            Privacy
+          </Link>
 
           {loading ? (
             <span className="account-bar-muted">…</span>

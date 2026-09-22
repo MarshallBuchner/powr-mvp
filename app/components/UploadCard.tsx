@@ -7,6 +7,7 @@ import {
   useRef,
   useState,
 } from "react";
+import Link from "next/link";
 
 import GoalSelector from "./GoalSelector";
 import type { AnalysisRequest } from "./types";
@@ -415,7 +416,8 @@ export default function UploadCard({ onAnalyze }: UploadCardProps) {
         Your full video file stays on this device. POWR only sends short sampled
         frames to generate your assessment — we don&apos;t store the video file.
         Saving a report keeps analysis text (scores and notes) in your account,
-        not the clip.
+        not the clip.{" "}
+        <Link href="/privacy">Privacy Policy</Link>
       </p>
       <details className="privacy-details">
         <summary>How POWR handles your video</summary>
@@ -435,11 +437,14 @@ export default function UploadCard({ onAnalyze }: UploadCardProps) {
           <li>
             Because the video is never stored on our servers, there is no separate
             “delete video” control. To remove a saved report from your history,
-            contact support (in-app deletion is not available yet).
+            contact us (in-app deletion is not available yet). Details are in our{" "}
+            <Link href="/privacy">Privacy Policy</Link>.
           </li>
           <li>
-            Frames are used to generate your assessment. We do not document a
-            separate AI-training retention policy in-app at this time.
+            Frames are used to generate your assessment. We do not use your
+            video to train POWR models; third-party processor policies still
+            apply. See the <Link href="/privacy">Privacy Policy</Link> for the full
+            picture.
           </li>
         </ul>
       </details>
