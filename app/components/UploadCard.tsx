@@ -417,7 +417,7 @@ export default function UploadCard({ onAnalyze }: UploadCardProps) {
         frames to generate your assessment — we don&apos;t store the video file.
         Saving a report keeps analysis text (scores and notes) in your account,
         not the clip.{" "}
-        <a href="/privacy">Privacy Policy</a>
+        <Link href="/privacy">Privacy Policy</Link>
       </p>
       <details className="privacy-details">
         <summary>How POWR handles your video</summary>
@@ -438,12 +438,12 @@ export default function UploadCard({ onAnalyze }: UploadCardProps) {
             Because the video is never stored on our servers, there is no separate
             “delete video” control. To remove a saved report from your history,
             contact us (in-app deletion is not available yet). Details are in our{" "}
-            <a href="/privacy">Privacy Policy</a>.
+            <Link href="/privacy">Privacy Policy</Link>.
           </li>
           <li>
             Frames are used to generate your assessment. We do not use your
             video to train POWR models; third-party processor policies still
-            apply. See the <a href="/privacy">Privacy Policy</a> for the full
+            apply. See the <Link href="/privacy">Privacy Policy</Link> for the full
             picture.
           </li>
         </ul>
