@@ -73,11 +73,24 @@ function SharedReportViewInner({
     assessedOn: isSample ? "Sample" : "Today",
   });
 
+  const alreadySaved = Boolean(pathname?.match(/^\/r\/[^/]+$/) && pathname !== "/r/sample" && pathname !== "/r/v2");
+
   return (
     <ReportV2Flow
       model={model}
       demoMode={false}
       isSample={isSample}
+      alreadySaved={alreadySaved}
+      savePayload={
+        isSample
+          ? null
+          : {
+              goal: request.goal,
+              fileName: request.fileName,
+              duration: request.duration,
+              analysis: request.analysis,
+            }
+      }
       initialStep={initialStep}
       basePath={pathname || "/r"}
       searchParams={preservedQuery}

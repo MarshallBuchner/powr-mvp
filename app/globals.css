@@ -425,6 +425,32 @@ button {
   line-height: 1.5;
 }
 
+.privacy-details {
+  margin: 10px auto 0;
+  max-width: 36rem;
+  color: var(--muted);
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+
+.privacy-details summary {
+  cursor: pointer;
+  text-align: center;
+  font-weight: 700;
+  color: var(--accent);
+  list-style-position: outside;
+}
+
+.privacy-details ul {
+  margin: 10px 0 0;
+  padding-left: 1.15rem;
+  text-align: left;
+}
+
+.privacy-details li + li {
+  margin-top: 6px;
+}
+
 .assessment-quota-note {
   margin: 14px 0 0;
   color: var(--muted);
@@ -1004,6 +1030,7 @@ button {
 .sample-video {
   display: block;
   width: 100%;
+  aspect-ratio: 1038 / 1706;
   max-height: 560px;
   background: #000;
   object-fit: contain;

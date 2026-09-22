@@ -412,8 +412,37 @@ export default function UploadCard({ onAnalyze }: UploadCardProps) {
       </button>
 
       <p className="privacy-note">
-        Your selected video stays on this device during prototype mode.
+        Your full video file stays on this device. POWR only sends short sampled
+        frames to generate your assessment — we don&apos;t store the video file.
+        Saving a report keeps analysis text (scores and notes) in your account,
+        not the clip.
       </p>
+      <details className="privacy-details">
+        <summary>How POWR handles your video</summary>
+        <ul>
+          <li>
+            The video file itself is not uploaded to POWR storage and is not
+            saved with your account.
+          </li>
+          <li>
+            A few compressed still frames are sent for analysis so we can build
+            your report.
+          </li>
+          <li>
+            Saved assessments store report data tied to your account — not the
+            original video.
+          </li>
+          <li>
+            Because the video is never stored on our servers, there is no separate
+            “delete video” control. To remove a saved report from your history,
+            contact support (in-app deletion is not available yet).
+          </li>
+          <li>
+            Frames are used to generate your assessment. We do not document a
+            separate AI-training retention policy in-app at this time.
+          </li>
+        </ul>
+      </details>
     </section>
   );
 }
