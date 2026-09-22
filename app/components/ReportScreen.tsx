@@ -234,14 +234,14 @@ const personalizedCoachSummary =
       analysis: realAnalysis,
     };
 
-    if (!configured) {
-      setSaveStatus("error");
-      return;
-    }
-
     if (!user) {
       stashPendingAssessment(payload);
       router.push("/login?next=/assessments");
+      return;
+    }
+
+    if (!configured) {
+      setSaveStatus("error");
       return;
     }
 

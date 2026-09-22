@@ -133,14 +133,16 @@ export default function ReportV2Flow({
 
   async function handleSaveAssessment() {
     if (demoMode || isSample || !savePayload || isSavedView) return;
-    if (!configured) {
-      setSaveStatus("error");
-      return;
-    }
+    // Guests always enter the existing login/signup flow with a pending stash.
+    // Auth configuration is only required for the signed-in save POST.
     if (!user) {
       stashPendingAssessment(savePayload);
       track("save_cta_clicked", { state: "guest" });
       router.push("/login?next=/assessments");
+      return;
+    }
+    if (!configured) {
+      setSaveStatus("error");
       return;
     }
     setSaveStatus("saving");
