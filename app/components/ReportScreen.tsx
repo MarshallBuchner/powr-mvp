@@ -21,6 +21,7 @@ import {
 } from "./assessmentEntitlements";
 import { readStashedEvidenceFrames } from "./evidenceStorage";
 import type { AnalysisEvidenceMoment } from "./types";
+import { scoreInterpretation } from "./scoreBands";
 
 type ReportScreenProps = {
   request: AnalysisRequest;
@@ -233,14 +234,14 @@ const personalizedCoachSummary =
       analysis: realAnalysis,
     };
 
-    if (!configured) {
-      setSaveStatus("error");
-      return;
-    }
-
     if (!user) {
       stashPendingAssessment(payload);
       router.push("/login?next=/assessments");
+      return;
+    }
+
+    if (!configured) {
+      setSaveStatus("error");
       return;
     }
 
@@ -327,15 +328,10 @@ const personalizedCoachSummary =
 
           {realAnalysis ? (
             <p className="score-interpretation">
-              {realAnalysis.overallScore >= 85
-                ? "Strong skating base"
-                : realAnalysis.overallScore >= 70
-                  ? "Solid skating base"
-                  : "Developing skating base"}
-              {" · Biggest opportunity: "}
-              {realAnalysis.priorityImprovement.length > 64
-                ? `${realAnalysis.priorityImprovement.slice(0, 61).trim()}…`
-                : realAnalysis.priorityImprovement}
+              {scoreInterpretation(
+                realAnalysis.overallScore,
+                realAnalysis.priorityImprovement,
+              )}
             </p>
           ) : null}
 

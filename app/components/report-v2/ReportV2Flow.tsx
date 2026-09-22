@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   ChevronLeft,
   ChevronRight,
@@ -30,12 +31,24 @@ import {
   localCanRunAssessment,
   fetchEntitlementBalance,
 } from "../assessmentEntitlements";
+import { stashPendingAssessment } from "../assessmentStorage";
+import { useAuth } from "../AuthProvider";
+import { getScoreBand, scoreInterpretation } from "../scoreBands";
 import "./report-v2.css";
 
 type ReportV2FlowProps = {
   model: ReportV2Model;
   demoMode?: boolean;
   isSample?: boolean;
+  /** True when viewing an already-persisted /r/[id] assessment */
+  alreadySaved?: boolean;
+  /** Live analysis payload needed to save (guest stash or signed-in POST) */
+  savePayload?: {
+    goal: string;
+    fileName: string;
+    duration: number | null;
+    analysis: unknown;
+  } | null;
   /** 0-based step from the URL so nav works even if JS fails to hydrate */
   initialStep?: number;
   /** Path for step links — live share uses /r, /r/sample, /r/[id] */
@@ -51,11 +64,16 @@ export default function ReportV2Flow({
   model,
   demoMode = false,
   isSample = false,
+  alreadySaved = false,
+  savePayload = null,
   initialStep = 0,
   basePath = "/r/v2",
   searchParams = "",
   onRestart,
 }: ReportV2FlowProps) {
+  const router = useRouter();
+  const { configured, user } = useAuth();
+  const tabsRef = useRef<HTMLElement | null>(null);
   const step = Math.max(
     0,
     Math.min(REPORT_V2_STEPS.length - 1, initialStep),
@@ -66,6 +84,10 @@ export default function ReportV2Flow({
   const [remaining, setRemaining] = useState(() => getLocalRemainingAssessments());
   const [unlimited, setUnlimited] = useState(false);
   const [shareStatus, setShareStatus] = useState<"idle" | "copied">("idle");
+  const [saveStatus, setSaveStatus] = useState<
+    "idle" | "saving" | "saved" | "error"
+  >("idle");
+  const isSavedView = alreadySaved || saveStatus === "saved";
 
   useEffect(() => {
     let cancelled = false;
@@ -81,32 +103,63 @@ export default function ReportV2Flow({
     };
   }, []);
 
+  // Keep the active tab visible inside the horizontally scrollable strip.
+  useEffect(() => {
+    const nav = tabsRef.current;
+    if (!nav) return;
+    const active = nav.querySelector<HTMLElement>("a.is-active");
+    active?.scrollIntoView({
+      behavior: "smooth",
+      inline: "center",
+      block: "nearest",
+    });
+  }, [step]);
+
   const stepHref = (index: number) =>
     reportV2StepHref(index, { basePath, searchParams });
 
-  const scoreLabel =
-    model.analysis.overallScore >= 85
-      ? "EXCELLENT"
-      : model.analysis.overallScore >= 70
-        ? "GOOD"
-        : "DEVELOPING";
+  const scoreBand = getScoreBand(model.analysis.overallScore);
+  const scoreLabel = scoreBand.ringLabel;
 
   const confidenceLabel =
     model.analysis.confidence.label === "Moderate"
       ? "Medium"
       : model.analysis.confidence.label;
 
-  const scoreInterpretation = `${
-    model.analysis.overallScore >= 85
-      ? "Strong skating base"
-      : model.analysis.overallScore >= 70
-        ? "Solid skating base"
-        : "Developing skating base"
-  } · Biggest opportunity: ${
-    model.analysis.priorityImprovement.length > 64
-      ? `${model.analysis.priorityImprovement.slice(0, 61).trim()}…`
-      : model.analysis.priorityImprovement
-  }`;
+  const scoreInterpretationText = scoreInterpretation(
+    model.analysis.overallScore,
+    model.analysis.priorityImprovement,
+  );
+
+  async function handleSaveAssessment() {
+    if (demoMode || isSample || !savePayload || isSavedView) return;
+    // Guests always enter the existing login/signup flow with a pending stash.
+    // Auth configuration is only required for the signed-in save POST.
+    if (!user) {
+      stashPendingAssessment(savePayload);
+      track("save_cta_clicked", { state: "guest" });
+      router.push("/login?next=/assessments");
+      return;
+    }
+    if (!configured) {
+      setSaveStatus("error");
+      return;
+    }
+    setSaveStatus("saving");
+    try {
+      const res = await fetch("/api/assessments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(savePayload),
+      });
+      if (!res.ok) throw new Error("save_failed");
+      setSaveStatus("saved");
+      track("assessment_saved", { goal: savePayload.goal, ui: "v2" });
+    } catch (error) {
+      console.error("POWR save failed:", error);
+      setSaveStatus("error");
+    }
+  }
 
   const filteredDrills = useMemo(() => {
     if (drillFilter === "All") return model.drills;
@@ -211,7 +264,7 @@ export default function ReportV2Flow({
               label={scoreLabel}
               delta={model.deltaVsLast}
             />
-            <p className="rv2-score-interpretation">{scoreInterpretation}</p>
+            <p className="rv2-score-interpretation">{scoreInterpretationText}</p>
             <p className="rv2-score-disclaimer">
               AI development estimate — not a scouting grade.
             </p>
@@ -432,6 +485,37 @@ export default function ReportV2Flow({
               </div>
             ) : null}
 
+            {!demoMode && !isSample && savePayload ? (
+              <div className="rv2-save-cta">
+                {isSavedView ? (
+                  <p className="rv2-save-saved">
+                    Saved to My Assessments ✓{" "}
+                    <Link href="/assessments">Open history</Link>
+                  </p>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      className="rv2-primary"
+                      onClick={() => void handleSaveAssessment()}
+                      disabled={saveStatus === "saving"}
+                    >
+                      {saveStatus === "saving"
+                        ? "Saving…"
+                        : saveStatus === "error"
+                          ? "Save failed — try again"
+                          : "Save my assessment"}
+                    </button>
+                    <p className="rv2-save-note">
+                      {user
+                        ? "Keep this report in your POWR account and track your development."
+                        : "Create a free account to keep this report and track your development."}
+                    </p>
+                  </>
+                )}
+              </div>
+            ) : null}
+
             <button
               type="button"
               className="rv2-secondary"
@@ -462,11 +546,16 @@ export default function ReportV2Flow({
   }, [
     model,
     scoreLabel,
-    scoreInterpretation,
+    scoreInterpretationText,
     confidenceLabel,
     step,
     demoMode,
     isSample,
+    alreadySaved,
+    isSavedView,
+    savePayload,
+    saveStatus,
+    user,
     drillFilter,
     filteredDrills,
     progressGain,
@@ -491,7 +580,11 @@ export default function ReportV2Flow({
         </span>
       </header>
 
-      <nav className="rv2-tabs" aria-label="Report sections">
+      <nav
+        ref={tabsRef}
+        className="rv2-tabs"
+        aria-label="Report sections"
+      >
         {REPORT_V2_STEPS.map((label, index) => (
           <Link
             key={label}

@@ -1,6 +1,7 @@
 "use client";
 
 import { ChevronRight } from "lucide-react";
+import { getScoreBand } from "../scoreBands";
 
 type CategoryBarProps = {
   name: string;
@@ -14,6 +15,7 @@ export default function CategoryBar({
   icon = "•",
 }: CategoryBarProps) {
   const clamped = Math.max(0, Math.min(100, score));
+  const band = getScoreBand(clamped);
 
   return (
     <div className="rv2-category-bar">
@@ -22,8 +24,14 @@ export default function CategoryBar({
           <em aria-hidden="true">{icon}</em>
           {name}
         </span>
-        <strong>
-          {clamped}
+        <strong className="rv2-category-score">
+          <span className="rv2-category-score-num">{clamped}</span>
+          <span
+            className={`rv2-score-band is-${band.id}`}
+            title={`${band.label} performance band`}
+          >
+            {band.label}
+          </span>
           <ChevronRight size={16} aria-hidden="true" />
         </strong>
       </div>
