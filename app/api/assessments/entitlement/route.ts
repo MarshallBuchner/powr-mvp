@@ -64,7 +64,8 @@ export async function POST(request: NextRequest) {
   };
   const deviceIncoming: EntitlementState = {
     freeUsed: Math.max(0, Number(body.freeUsed) || 0),
-    credits: Math.max(0, Number(body.credits) || 0),
+    credits: process.env.NODE_ENV === "production"
+      ? 0 : Math.max(0, Number(body.credits) || 0),
     unlockedSessionIds: Array.isArray(body.unlockedSessionIds)
       ? body.unlockedSessionIds.filter((id): id is string => typeof id === "string")
       : [],

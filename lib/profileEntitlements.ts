@@ -56,14 +56,11 @@ export async function ensureProfileRow(
 
   const { data: created, error: insertError } = await supabase
     .from("profiles")
-    .upsert(
+    .insert(
       {
         id: userId,
         email: email ?? null,
-        free_assessments_used: 0,
-        assessment_credits: 0,
       },
-      { onConflict: "id" },
     )
     .select("id, free_assessments_used, assessment_credits")
     .single();
@@ -88,7 +85,7 @@ export async function mergeDeviceIntoProfile(
 ): Promise<EntitlementState> {
   const { data, error } = await supabase.rpc("merge_assessment_entitlement", {
     p_free_used: Math.max(0, device.freeUsed),
-    p_credits: Math.max(0, device.credits),
+    p_credits: 0,
   });
 
   if (error) throw error;

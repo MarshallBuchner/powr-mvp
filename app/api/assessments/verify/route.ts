@@ -1,187 +1,62 @@
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
-import {
-  ASSESSMENT_PACK_CREDITS,
-  ASSESSMENT_PRODUCT_ID,
-  canRunAssessment,
-  grantPackCredits,
-  remainingAssessments,
-} from "@/lib/assessmentBilling";
-import {
-  readEntitlementCookie,
-  writeEntitlementCookie,
-} from "@/lib/entitlementCookie";
-import {
-  entitlementResponse,
-  grantPackCreditsToProfile,
-  readProfileEntitlements,
-} from "@/lib/profileEntitlements";
-import {
-  createServiceClient,
-  isServiceRoleConfigured,
-} from "@/lib/supabase/admin";
+import { ASSESSMENT_PACK_CREDITS, ASSESSMENT_PRODUCT_ID } from "@/lib/assessmentBilling";
+import { entitlementResponse, readProfileEntitlements } from "@/lib/profileEntitlements";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { createClient } from "@/lib/supabase/server";
 
-function getStripeClient() {
-  const secretKey = process.env.STRIPE_SECRET_KEY;
-  if (!secretKey) return null;
-  return new Stripe(secretKey, { apiVersion: "2026-08-26.dahlia" });
-}
-
-/**
- * Confirm payment status for the unlock page.
- * Authed purchases: credits come from the Stripe webhook (source of truth).
- * This route only reads profile balance (and may wait briefly for webhook).
- * Guest/preview: keep legacy cookie grant for local/dev preview only.
- */
+// This route only confirms ownership/payment and reads the webhook's grant.
+// Neither a preview URL nor a browser redirect can grant paid credits.
 export async function GET(request: NextRequest) {
   const sessionId = request.nextUrl.searchParams.get("session_id");
-  const preview = request.nextUrl.searchParams.get("preview");
-
-  if (preview === "1" || sessionId === "preview") {
-    // Dev/preview path only — not used for live webhook-backed purchases.
-    let authedUserId: string | null = null;
-    if (isSupabaseConfigured()) {
-      try {
-        const supabase = await createClient();
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
-        authedUserId = user?.id ?? null;
-
-        if (authedUserId && isServiceRoleConfigured()) {
-          const admin = createServiceClient();
-          const granted = await grantPackCreditsToProfile(
-            admin,
-            authedUserId,
-            "preview",
-            ASSESSMENT_PACK_CREDITS,
-          );
-          return NextResponse.json({
-            paid: true,
-            preview: true,
-            creditsGranted: granted.creditsGranted,
-            ...entitlementResponse(granted.state, "profile"),
-            entitlements: granted.state,
-            source: "profile",
-          });
-        }
-      } catch (error) {
-        console.error("POWR preview profile grant failed", error);
-      }
-    }
-
-    const current = readEntitlementCookie(request);
-    const next = grantPackCredits(current, "preview", ASSESSMENT_PACK_CREDITS);
-    const response = NextResponse.json({
-      paid: true,
-      preview: true,
-      creditsGranted: ASSESSMENT_PACK_CREDITS,
-      remaining: remainingAssessments(next),
-      canRun: canRunAssessment(next),
-      entitlements: next,
-      source: "device",
-    });
-    return writeEntitlementCookie(response, next);
+  if (request.nextUrl.searchParams.has("preview") || sessionId === "preview") {
+    return NextResponse.json({ paid: false, reason: "preview_disabled" }, { status: 400 });
   }
-
   if (!sessionId) {
-    return NextResponse.json({
-      paid: false,
-      preview: false,
-      reason: "missing_session",
-    });
+    return NextResponse.json({ paid: false, reason: "missing_session" }, { status: 400 });
   }
-
-  const stripe = getStripeClient();
-  if (!stripe) {
-    return NextResponse.json({
-      paid: false,
-      preview: false,
-      reason: "stripe_unconfigured",
-    });
+  const secretKey = process.env.STRIPE_SECRET_KEY;
+  if (!secretKey || !isSupabaseConfigured()) {
+    return NextResponse.json({ paid: false, reason: "billing_unconfigured" }, { status: 503 });
   }
 
   try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      return NextResponse.json({ paid: false, reason: "sign_in_required" }, { status: 401 });
+    }
+    const stripe = new Stripe(secretKey, { apiVersion: "2026-08-26.dahlia" });
     const session = await stripe.checkout.sessions.retrieve(sessionId);
-    const paid =
-      session.payment_status === "paid" || session.status === "complete";
-
-    if (!paid) {
-      return NextResponse.json({
-        paid: false,
-        preview: false,
-        reason: "unpaid",
-      });
+    const owner = session.metadata?.user_id || session.client_reference_id;
+    if (owner !== user.id || session.metadata?.product !== ASSESSMENT_PRODUCT_ID) {
+      return NextResponse.json({ paid: false, reason: "invalid_session" }, { status: 403 });
     }
-
-    if (
-      session.metadata?.product &&
-      session.metadata.product !== ASSESSMENT_PRODUCT_ID
-    ) {
-      return NextResponse.json({
-        paid: false,
-        preview: false,
-        reason: "wrong_product",
-      });
+    if (session.payment_status !== "paid" && session.payment_status !== "no_payment_required") {
+      return NextResponse.json({ paid: false, reason: "unpaid" });
     }
-
-    const credits =
-      Number(session.metadata?.credits) || ASSESSMENT_PACK_CREDITS;
-    const metaUserId =
-      session.metadata?.user_id || session.client_reference_id || null;
-
-    // Authed purchase: webhook is SoT. Read profile (poll-friendly).
-    if (metaUserId && isSupabaseConfigured()) {
-      const supabase = await createClient();
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-      if (user) {
-        const state = await readProfileEntitlements(
-          supabase,
-          user.id,
-          user.email,
-        );
-        return NextResponse.json({
-          paid: true,
-          preview: false,
-          email: session.customer_details?.email ?? null,
-          amountTotal: session.amount_total,
-          currency: session.currency,
-          creditsGranted: credits,
-          ...entitlementResponse(state, "profile"),
-          entitlements: state,
-          ref: session.metadata?.ref || null,
-          source: "profile",
-        });
-      }
-    }
-
-    // Legacy guest cookie grant (sessions without user_id).
-    const current = readEntitlementCookie(request);
-    const next = grantPackCredits(current, sessionId, credits);
-    const response = NextResponse.json({
+    const { data: grant, error } = await supabase
+      .from("assessment_credit_grants")
+      .select("credits")
+      .eq("stripe_session_id", session.id)
+      .eq("user_id", user.id)
+      .maybeSingle();
+    if (error) throw error;
+    const state = await readProfileEntitlements(supabase, user.id, user.email);
+    return NextResponse.json({
       paid: true,
       preview: false,
-      email: session.customer_details?.email ?? null,
+      awaitingWebhook: !grant,
+      creditsGranted: grant ? grant.credits : 0,
+      packCredits: ASSESSMENT_PACK_CREDITS,
       amountTotal: session.amount_total,
       currency: session.currency,
-      creditsGranted: credits,
-      remaining: remainingAssessments(next),
-      canRun: canRunAssessment(next),
-      entitlements: next,
+      ...entitlementResponse(state, "profile"),
+      entitlements: state,
       ref: session.metadata?.ref || null,
-      source: "device",
     });
-    return writeEntitlementCookie(response, next);
   } catch (error) {
     console.error("Failed to verify assessment checkout session", error);
-    return NextResponse.json(
-      { paid: false, preview: false, reason: "invalid_session" },
-      { status: 400 },
-    );
+    return NextResponse.json({ paid: false, reason: "verification_failed" }, { status: 400 });
   }
 }

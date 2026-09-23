@@ -25,15 +25,12 @@ async function grantFromCheckoutSession(session: Stripe.Checkout.Session) {
     return { skipped: true, reason: "missing_user_id" as const };
   }
 
-  if (
-    session.metadata?.product &&
-    session.metadata.product !== ASSESSMENT_PRODUCT_ID
-  ) {
+  if (session.metadata?.product !== ASSESSMENT_PRODUCT_ID) {
     return { skipped: true, reason: "wrong_product" as const };
   }
 
-  const paid =
-    session.payment_status === "paid" || session.status === "complete";
+  const paid = session.payment_status === "paid" ||
+    session.payment_status === "no_payment_required";
   if (!paid) {
     return { skipped: true, reason: "unpaid" as const };
   }
@@ -42,8 +39,7 @@ async function grantFromCheckoutSession(session: Stripe.Checkout.Session) {
     throw new Error("SUPABASE_SERVICE_ROLE_KEY is required for Stripe webhooks");
   }
 
-  const credits =
-    Number(session.metadata?.credits) || ASSESSMENT_PACK_CREDITS;
+  const credits = ASSESSMENT_PACK_CREDITS;
   const admin = createServiceClient();
   const granted = await grantPackCreditsToProfile(
     admin,

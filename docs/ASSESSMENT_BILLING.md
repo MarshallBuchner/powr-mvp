@@ -17,7 +17,7 @@ Layered around the existing guest upload → analyze → report flow.
 - New profiles start at `free_assessments_used = 0` → **1 free** remaining
 - Real `POST /api/analyze` consumes atomically via RPC `consume_assessment_credit()` (free first, then credits)
 - Sample/demo never calls analyze → never consumes
-- On login, device balance merges once into profile with `merge_assessment_entitlement` (`greatest` — no double free)
+- On login, free usage merges into the profile. Browser-supplied paid credits are never imported.
 
 ## Accounts
 Magic-link accounts: **save/history + entitlement balance** when signed in.
@@ -31,13 +31,13 @@ Guest first assessment still works with no account.
 4. `SUPABASE_SERVICE_ROLE_KEY` (server-only) so webhook can grant credits
 5. Success URL: `/unlock?session_id={CHECKOUT_SESSION_ID}`
 6. Webhook events: `checkout.session.completed`, `checkout.session.async_payment_succeeded`
-7. Without Stripe key, checkout returns preview unlock (`/unlock?preview=1`)
+7. Without a Stripe key, purchases are unavailable. Preview unlock URLs do not grant credits.
 
 ### Webhook (source of truth for paid credits)
 - Endpoint: `https://trainwithpowr.com/api/stripe/webhook` (and preview URL if needed)
-- Grants exactly the session’s credits to `metadata.user_id` / `client_reference_id`
+- Grants exactly five credits for a paid assessment-pack session to `metadata.user_id` / `client_reference_id`
 - Idempotent via `assessment_credit_grants.stripe_session_id`
-- Unlock page confirms payment with `/api/assessments/verify`, then **reads** profile balance (does not grant)
+- Unlock page confirms session ownership and payment with `/api/assessments/verify`, then waits for that exact session’s credit-grant row (does not grant).
 
 ## Routes
 - `POST /api/assessments/checkout` — Stripe Checkout (requires auth for live)
@@ -48,6 +48,8 @@ Guest first assessment still works with no account.
 - `/unlock` — post-purchase confirmation
 
 ## SQL to run
+For existing databases, run `supabase/migrations/20260922_paid_credit_safety.sql` before enabling live checkout. This preserves balances, rejects imported device credits, and restricts credit grants to the service role.
+
 Re-run `supabase/schema.sql` in the Supabase SQL editor (safe / idempotent). Adds:
 - `assessment_credit_grants` table
 - RPCs: `consume_assessment_credit`, `merge_assessment_entitlement`, `grant_assessment_pack_credits`
