@@ -15,7 +15,7 @@ Also ensure `SUPABASE_SERVICE_ROLE_KEY` is set in Vercel so `/api/reports/share`
 
 ## Support inbox
 
-Public copy uses `support@trainwithpowr.com`. Configure that mailbox (or forward it) before launch.
+Public copy uses `powrhockeydevelopment@gmail.com`.
 
 ## Behavior changes
 

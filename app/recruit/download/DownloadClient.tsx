@@ -7,6 +7,7 @@ import RecruitHeader from "../components/RecruitHeader";
 import RecruitFooter from "../components/RecruitFooter";
 import { downloadFiles, toolkitZipPath } from "../lib/content";
 import { trackRecruitEvent } from "../lib/analytics";
+import { SUPPORT_EMAIL, SUPPORT_MAILTO } from "@/lib/support";
 
 type VerifyState =
   | { status: "loading" }

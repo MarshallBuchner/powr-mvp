@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { track } from "@vercel/analytics";
 import { ASSESSMENT_PACK_CREDITS } from "@/lib/assessmentBilling";
+import { SUPPORT_EMAIL, SUPPORT_MAILTO } from "@/lib/support";
 
 type VerifyResult = {
   paid?: boolean;

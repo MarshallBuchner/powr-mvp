@@ -1,5 +1,5 @@
 /** Public support + operator identity used across legal/payment surfaces. */
-export const SUPPORT_EMAIL = "support@trainwithpowr.com";
+export const SUPPORT_EMAIL = "powrhockeydevelopment@gmail.com";
 
 export const SUPPORT_MAILTO = `mailto:${SUPPORT_EMAIL}`;
 
