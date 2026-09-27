@@ -72,12 +72,10 @@ create policy "assessments_delete_own"
   on public.assessments for delete
   using (auth.uid() = user_id);
 
--- Allow public read of a single assessment by id for share links (/r/[id]).
--- If you want private-only reports later, remove this policy.
+-- Reports are private by default. Public viewing uses tokenized shared_reports
+-- via the Next.js service-role API (/r/s/[token]). Do NOT re-add a world-readable
+-- assessments SELECT policy.
 drop policy if exists "assessments_select_public_by_id" on public.assessments;
-create policy "assessments_select_public_by_id"
-  on public.assessments for select
-  using (true);
 
 create or replace function public.handle_new_user()
 returns trigger
@@ -304,3 +302,47 @@ $$;
 
 revoke all on function public.grant_assessment_pack_credits(uuid, text, integer) from public, anon, authenticated;
 grant execute on function public.grant_assessment_pack_credits(uuid, text, integer) to service_role;
+
+-- Tokenized share links (guest drafts + optional saved-assessment shares).
+create table if not exists public.shared_reports (
+  id uuid primary key default gen_random_uuid(),
+  share_token text not null unique,
+  created_at timestamptz not null default now(),
+  expires_at timestamptz,
+  revoked_at timestamptz,
+  owner_user_id uuid references auth.users (id) on delete cascade,
+  assessment_id uuid references public.assessments (id) on delete cascade,
+  goal text not null,
+  file_name text not null,
+  duration numeric,
+  analysis jsonb not null
+);
+
+create index if not exists shared_reports_owner_user_id_idx
+  on public.shared_reports (owner_user_id);
+
+create index if not exists shared_reports_assessment_id_idx
+  on public.shared_reports (assessment_id);
+
+alter table public.shared_reports enable row level security;
+
+drop policy if exists "shared_reports_select_own" on public.shared_reports;
+create policy "shared_reports_select_own"
+  on public.shared_reports for select to authenticated
+  using (auth.uid() = owner_user_id);
+
+drop policy if exists "shared_reports_update_own" on public.shared_reports;
+create policy "shared_reports_update_own"
+  on public.shared_reports for update to authenticated
+  using (auth.uid() = owner_user_id)
+  with check (auth.uid() = owner_user_id);
+
+drop policy if exists "shared_reports_delete_own" on public.shared_reports;
+create policy "shared_reports_delete_own"
+  on public.shared_reports for delete to authenticated
+  using (auth.uid() = owner_user_id);
+
+revoke insert, update, delete on public.shared_reports from anon, authenticated;
+grant select on public.shared_reports to authenticated;
+grant update (revoked_at) on public.shared_reports to authenticated;
+grant delete on public.shared_reports to authenticated;

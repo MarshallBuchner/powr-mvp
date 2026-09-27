@@ -117,7 +117,12 @@ function UnlockClient() {
         <>
           <h1>Couldn&apos;t confirm payment</h1>
           <p className="section-description">
-            If you were charged, email support with your receipt. Please refresh this page or contact support before purchasing again.
+            If you were charged, email{" "}
+            <a href="mailto:support@trainwithpowr.com">
+              support@trainwithpowr.com
+            </a>{" "}
+            with your receipt before purchasing again. You can also refresh this
+            page to re-check credit delivery.
           </p>
           <div className="unlock-actions">
             <Link href="/#start-assessment" className="primary-button">

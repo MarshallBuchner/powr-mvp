@@ -21,6 +21,7 @@ import {
 import { stashEvidenceFrames } from "./evidenceStorage";
 import type { PrototypeMetrics } from "./prototype/poseMetrics";
 import type { PoseDebugInfo } from "./prototype/PoseVideoPlayer";
+import { isSampleReport } from "./shareReport";
 
 const PoseVideoPlayer = dynamic(
   () => import("./prototype/PoseVideoPlayer"),
@@ -36,7 +37,7 @@ type AnalysisScreenProps = {
   request: AnalysisRequest;
   /** Called when analysis payload is ready (before navigating to report). */
   onReady?: (request: AnalysisRequest) => void;
-  onComplete: () => void;
+  onComplete: () => void | Promise<void>;
   onBack?: () => void;
 };
 
@@ -117,6 +118,7 @@ export default function AnalysisScreen({
     "loading",
   );
   const [poseLimited, setPoseLimited] = useState(false);
+  const isSampleDemo = isSampleReport(request);
   const finishedRef = useRef(false);
   const requestRef = useRef(request);
   requestRef.current = request;
@@ -127,13 +129,21 @@ export default function AnalysisScreen({
   );
 
   const headline = isComplete
-    ? "Your development report is ready."
-    : `Reviewing your ${request.goal.toLowerCase()} mechanics.`;
+    ? isSampleDemo
+      ? "Your sample report is ready."
+      : "Your development report is ready."
+    : isSampleDemo
+      ? "Loading the pre-generated sample report."
+      : `Reviewing your ${request.goal.toLowerCase()} mechanics.`;
 
   const subcopy = isComplete
-    ? "Your personalized development report is ready to review."
-    : LAB_STAGES[activeStep]?.detail ??
-      "I'm taking a closer look at the movement patterns in your clip.";
+    ? isSampleDemo
+      ? "This is a pre-generated demo report — not a new live assessment."
+      : "Your personalized development report is ready to review."
+    : isSampleDemo
+      ? "Demo mode: showing how a finished POWR report looks. No live AI analysis is running on this clip."
+      : LAB_STAGES[activeStep]?.detail ??
+        "Taking a closer look at the movement patterns visible in your clip.";
 
   const finishToReport = useCallback(
     (finalRequest: AnalysisRequest) => {
@@ -143,7 +153,9 @@ export default function AnalysisScreen({
       setActiveStep(LAB_STAGES.length - 1);
       setIsComplete(true);
       window.setTimeout(() => setIsLeaving(true), 700);
-      window.setTimeout(() => onComplete(), 1100);
+      window.setTimeout(() => {
+        void onComplete();
+      }, 1100);
     },
     [onComplete, onReady],
   );
@@ -299,10 +311,12 @@ export default function AnalysisScreen({
     <main className={`analysis-lab ${isLeaving ? "is-leaving" : ""}`}>
       <section className="analysis-lab-shell">
         <header className="analysis-lab-heading">
-          <p className="eyebrow">POWR ANALYSIS</p>
+          <p className="eyebrow">
+            {isSampleDemo ? "POWR SAMPLE DEMO" : "POWR ANALYSIS"}
+          </p>
           <h1>{headline}</h1>
           <p>{subcopy}</p>
-          {!isComplete && !error ? (
+          {!isComplete && !error && !isSampleDemo ? (
             <p className="analysis-lab-keep-open">
               Keep this page open while we finish your assessment.
             </p>
@@ -371,15 +385,25 @@ export default function AnalysisScreen({
                   className={`analysis-lab-pill${isComplete ? " is-done" : ""}`}
                 >
                   <span className="tracking-dot" />
-                  {isComplete ? "Analysis complete" : "AI tracking active"}
+                  {isComplete
+                    ? isSampleDemo
+                      ? "Sample ready"
+                      : "Analysis complete"
+                    : isSampleDemo
+                      ? "Sample demo"
+                      : "AI tracking active"}
                 </span>
               </div>
             </div>
 
             <aside className="analysis-lab-side">
               <div className="analysis-lab-card">
-                <h2>AI TRACKING</h2>
-                <p className="analysis-lab-card-note">Pose estimates</p>
+                <h2>{isSampleDemo ? "DEMO PREVIEW" : "AI TRACKING"}</h2>
+                <p className="analysis-lab-card-note">
+                  {isSampleDemo
+                    ? "Optional pose overlay — not a live assessment"
+                    : "Pose estimates"}
+                </p>
                 <ul className="analysis-lab-metrics">
                   <li>
                     <span>Pose detected</span>
@@ -432,7 +456,7 @@ export default function AnalysisScreen({
 
               <div className="analysis-lab-card">
                 <div className="analysis-lab-progress-head">
-                  <h2>REPORT GENERATION</h2>
+                  <h2>{isSampleDemo ? "SAMPLE REPORT" : "REPORT GENERATION"}</h2>
                   <strong>{isComplete ? "100%" : `${progressPct}%`}</strong>
                 </div>
                 <div
@@ -475,15 +499,19 @@ export default function AnalysisScreen({
             <div className="analysis-lab-check" aria-hidden>
               ✓
             </div>
-            <p className="eyebrow">POWR CORE</p>
-            <h2>Analysis complete</h2>
-            <p>Your personalized development report is ready to review.</p>
+            <p className="eyebrow">{isSampleDemo ? "POWR SAMPLE" : "POWR CORE"}</p>
+            <h2>{isSampleDemo ? "Sample ready" : "Analysis complete"}</h2>
+            <p>
+              {isSampleDemo
+                ? "Open the pre-generated demo report to explore the POWR layout."
+                : "Your personalized development report is ready to review."}
+            </p>
             <button
               type="button"
               className="primary-button"
-              onClick={onComplete}
+              onClick={() => void onComplete()}
             >
-              View Development Report →
+              {isSampleDemo ? "View sample report →" : "View Development Report →"}
             </button>
           </div>
         ) : null}

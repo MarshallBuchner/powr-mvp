@@ -69,11 +69,17 @@ export default function PoseVideoPlayer({
   const rafRef = useRef<number | null>(null);
   const lastTsRef = useRef(-1);
   const landmarksRef = useRef<NormalizedLandmark[] | null>(null);
+  const failCountRef = useRef(0);
+  const modelStatusRef = useRef<"loading" | "ready" | "error">("loading");
 
   const [modelStatus, setModelStatus] = useState<"loading" | "ready" | "error">(
     "loading",
   );
   const [modelError, setModelError] = useState<string | null>(null);
+
+  useEffect(() => {
+    modelStatusRef.current = modelStatus;
+  }, [modelStatus]);
 
   // Keep draw options in refs so the RAF loop always sees latest toggles
   const drawOptsRef = useRef({
@@ -182,12 +188,23 @@ export default function PoseVideoPlayer({
     const { width, height } = canvas;
     clearCanvas(ctx, width, height);
 
+    // Skip detection entirely once the model is in a hard-error state so WebGL
+    // activeTexture / GPU faults cannot keep throwing inside the RAF loop.
+    if (modelStatusRef.current === "error" || !landmarker) {
+      onDebugRef.current?.({
+        currentTime: video.currentTime,
+        poseDetected: false,
+        landmarkCount: 0,
+        confidencePct: 0,
+      });
+      return;
+    }
+
     // Detect when the clock advances, or once on the first available frame (even if paused)
     const timeAdvanced = video.currentTime !== lastTsRef.current;
     const needsFirstFrame =
       landmarksRef.current == null && video.readyState >= 2;
     if (
-      landmarker &&
       video.readyState >= 2 &&
       (timeAdvanced || needsFirstFrame) &&
       (!video.paused || needsFirstFrame) &&
@@ -199,6 +216,7 @@ export default function PoseVideoPlayer({
         const result = landmarker.detectForVideo(video, performance.now());
         const pose = result.landmarks?.[0] ?? null;
         landmarksRef.current = pose;
+        failCountRef.current = 0;
 
         const metrics = computePrototypeMetrics(pose);
         onMetricsRef.current?.(metrics);
@@ -209,8 +227,23 @@ export default function PoseVideoPlayer({
           confidencePct: metrics.confidencePct,
         });
       } catch (err) {
-        // Don't crash the loop if a frame fails
+        // Don't crash the loop if a frame fails (incl. WebGL activeTexture noise)
         console.warn("[PoseVideoPlayer] detectForVideo failed", err);
+        failCountRef.current += 1;
+        if (failCountRef.current >= 8) {
+          modelStatusRef.current = "error";
+          setModelStatus("error");
+          setModelError(
+            "Pose tracking unavailable on this device — continuing without overlay.",
+          );
+          onModelStatus?.("error");
+          try {
+            landmarkerRef.current?.close();
+          } catch {
+            // ignore close errors
+          }
+          landmarkerRef.current = null;
+        }
       }
     } else {
       // Still emit debug clock while idle

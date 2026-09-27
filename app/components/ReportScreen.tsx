@@ -8,7 +8,7 @@ import { useRouter } from "next/navigation";
 import type { AnalysisRequest } from "./types";
 
 import { goalProfiles } from "./goalProfiles";
-import { getSharePath, isSampleReport } from "./shareReport";
+import { createReportSharePath, isSampleReport } from "./shareReport";
 import { stashPendingAssessment } from "./assessmentStorage";
 import { useAuth } from "./AuthProvider";
 
@@ -184,8 +184,11 @@ const personalizedCoachSummary =
   
   POWR — AI Hockey Development`;
   
-    const shareUrl = `${window.location.origin}${getSharePath(request, savedId ?? undefined)}`;
-  
+    const share = await createReportSharePath(request, {
+      savedId: savedId ?? undefined,
+    });
+    const shareUrl = `${window.location.origin}${share.path}`;
+
     try {
       if (navigator.share) {
         await navigator.share({
@@ -362,7 +365,7 @@ const personalizedCoachSummary =
         <div className="coach-summary-icon">AI</div>
 
         <div>
-          <p className="eyebrow">POWR AI Coach</p>
+          <p className="eyebrow">POWR AI-assisted notes</p>
 
           <h2>Assessment summary</h2>
 

@@ -106,7 +106,13 @@ export default function DownloadClient() {
             </p>
           ) : null}
           {verify.status === "error" ? (
-            <p className="recruit-guarantee">{verify.message}</p>
+            <p className="recruit-guarantee">
+              {verify.message} If you were charged, email{" "}
+              <a href="mailto:support@trainwithpowr.com">
+                support@trainwithpowr.com
+              </a>{" "}
+              with your receipt.
+            </p>
           ) : null}
         </div>
       </main>

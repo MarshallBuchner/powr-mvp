@@ -73,7 +73,15 @@ function SharedReportViewInner({
     assessedOn: isSample ? "Sample" : "Today",
   });
 
-  const alreadySaved = Boolean(pathname?.match(/^\/r\/[^/]+$/) && pathname !== "/r/sample" && pathname !== "/r/v2");
+  const alreadySaved = Boolean(
+    pathname &&
+      /^\/r\/[^/]+$/.test(pathname) &&
+      pathname !== "/r/sample" &&
+      pathname !== "/r/v2" &&
+      pathname !== "/r/view",
+  );
+  const savedId = alreadySaved ? pathname!.replace(/^\/r\//, "") : null;
+  const isTokenShare = Boolean(pathname?.startsWith("/r/s/"));
 
   return (
     <ReportV2Flow
@@ -81,6 +89,8 @@ function SharedReportViewInner({
       demoMode={false}
       isSample={isSample}
       alreadySaved={alreadySaved}
+      savedId={savedId}
+      isTokenShare={isTokenShare}
       savePayload={
         isSample
           ? null

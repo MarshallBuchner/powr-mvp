@@ -4,10 +4,10 @@ export default function HowPowrWorks() {
       <div className="how-powr-heading">
         <p className="eyebrow">HOW POWR WORKS</p>
 
-        <h2>AI coaching. Real hockey development.</h2>
+        <h2>AI-assisted feedback for hockey development.</h2>
 
         <p>
-          Three simple steps from skating video to actionable feedback.
+          Three simple steps from skating video to a clear development report.
         </p>
       </div>
 
@@ -41,11 +41,11 @@ export default function HowPowrWorks() {
             <span className="how-powr-icon">AI</span>
           </div>
 
-          <h3>POWR analyzes your movement</h3>
+          <h3>POWR reviews visible skating mechanics</h3>
 
           <p>
-            AI evaluates the skating mechanics visible in your video and
-            identifies the movement patterns that matter most.
+            AI evaluates mechanics that can reasonably be seen in your sampled
+            frames — results depend on camera angle, lighting, and clip quality.
           </p>
 
           <div className="how-powr-preview analysis-preview">

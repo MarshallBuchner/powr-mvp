@@ -7,6 +7,7 @@ import {
   PENDING_ASSESSMENT_KEY,
   type PendingAssessmentPayload,
 } from "@/app/components/assessmentStorage";
+import { SUPPORT_EMAIL, SUPPORT_MAILTO } from "@/lib/support";
 
 type AssessmentRow = {
   id: string;
@@ -24,6 +25,7 @@ export default function AssessmentsClient() {
     "idle",
   );
   const [message, setMessage] = useState("");
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!configured || loading) return;
@@ -32,7 +34,6 @@ export default function AssessmentsClient() {
     async function load() {
       setStatus("loading");
       try {
-        // If user came from Save → login, flush pending assessment first.
         const pendingRaw = sessionStorage.getItem(PENDING_ASSESSMENT_KEY);
         if (pendingRaw) {
           setStatus("saving");
@@ -64,6 +65,29 @@ export default function AssessmentsClient() {
 
     void load();
   }, [configured, loading, user]);
+
+  async function handleDelete(id: string) {
+    if (
+      !window.confirm(
+        "Delete this saved assessment? This cannot be undone.",
+      )
+    ) {
+      return;
+    }
+    setDeletingId(id);
+    try {
+      const res = await fetch(`/api/assessments/${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("delete_failed");
+      setRows((current) => current.filter((row) => row.id !== id));
+      setMessage("Assessment deleted.");
+    } catch {
+      setMessage(
+        `Could not delete that assessment. Email ${SUPPORT_EMAIL} if it keeps failing.`,
+      );
+    } finally {
+      setDeletingId(null);
+    }
+  }
 
   if (!configured) {
     return (
@@ -102,8 +126,9 @@ export default function AssessmentsClient() {
       <p className="eyebrow">MY ASSESSMENTS</p>
       <h1>Your saved skating reports</h1>
       <p>
-        Come back anytime to review scores, coaching notes, and drills. Recruit
-        toolkit purchases stay separate — no account needed there.
+        Saved assessments are private by default. Open a report while signed in,
+        or create a share link from the report if you want others to view it.
+        Need help? <a href={SUPPORT_MAILTO}>{SUPPORT_EMAIL}</a>
       </p>
       {message ? <p className="login-message">{message}</p> : null}
       {status === "loading" || status === "saving" ? (
@@ -119,7 +144,7 @@ export default function AssessmentsClient() {
       ) : (
         <ul className="assessment-list">
           {rows.map((row) => (
-            <li key={row.id}>
+            <li key={row.id} className="assessment-list-item">
               <Link href={`/r/${row.id}`}>
                 <strong>{row.file_name}</strong>
                 <span>
@@ -128,6 +153,14 @@ export default function AssessmentsClient() {
                 </span>
                 <em>{new Date(row.created_at).toLocaleString()}</em>
               </Link>
+              <button
+                type="button"
+                className="text-button assessment-delete"
+                disabled={deletingId === row.id}
+                onClick={() => void handleDelete(row.id)}
+              >
+                {deletingId === row.id ? "Deleting…" : "Delete"}
+              </button>
             </li>
           ))}
         </ul>

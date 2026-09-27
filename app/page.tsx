@@ -9,9 +9,10 @@ import SampleAssessment from "./components/SampleAssessment";
 import UploadCard from "./components/UploadCard";
 import type { AnalysisRequest } from "./components/types";
 import {
+  createReportSharePath,
   createSampleRequest,
-  getSharePath,
 } from "./components/shareReport";
+import { stashLastReport } from "./components/reportSession";
 
 type Screen = "upload" | "sample" | "analysis";
 
@@ -42,10 +43,13 @@ export default function Home() {
     setAnalysisRequest(request);
   }
 
-  function handleAnalysisComplete() {
+  async function handleAnalysisComplete() {
     const request = analysisRequestRef.current;
     if (!request?.analysis) return;
-    router.push(getSharePath(request));
+    // Prefer tokenized share; never put analysis JSON in the URL.
+    stashLastReport(request);
+    const share = await createReportSharePath(request);
+    router.push(share.path);
   }
 
   function handleAnalysisBack() {
@@ -99,8 +103,9 @@ export default function Home() {
         <h2>Not ready to upload your video yet?</h2>
 
         <p>
-          Explore a sample skating assessment and see how POWR turns video into
-          scores, coaching insights, and personalized drills.
+          Explore a pre-generated sample report to see how POWR turns skating
+          video into scores, coaching notes, and drills — without running a live
+          assessment on your own clip.
         </p>
 
         <button

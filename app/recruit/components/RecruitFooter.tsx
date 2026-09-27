@@ -17,6 +17,7 @@ export default function RecruitFooter() {
           <Link href="/recruit#offer">Pricing</Link>
           <Link href="/recruit#faq">FAQ</Link>
           <Link href="/privacy">Privacy</Link>
+          <Link href="/terms">Terms</Link>
         </nav>
       </div>
       <p className="recruit-footer-note">

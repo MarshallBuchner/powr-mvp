@@ -14,11 +14,19 @@ export async function GET(_request: Request, { params }: Params) {
 
   const { id } = await params;
   const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return NextResponse.json({ error: "Sign in required." }, { status: 401 });
+  }
 
   const { data, error } = await supabase
     .from("assessments")
     .select("id, created_at, goal, file_name, duration, overall_score, analysis")
     .eq("id", id)
+    .eq("user_id", user.id)
     .maybeSingle();
 
   if (error) {
@@ -31,4 +39,42 @@ export async function GET(_request: Request, { params }: Params) {
   }
 
   return NextResponse.json({ assessment: data });
+}
+
+export async function DELETE(_request: Request, { params }: Params) {
+  if (!isSupabaseConfigured()) {
+    return NextResponse.json(
+      { error: "Accounts are not configured yet." },
+      { status: 503 },
+    );
+  }
+
+  const { id } = await params;
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return NextResponse.json({ error: "Sign in required." }, { status: 401 });
+  }
+
+  const { data, error } = await supabase
+    .from("assessments")
+    .delete()
+    .eq("id", id)
+    .eq("user_id", user.id)
+    .select("id")
+    .maybeSingle();
+
+  if (error) {
+    console.error("Failed to delete assessment", error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  if (!data) {
+    return NextResponse.json({ error: "Assessment not found." }, { status: 404 });
+  }
+
+  return NextResponse.json({ ok: true });
 }
