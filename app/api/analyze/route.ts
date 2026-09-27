@@ -115,6 +115,8 @@ export async function POST(request: NextRequest) {
 
     const response = await openai.responses.create({
       model: "gpt-5.6",
+      // Prefer not to store responses for provider training/retention when supported.
+      store: false,
 
       input: [
         {

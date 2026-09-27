@@ -18,25 +18,26 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://powr-mvp.vercel.app"),
-  
-  title: "POWR | AI Hockey Development",
+  metadataBase: new URL("https://trainwithpowr.com"),
+
+  title: "POWR | AI-Assisted Hockey Development",
   description:
-    "Upload your skating video and get personalized AI-powered feedback, development insights, and drills to help you improve.",
+    "Upload a skating clip and get AI-assisted development feedback, priorities, and drills. Beta estimates — not medical or scouting grades.",
 
   openGraph: {
-    title: "POWR | AI Hockey Development",
+    title: "POWR | AI-Assisted Hockey Development",
     description:
-      "Upload your skating video and get personalized AI-powered feedback, development insights, and drills to help you improve.",
+      "Upload a skating clip and get AI-assisted development feedback, priorities, and drills.",
     type: "website",
     siteName: "POWR",
+    url: "https://trainwithpowr.com",
   },
 
   twitter: {
     card: "summary_large_image",
-    title: "POWR | AI Hockey Development",
+    title: "POWR | AI-Assisted Hockey Development",
     description:
-      "Upload your skating video and get personalized AI-powered feedback, development insights, and drills to help you improve.",
+      "Upload a skating clip and get AI-assisted development feedback, priorities, and drills.",
   },
 };
 

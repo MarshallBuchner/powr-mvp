@@ -34,6 +34,8 @@ import {
 import { stashPendingAssessment } from "../assessmentStorage";
 import { useAuth } from "../AuthProvider";
 import { getScoreBand, scoreInterpretation } from "../scoreBands";
+import { createReportSharePath } from "../shareReport";
+import type { RealAnalysis } from "../types";
 import "./report-v2.css";
 
 type ReportV2FlowProps = {
@@ -42,6 +44,10 @@ type ReportV2FlowProps = {
   isSample?: boolean;
   /** True when viewing an already-persisted /r/[id] assessment */
   alreadySaved?: boolean;
+  /** Saved assessment id when alreadySaved */
+  savedId?: string | null;
+  /** True when viewing a tokenized /r/s/[token] share */
+  isTokenShare?: boolean;
   /** Live analysis payload needed to save (guest stash or signed-in POST) */
   savePayload?: {
     goal: string;
@@ -65,6 +71,8 @@ export default function ReportV2Flow({
   demoMode = false,
   isSample = false,
   alreadySaved = false,
+  savedId = null,
+  isTokenShare = false,
   savePayload = null,
   initialStep = 0,
   basePath = "/r/v2",
@@ -193,8 +201,26 @@ export default function ReportV2Flow({
       : 0;
 
   async function handleShare() {
-    const url = typeof window !== "undefined" ? window.location.href : "";
     try {
+      let url =
+        typeof window !== "undefined" ? window.location.href : "";
+
+      // Sample and existing token links are already share-safe.
+      // Private /r/[id] or session /r/view need an explicit tokenized share.
+      if (!isSample && !isTokenShare && savePayload?.analysis) {
+        const share = await createReportSharePath(
+          {
+            goal: savePayload.goal,
+            fileName: savePayload.fileName,
+            duration: savePayload.duration,
+            videoUrl: "",
+            analysis: savePayload.analysis as RealAnalysis,
+          },
+          { savedId: savedId ?? undefined },
+        );
+        url = `${window.location.origin}${share.path}`;
+      }
+
       if (navigator.share) {
         await navigator.share({
           title: "My POWR Assessment",
@@ -231,8 +257,8 @@ export default function ReportV2Flow({
             style={{ backgroundImage: `url(${model.heroImage})` }}
           >
             <div className="rv2-hero-overlay">
-              <p className="rv2-eyebrow">AI-POWERED SKATING ASSESSMENT</p>
-              <h1>Personalized feedback. Real improvement.</h1>
+              <p className="rv2-eyebrow">AI-ASSISTED SKATING ASSESSMENT</p>
+              <h1>Personalized feedback for your next sessions.</h1>
               <p className="rv2-lead">TRAIN SMARTER. PLAY FASTER.</p>
               <Link href={stepHref(1)} className="rv2-primary" scroll={false}>
                 View My Results →
@@ -266,10 +292,12 @@ export default function ReportV2Flow({
             />
             <p className="rv2-score-interpretation">{scoreInterpretationText}</p>
             <p className="rv2-score-disclaimer">
-              AI development estimate — not a scouting grade.
+              AI-assisted development estimate — not a medical, injury-prevention,
+              or scouting grade. Results depend on camera angle, clip quality,
+              occlusion, and how clearly skating mechanics are visible.
             </p>
             <div className="rv2-confidence-pill">
-              <span>Confidence</span>
+              <span>Model confidence</span>
               <strong>{confidenceLabel}</strong>
             </div>
             <blockquote className="rv2-coach">
@@ -552,6 +580,8 @@ export default function ReportV2Flow({
     demoMode,
     isSample,
     alreadySaved,
+    savedId,
+    isTokenShare,
     isSavedView,
     savePayload,
     saveStatus,

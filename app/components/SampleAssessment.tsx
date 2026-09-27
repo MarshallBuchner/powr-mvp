@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+
 type SampleAssessmentProps = {
   onAnalyze: () => void;
   onBack: () => void;
@@ -9,15 +11,12 @@ export default function SampleAssessment({
   onAnalyze,
   onBack,
 }: SampleAssessmentProps) {
+  const [acknowledged, setAcknowledged] = useState(false);
+
   return (
     <main className="sample-assessment-screen">
       <div className="sample-assessment-container">
-
-        <button
-          className="sample-back-button"
-          type="button"
-          onClick={onBack}
-        >
+        <button className="sample-back-button" type="button" onClick={onBack}>
           ← Back
         </button>
 
@@ -27,15 +26,14 @@ export default function SampleAssessment({
           <h1>See what POWR sees.</h1>
 
           <p>
-            Watch this sample skating clip, then run it through POWR
-            to see how video becomes actionable coaching feedback.
+            Watch this sample skating clip, then open a{" "}
+            <strong>pre-generated demo report</strong> that shows the same layout
+            a player gets after a live assessment.
           </p>
         </div>
 
         <div className="sample-video-card">
-          <div className="sample-video-label">
-            SAMPLE SKATING VIDEO
-          </div>
+          <div className="sample-video-label">SAMPLE SKATING VIDEO</div>
 
           <video
             className="sample-video"
@@ -52,24 +50,36 @@ export default function SampleAssessment({
               <span>13-second skating clip</span>
             </div>
 
-            <span className="sample-ready-badge">Ready to analyze</span>
+            <span className="sample-ready-badge">Demo ready</span>
           </div>
         </div>
+
+        <label className="consent-check sample-demo-ack">
+          <input
+            type="checkbox"
+            checked={acknowledged}
+            onChange={(e) => setAcknowledged(e.target.checked)}
+          />
+          <span>
+            I understand this is a <strong>pre-generated sample/demo</strong> —
+            POWR will not run a new live AI assessment on this clip.
+          </span>
+        </label>
 
         <button
           className="sample-analyze-button"
           type="button"
+          disabled={!acknowledged}
           onClick={onAnalyze}
         >
-          <span>Analyze Sample Skating</span>
+          <span>View sample report</span>
           <span>→</span>
         </button>
 
         <p className="sample-explainer">
-          This is a demo clip. You will see the same report layout a player
-          gets after uploading their own skating video.
+          This demo uses fixed sample results so you can explore the report UI
+          without uploading your own video or consuming an assessment credit.
         </p>
-
       </div>
     </main>
   );

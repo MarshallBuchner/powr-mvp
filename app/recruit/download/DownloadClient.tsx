@@ -7,6 +7,7 @@ import RecruitHeader from "../components/RecruitHeader";
 import RecruitFooter from "../components/RecruitFooter";
 import { downloadFiles, toolkitZipPath } from "../lib/content";
 import { trackRecruitEvent } from "../lib/analytics";
+import { SUPPORT_EMAIL, SUPPORT_MAILTO } from "@/lib/support";
 
 type VerifyState =
   | { status: "loading" }
@@ -106,7 +107,10 @@ export default function DownloadClient() {
             </p>
           ) : null}
           {verify.status === "error" ? (
-            <p className="recruit-guarantee">{verify.message}</p>
+            <p className="recruit-guarantee">
+              {verify.message} If you were charged, email{" "}
+              <a href={SUPPORT_MAILTO}>{SUPPORT_EMAIL}</a> with your receipt.
+            </p>
           ) : null}
         </div>
       </main>

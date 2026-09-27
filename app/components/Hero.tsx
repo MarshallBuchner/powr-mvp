@@ -31,9 +31,10 @@ export default function Hero({ onViewSample }: HeroProps) {
         </p>
 
         <p className="beta-note">
-          <strong>POWR BETA</strong> — Assessments are AI-assisted and intended
-          for hockey development. Feedback may evolve as we improve with
-          players and coaches.
+          <strong>POWR BETA</strong> — Assessments are AI-assisted estimates for
+          hockey development — not medical advice, injury prevention, or
+          scouting grades. Feedback depends on clip quality and may evolve as we
+          improve with players and coaches.
         </p>
 
         <p className="no-account">

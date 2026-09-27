@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { track } from "@vercel/analytics";
 import { ASSESSMENT_PACK_CREDITS } from "@/lib/assessmentBilling";
+import { SUPPORT_EMAIL, SUPPORT_MAILTO } from "@/lib/support";
 
 type VerifyResult = {
   paid?: boolean;
@@ -117,7 +118,10 @@ function UnlockClient() {
         <>
           <h1>Couldn&apos;t confirm payment</h1>
           <p className="section-description">
-            If you were charged, email support with your receipt. Please refresh this page or contact support before purchasing again.
+            If you were charged, email{" "}
+            <a href={SUPPORT_MAILTO}>{SUPPORT_EMAIL}</a> with your receipt
+            before purchasing again. You can also refresh this page to re-check
+            credit delivery.
           </p>
           <div className="unlock-actions">
             <Link href="/#start-assessment" className="primary-button">

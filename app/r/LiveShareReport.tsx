@@ -4,7 +4,12 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import SharedReportView from "../components/SharedReportView";
 import { decodeLiveSharePayload } from "../components/shareReport";
+import { SUPPORT_EMAIL, SUPPORT_MAILTO } from "@/lib/support";
 
+/**
+ * Legacy `/r?d=…` links (analysis embedded in the URL).
+ * Still readable for older shares; new reports use `/r/s/[token]`.
+ */
 export default function LiveShareReport() {
   const searchParams = useSearchParams();
   const encoded = searchParams.get("d");
@@ -14,21 +19,26 @@ export default function LiveShareReport() {
     return (
       <main className="app-shell">
         <p className="eyebrow">POWR</p>
-        <h1>This assessment link is missing or expired.</h1>
+        <h1>Assessment not found</h1>
         <p>
-          Ask your teammate to share the report again, or start a new
-          skating assessment.
+          This legacy share link is invalid or incomplete. New reports use
+          private tokenized links. Need help?{" "}
+          <a href={SUPPORT_MAILTO}>{SUPPORT_EMAIL}</a>
         </p>
-        <Link
-          className="primary-button"
-          href="/"
-          style={{ width: "auto", padding: "0 22px", textDecoration: "none" }}
-        >
-          Open POWR
-        </Link>
+        <p>
+          <Link href="/">← Home</Link>
+        </p>
       </main>
     );
   }
 
-  return <SharedReportView request={request} />;
+  return (
+    <>
+      <div className="legacy-share-banner" role="note">
+        This is a legacy share link. New POWR reports use private tokenized
+        links and are not embedded in the URL.
+      </div>
+      <SharedReportView request={request} />
+    </>
+  );
 }

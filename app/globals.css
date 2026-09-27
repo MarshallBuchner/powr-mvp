@@ -451,6 +451,98 @@ button {
   margin-top: 6px;
 }
 
+.consent-fieldset {
+  margin: 18px 0 0;
+  padding: 16px 16px 14px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--panel-soft);
+}
+
+.consent-fieldset legend {
+  padding: 0 6px;
+  color: var(--accent);
+  font-size: 0.72rem;
+  font-weight: 850;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.consent-lead {
+  margin: 0 0 14px;
+  color: var(--muted);
+  font-size: 0.84rem;
+  line-height: 1.5;
+}
+
+.consent-label {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 12px;
+  color: var(--text);
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.consent-label select {
+  width: 100%;
+  min-height: 46px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--panel-deep);
+  color: var(--text);
+}
+
+.consent-label-title {
+  font-size: 0.82rem;
+}
+
+.consent-check {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  color: var(--muted);
+  font-size: 0.84rem;
+  line-height: 1.45;
+  font-weight: 600;
+}
+
+.consent-check input {
+  margin-top: 3px;
+  flex: 0 0 auto;
+}
+
+.consent-check a {
+  color: var(--accent);
+  font-weight: 800;
+}
+
+.consent-blocked {
+  margin: 0 0 12px;
+  color: var(--danger);
+  font-size: 0.84rem;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.sample-demo-ack {
+  margin: 16px 0 0;
+  text-align: left;
+}
+
+.legacy-share-banner {
+  width: min(760px, calc(100% - 28px));
+  margin: 12px auto 0;
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 200, 80, 0.35);
+  background: rgba(255, 200, 80, 0.08);
+  color: #f0d9a0;
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+
 .assessment-quota-note {
   margin: 14px 0 0;
   color: var(--muted);
@@ -1638,6 +1730,13 @@ button {
   gap: 10px;
 }
 
+.assessment-list-item {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+  align-items: center;
+}
+
 .assessment-list a {
   display: grid;
   gap: 4px;
@@ -1647,6 +1746,10 @@ button {
   background: var(--panel);
   border-radius: 16px;
   padding: 16px 18px;
+}
+
+.assessment-delete {
+  min-width: 4.5rem;
 }
 
 .assessment-list strong {

@@ -24,6 +24,11 @@ import {
   ASSESSMENT_PACK_CREDITS,
   ASSESSMENT_PACK_PRICE_CAD,
 } from "@/lib/assessmentBilling";
+import {
+  ageGateMessage,
+  canStartAnalysis,
+  type AgeBand,
+} from "@/lib/consent";
 
 const goals = [
   "Overall skating",
@@ -71,6 +76,8 @@ export default function UploadCard({ onAnalyze }: UploadCardProps) {
   const [remaining, setRemaining] = useState(1);
   const [needsUpgrade, setNeedsUpgrade] = useState(false);
   const [unlimited, setUnlimited] = useState(false);
+  const [ageBand, setAgeBand] = useState<AgeBand | null>(null);
+  const [consented, setConsented] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -195,6 +202,19 @@ export default function UploadCard({ onAnalyze }: UploadCardProps) {
       return;
     }
 
+    const ageMessage = ageGateMessage(ageBand);
+    if (ageMessage) {
+      setError(ageMessage);
+      return;
+    }
+
+    if (!canStartAnalysis({ ageBand, consented })) {
+      setError(
+        "Confirm your age eligibility and analysis consent before continuing.",
+      );
+      return;
+    }
+
     if (!unlimited && !localCanRunAssessment()) {
       setNeedsUpgrade(true);
       track("upgrade_viewed", { source: "upload_blocked" });
@@ -218,6 +238,11 @@ export default function UploadCard({ onAnalyze }: UploadCardProps) {
       duration,
     });
   }
+
+  const analysisReady =
+    Boolean(selectedFile) &&
+    !needsUpgrade &&
+    canStartAnalysis({ ageBand, consented });
 
   const quotaPrimary = unlimited
     ? "Founder access — unlimited assessments"
@@ -402,10 +427,64 @@ export default function UploadCard({ onAnalyze }: UploadCardProps) {
         <UpgradePanel source="upload_card" remaining={remaining} />
       ) : null}
 
+      <fieldset className="consent-fieldset">
+        <legend>Before we analyze</legend>
+        <p className="consent-lead">
+          Analysis samples a few compressed frames from your clip (and may use
+          on-device pose estimates) so we can build a skating development report.
+          Those frames are sent to third-party processors such as OpenAI. Your
+          full video file stays on this device and is not stored by POWR.
+          OpenAI API/business data is not used to train OpenAI models by default
+          unless a customer explicitly opts in. Saved reports keep analysis text
+          and scores — not the clip. You can request deletion of saved reports
+          via support or My assessments when signed in.
+        </p>
+
+        <label className="consent-label">
+          <span className="consent-label-title">Age eligibility</span>
+          <select
+            value={ageBand ?? ""}
+            onChange={(e) =>
+              setAgeBand((e.target.value || null) as AgeBand | null)
+            }
+            aria-required="true"
+          >
+            <option value="" disabled>
+              Select one…
+            </option>
+            <option value="adult">I am 18 or older</option>
+            <option value="teen">
+              I am 13–17 and have parent/guardian permission to use POWR
+            </option>
+            <option value="under13">I am under 13</option>
+          </select>
+        </label>
+        {ageBand === "under13" ? (
+          <p className="consent-blocked" role="alert">
+            {ageGateMessage("under13")}
+          </p>
+        ) : null}
+
+        <label className="consent-check">
+          <input
+            type="checkbox"
+            checked={consented}
+            onChange={(e) => setConsented(e.target.checked)}
+            disabled={ageBand === "under13"}
+          />
+          <span>
+            I understand the above, agree to the{" "}
+            <Link href="/terms">Terms of Service</Link> and{" "}
+            <Link href="/privacy">Privacy Policy</Link>, and consent to analysis
+            of sampled frames for this assessment.
+          </span>
+        </label>
+      </fieldset>
+
       <button
         className="primary-button"
         type="button"
-        disabled={!selectedFile || needsUpgrade}
+        disabled={!analysisReady}
         onClick={() => handleAnalyze()}
       >
         <span>Analyze My Skating</span>
@@ -413,41 +492,9 @@ export default function UploadCard({ onAnalyze }: UploadCardProps) {
       </button>
 
       <p className="privacy-note">
-        Your full video file stays on this device. POWR only sends short sampled
-        frames to generate your assessment — we don&apos;t store the video file.
-        Saving a report keeps analysis text (scores and notes) in your account,
-        not the clip.{" "}
-        <Link href="/privacy">Privacy Policy</Link>
+        Full details: <Link href="/privacy">Privacy Policy</Link> ·{" "}
+        <Link href="/terms">Terms</Link>
       </p>
-      <details className="privacy-details">
-        <summary>How POWR handles your video</summary>
-        <ul>
-          <li>
-            The video file itself is not uploaded to POWR storage and is not
-            saved with your account.
-          </li>
-          <li>
-            A few compressed still frames are sent for analysis so we can build
-            your report.
-          </li>
-          <li>
-            Saved assessments store report data tied to your account — not the
-            original video.
-          </li>
-          <li>
-            Because the video is never stored on our servers, there is no separate
-            “delete video” control. To remove a saved report from your history,
-            contact us (in-app deletion is not available yet). Details are in our{" "}
-            <Link href="/privacy">Privacy Policy</Link>.
-          </li>
-          <li>
-            Frames are used to generate your assessment. We do not use your
-            video to train POWR models; third-party processor policies still
-            apply. See the <Link href="/privacy">Privacy Policy</Link> for the full
-            picture.
-          </li>
-        </ul>
-      </details>
     </section>
   );
 }
