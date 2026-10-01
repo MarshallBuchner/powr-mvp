@@ -40,11 +40,14 @@ export default function LoginForm() {
     return () => window.clearTimeout(id);
   }, [cooldown]);
 
+  const isCheckoutResume = next.startsWith("/checkout");
+
   const heading = useMemo(() => {
     if (user) return "You're signed in";
     if (step === "code") return "Check your email";
+    if (isCheckoutResume) return "Sign in to continue purchase";
     return "Sign in to POWR";
-  }, [user, step]);
+  }, [user, step, isCheckoutResume]);
 
   async function sendCode(targetEmail: string) {
     setSending(true);
@@ -129,11 +132,17 @@ export default function LoginForm() {
       {user ? (
         <p>
           Signed in as <strong>{user.email}</strong>.{" "}
-          <Link href={next}>Continue →</Link>
+          <Link href={next}>
+            {isCheckoutResume ? "Continue to checkout →" : "Continue →"}
+          </Link>
         </p>
       ) : step === "email" ? (
         <>
-          <p>Enter your email and we&apos;ll send you a sign-in code.</p>
+          <p>
+            {isCheckoutResume
+              ? "Sign in (or create your free account) to finish purchasing assessment credits. We’ll take you straight to checkout after."
+              : "Enter your email and we’ll send you a sign-in code."}
+          </p>
           <form onSubmit={onSendEmail} className="login-form">
             <label htmlFor="email">Email</label>
             <input

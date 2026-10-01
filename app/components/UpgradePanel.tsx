@@ -6,6 +6,11 @@ import {
   ASSESSMENT_PACK_CREDITS,
   ASSESSMENT_PACK_PRICE_CAD,
 } from "@/lib/assessmentBilling";
+import {
+  buildCheckoutLoginUrl,
+  stashCheckoutReturnPath,
+  unlockFailedPath,
+} from "@/lib/checkoutIntent";
 import { readCreatorRef } from "./assessmentEntitlements";
 
 type Props = {
@@ -21,6 +26,8 @@ export default function UpgradePanel({ source, remaining, compact = false }: Pro
     if (loading) return;
     setLoading(true);
     track("upgrade_clicked", { source, remaining });
+    // Preserve the report URL so post-login / post-purchase can return.
+    stashCheckoutReturnPath();
 
     try {
       const response = await fetch("/api/assessments/checkout", {
@@ -40,15 +47,20 @@ export default function UpgradePanel({ source, remaining, compact = false }: Pro
 
       if (response.status === 401 || data.error === "sign_in_required") {
         window.location.assign(
-          data.loginUrl || "/login?next=%2F%23start-assessment",
+          data.loginUrl || buildCheckoutLoginUrl(source),
         );
         return;
       }
 
-      window.location.assign(data.url || "/unlock?preview=1");
+      if (!response.ok || !data.url) {
+        window.location.assign(unlockFailedPath(source));
+        return;
+      }
+
+      window.location.assign(data.url);
     } catch (error) {
       console.error("POWR assessment checkout failed", error);
-      window.location.assign("/unlock?preview=1");
+      window.location.assign(unlockFailedPath(source));
     } finally {
       setLoading(false);
     }

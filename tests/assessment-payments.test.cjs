@@ -99,3 +99,88 @@ test('founder access remains exact-email authenticated override', () => {
   assert.equal(isFounderUnlimited('other@gmail.com'), false);
   assert.equal(isFounderUnlimited(null), false);
 });
+
+function checkoutRoute({ userId = null, sessionUrl = 'https://checkout.stripe.test/cs_test' } = {}) {
+  const created = [];
+  class FakeStripe {
+    checkout = {
+      sessions: {
+        create: async (payload) => {
+          created.push(payload);
+          return { url: sessionUrl, id: 'cs_test_new' };
+        },
+      },
+    };
+  }
+  const route = load(
+    'app/api/assessments/checkout/route.ts',
+    {
+      stripe: FakeStripe,
+      '@/lib/assessmentBilling': {
+        ASSESSMENT_PACK_AMOUNT_CENTS: 1900,
+        ASSESSMENT_PACK_CREDITS: 5,
+        ASSESSMENT_PRODUCT_ID: 'powr_assessment_pack',
+        ASSESSMENT_PRODUCT_NAME: 'POWR Assessment Pack',
+      },
+      '@/lib/checkoutIntent': {
+        buildCheckoutLoginUrl: (source = 'upgrade') =>
+          `/login?next=${encodeURIComponent(`/checkout?source=${source}`)}`,
+        unlockCancelledPath: (source = 'upgrade') =>
+          `/unlock?checkout=cancelled&source=${encodeURIComponent(source)}`,
+      },
+      '@/lib/supabase/config': { isSupabaseConfigured: () => true },
+      '@/lib/supabase/server': {
+        createClient: async () => ({
+          auth: {
+            getUser: async () => ({
+              data: { user: userId ? { id: userId } : null },
+            }),
+          },
+        }),
+      },
+    },
+    {
+      STRIPE_SECRET_KEY: 'sk_test_local',
+      NEXT_PUBLIC_SITE_URL: 'https://powr.test',
+    },
+  );
+  return {
+    created,
+    POST: (body = {}) =>
+      route.POST(
+        new NextRequest('https://powr.test/api/assessments/checkout', {
+          method: 'POST',
+          body: JSON.stringify(body),
+          headers: { 'content-type': 'application/json' },
+        }),
+      ),
+  };
+}
+
+test('guest checkout returns loginUrl that resumes /checkout (not homepage)', async () => {
+  const route = checkoutRoute({ userId: null });
+  const res = await route.POST({ source: 'report' });
+  assert.equal(res.status, 401);
+  const data = await res.json();
+  assert.equal(data.error, 'sign_in_required');
+  assert.equal(data.loginUrl, '/login?next=%2Fcheckout%3Fsource%3Dreport');
+  assert.equal(decodeURIComponent(data.loginUrl).includes('#start-assessment'), false);
+  assert.equal(route.created.length, 0);
+});
+
+test('signed-in checkout uses cancelled unlock path and never preview unlock', async () => {
+  const route = checkoutRoute({ userId: 'user-1' });
+  const res = await route.POST({ source: 'upload_card' });
+  assert.equal(res.status, 200);
+  const data = await res.json();
+  assert.equal(data.url, 'https://checkout.stripe.test/cs_test');
+  assert.equal(route.created.length, 1);
+  const session = route.created[0];
+  assert.equal(session.mode, 'payment');
+  assert.equal(
+    session.cancel_url,
+    'https://powr.test/unlock?checkout=cancelled&source=upload_card',
+  );
+  assert.equal(session.cancel_url.includes('preview'), false);
+  assert.equal(session.success_url.includes('session_id='), true);
+});
