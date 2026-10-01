@@ -6,6 +6,10 @@ import {
   ASSESSMENT_PRODUCT_ID,
   ASSESSMENT_PRODUCT_NAME,
 } from "@/lib/assessmentBilling";
+import {
+  buildCheckoutLoginUrl,
+  unlockCancelledPath,
+} from "@/lib/checkoutIntent";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { createClient } from "@/lib/supabase/server";
 
@@ -70,7 +74,8 @@ export async function POST(request: NextRequest) {
         {
           error: "sign_in_required",
           message: "Sign in to purchase assessment credits for your account.",
-          loginUrl: `/login?next=${encodeURIComponent("/#start-assessment")}`,
+          // After login, /checkout automatically resumes Stripe Checkout.
+          loginUrl: buildCheckoutLoginUrl(source),
         },
         { status: 401 },
       );
@@ -107,7 +112,7 @@ export async function POST(request: NextRequest) {
       billing_address_collection: "auto",
       client_reference_id: userId,
       success_url: `${baseUrl}/unlock?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${baseUrl}/#start-assessment`,
+      cancel_url: `${baseUrl}${unlockCancelledPath(source)}`,
       metadata: {
         product: ASSESSMENT_PRODUCT_ID,
         credits: String(ASSESSMENT_PACK_CREDITS),
