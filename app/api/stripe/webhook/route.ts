@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
+import { reportTrybeOrder } from "@/lib/trybeOrders";
 import {
   ASSESSMENT_PACK_CREDITS,
   ASSESSMENT_PRODUCT_ID,
@@ -90,7 +91,10 @@ export async function POST(request: NextRequest) {
     ) {
       const session = event.data.object as Stripe.Checkout.Session;
       const result = await grantFromCheckoutSession(session);
-      return NextResponse.json({ received: true, ...result });
+      // Credit grants are idempotent. Retry delivery even if credits were already
+      // granted, so a temporary Trybe outage cannot lose the conversion.
+      const attribution = result.skipped ? "skipped" : await reportTrybeOrder(session, event.created);
+      return NextResponse.json({ received: true, ...result, attribution });
     }
 
     return NextResponse.json({ received: true, ignored: event.type });
