@@ -6,7 +6,7 @@
 **Media:** Short-form video only; vertical 9:16, suggested 20–45 seconds.
 **Target creators:** Hockey players, hockey creators, coaches and hockey-development accounts who can show a genuine experience with skating footage they have permission to use.
 **Goal:** Authentic creator-led UGC, with clean source material suitable for later paid-social use after rights and ad approval.
-**Attribution:** Trybe server-side last click within 7 days, subject to Trybe enabling this option for POWR. Do not substitute Meta-reported purchases.
+**Attribution:** Trybe server-side last click within 7 days, subject to the first real pixel event unlocking this option for POWR. Do not substitute Meta-reported purchases.
 **Payout timing:** Weekly is the wizard default, proposed for final owner review only. No payouts authorized or initiated.
 
 ## Creator brief
@@ -43,7 +43,7 @@ Only show people and footage you have permission to include. Do not expose priva
 
 ## Owner review before publication
 
-- Trybe attribution must be enabled for this brand. The portal currently allows Meta only and disables Trybe.
+- Trybe attribution must be enabled for this brand. The portal disables Trybe until the first real pixel event is received.
 - Confirm CA$5 applies per paid order, including any approved discounts, and define refund/chargeback confirmation and adjustment timing.
 - Confirm weekly payout timing and usage rights/duration/placements. No automatic payout or ad permission has been approved.
 - Verify the live first-free and CA$19 purchase flow, including guest sign-in/resume.

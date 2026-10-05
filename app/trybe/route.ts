@@ -21,6 +21,6 @@ export function GET() {
 <a class="cta" href="/#start-assessment">Try your first assessment free</a>
 <p>Want more feedback? Get 5 assessments for CA$19. One-time purchase.</p>
 <p class="fine">AI-assisted estimates depend on footage quality. For development and education; not medical advice, scouting grades or a guarantee of improvement.</p>
-<p class="fine">This page uses Trybe cookies to credit the creator who referred you when you purchase. Private assessment and report pages do not load this page’s tracking script. <a href="/privacy">Privacy</a></p>
+<p class="fine">This page uses Trybe cookies to credit the creator who referred you when you purchase. <a href="/privacy">Privacy</a></p>
 </main></body></html>`, { headers: { "Content-Type": "text/html; charset=utf-8", "Referrer-Policy": "no-referrer", "Cache-Control": "no-store" } });
 }
