@@ -22,6 +22,20 @@ const ContentSecurityPolicy = [
   "upgrade-insecure-requests",
 ].join("; ");
 
+// The standalone public landing document is the only page that loads Trybe.
+// Do not extend the app-wide policy: private assessments and reports stay isolated.
+const trybeLandingPolicy = [
+  "default-src 'none'",
+  "script-src 'unsafe-inline' https://track.trainwithpowr.com",
+  "style-src 'unsafe-inline'",
+  "connect-src https://track.trainwithpowr.com https://prod-trybe-platform-6mi3j.ondigitalocean.app",
+  "img-src 'self' data:",
+  "base-uri 'none'",
+  "form-action 'none'",
+  "frame-ancestors 'none'",
+  "upgrade-insecure-requests",
+].join("; ");
+
 const securityHeaders = [
   { key: "Content-Security-Policy", value: ContentSecurityPolicy },
   { key: "X-Content-Type-Options", value: "nosniff" },
@@ -43,6 +57,13 @@ const nextConfig: NextConfig = {
       {
         source: "/:path*",
         headers: securityHeaders,
+      },
+      {
+        source: "/trybe",
+        headers: [
+          { key: "Content-Security-Policy", value: trybeLandingPolicy },
+          { key: "Referrer-Policy", value: "no-referrer" },
+        ],
       },
     ];
   },
