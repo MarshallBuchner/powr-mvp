@@ -24,6 +24,8 @@ const session = { id: 'cs_test_pack', status: 'complete', payment_status: 'paid'
 function webhook(grants) {
   return load('app/api/stripe/webhook/route.ts', {
     '@/lib/assessmentBilling': billing,
+    // Exercise the real disabled-by-default Trybe reporter without network access.
+    '@/lib/trybeOrders': load('lib/trybeOrders.ts', {}, { TRYBE_ORDERS_ENABLED: 'false' }),
     '@/lib/profileEntitlements': { grantPackCreditsToProfile: async (_, user, id, credits) => {
       const alreadyGranted = grants.has(id);
       if (!alreadyGranted) grants.set(id, { user, credits });

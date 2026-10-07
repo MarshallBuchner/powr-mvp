@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
+import { TRYBE_VISITOR_COOKIE, validTrybeVisitorId } from "@/lib/trybeOrders";
 import {
   ASSESSMENT_PACK_AMOUNT_CENTS,
   ASSESSMENT_PACK_CREDITS,
@@ -56,6 +57,7 @@ export async function POST(request: NextRequest) {
     const source = body.source || "upgrade";
     const ref = (body.ref || "").slice(0, 64);
     const userId = await getAuthedUserId();
+    const trybeVid = validTrybeVisitorId(request.cookies.get(TRYBE_VISITOR_COOKIE)?.value);
 
     if (!stripe) {
       return NextResponse.json(
@@ -114,6 +116,7 @@ export async function POST(request: NextRequest) {
         source,
         ref,
         user_id: userId,
+        ...(trybeVid ? { trybe_vid: trybeVid } : {}),
       },
       custom_text: {
         submit: {
