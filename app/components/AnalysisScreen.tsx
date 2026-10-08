@@ -23,6 +23,10 @@ import { stashEvidenceFrames } from "./evidenceStorage";
 import type { PrototypeMetrics } from "./prototype/poseMetrics";
 import type { PoseDebugInfo } from "./prototype/PoseVideoPlayer";
 import { isSampleReport } from "./shareReport";
+import {
+  logLabPlayback,
+  shouldDeferPoseOverlay,
+} from "@/lib/labPlayback";
 
 const PoseVideoPlayer = dynamic(
   () => import("./prototype/PoseVideoPlayer"),
@@ -119,10 +123,20 @@ export default function AnalysisScreen({
     "loading",
   );
   const [poseLimited, setPoseLimited] = useState(false);
+  // Defer the visible pose player until still-frame extraction finishes so
+  // iOS Safari does not pause the lab preview under ConcurrentPlaybackNotPermitted.
+  const [framesReady, setFramesReady] = useState(
+    () => Boolean(request.analysis) || !request.file,
+  );
   const isSampleDemo = isSampleReport(request);
   const finishedRef = useRef(false);
   const requestRef = useRef(request);
   requestRef.current = request;
+  const deferPoseOverlay = shouldDeferPoseOverlay({
+    hasFile: Boolean(request.file),
+    hasPrecomputedAnalysis: Boolean(request.analysis),
+    framesReady,
+  });
 
   const completedSteps = useMemo(
     () => (isComplete ? LAB_STAGES.length : activeStep),
@@ -188,13 +202,25 @@ export default function AnalysisScreen({
 
       try {
         setActiveStep(0);
+        setFramesReady(false);
+        logLabPlayback("live_analyze_start", {
+          fileName: current.fileName,
+          hasVideoUrl: Boolean(current.videoUrl),
+        });
         await delay(350);
         if (cancelled) return;
 
+        // Phase 1: sample stills on an offscreen decoder ONLY.
+        // Do not mount PoseVideoPlayer yet — concurrent play() freezes the lab
+        // preview on iPhone Safari (Regular more than Private due to warm cache).
         setActiveStep(1);
+        logLabPlayback("frame_extract_start");
         const frames = await extractVideoFrames(current.file, 5);
         if (cancelled) return;
+        logLabPlayback("frame_extract_done", { frameCount: frames.length });
 
+        // Phase 2: now it is safe to loop the visible preview + MediaPipe.
+        setFramesReady(true);
         setActiveStep(2);
         await delay(200);
         if (cancelled) return;
@@ -368,7 +394,7 @@ export default function AnalysisScreen({
         ) : (
           <div className="analysis-lab-layout">
             <div className="analysis-lab-primary">
-              {request.videoUrl ? (
+              {request.videoUrl && !deferPoseOverlay ? (
                 <div className="analysis-lab-video">
                   <PoseVideoPlayer
                     src={request.videoUrl}
@@ -390,7 +416,9 @@ export default function AnalysisScreen({
                 </div>
               ) : (
                 <div className="analysis-lab-video-fallback">
-                  Preparing your clip…
+                  {deferPoseOverlay
+                    ? "Preparing your clip for analysis…"
+                    : "Preparing your clip…"}
                 </div>
               )}
 
