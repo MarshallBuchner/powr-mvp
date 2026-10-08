@@ -818,13 +818,8 @@ const personalizedCoachSummary =
   <button
     type="button"
     onClick={() => {
-      if (!isSample && !localCanRunAssessment()) {
-        track("upgrade_viewed", { source: "report_next_session" });
-        document
-          .querySelector(".report-upgrade-wrap")
-          ?.scrollIntoView({ behavior: "smooth", block: "center" });
-        return;
-      }
+      // Always return to upload — UploadCard owns entitlement / upgrade UX.
+      track("next_session_clicked", { source: "report" });
       onRestart();
     }}
   >

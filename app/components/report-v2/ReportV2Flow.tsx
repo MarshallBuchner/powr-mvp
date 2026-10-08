@@ -28,11 +28,14 @@ import {
 } from "./reportV2Steps";
 import {
   getLocalRemainingAssessments,
-  localCanRunAssessment,
   fetchEntitlementBalance,
 } from "../assessmentEntitlements";
 import { stashPendingAssessment } from "../assessmentStorage";
 import { useAuth } from "../AuthProvider";
+import {
+  navigateToNextSessionUpload,
+  resolveNextSessionAction,
+} from "../nextSessionNavigation";
 import { getScoreBand, scoreInterpretation } from "../scoreBands";
 import { createReportSharePath } from "../shareReport";
 import type { RealAnalysis } from "../types";
@@ -246,14 +249,17 @@ export default function ReportV2Flow({
   }
 
   function handleNextSession() {
-    if (!isSample && !demoMode && !localCanRunAssessment()) {
-      track("upgrade_viewed", { source: "report_v2_next_session" });
-      document
-        .querySelector(".rv2-upgrade-wrap")
-        ?.scrollIntoView({ behavior: "smooth", block: "center" });
+    // Always return to upload. Do not swallow the tap to scroll to an upgrade
+    // panel — after a completed assessment local credits are often empty and
+    // the upgrade wrap may be absent (e.g. Founding Athlete), so the old path
+    // looked like a dead button on iPhone.
+    track("next_session_clicked", { source: "report_v2" });
+    if (resolveNextSessionAction() !== "restart") return;
+    if (onRestart) {
+      onRestart();
       return;
     }
-    onRestart?.();
+    navigateToNextSessionUpload();
   }
 
   const stepContent = useMemo(() => {
