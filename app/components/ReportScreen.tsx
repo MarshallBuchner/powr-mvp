@@ -815,16 +815,24 @@ const personalizedCoachSummary =
         : "Share My POWR Assessment ↗"}
   </button>
 
-  <button
-    type="button"
-    onClick={() => {
+  <a
+    href="/#start-assessment"
+    className="share-assessment-button"
+    data-testid="next-session-upload"
+    onClick={(event) => {
       // Always return to upload — UploadCard owns entitlement / upgrade UX.
-      track("next_session_clicked", { source: "report" });
+      // Real <a href> keeps iOS Safari navigation working even if JS is stale.
+      try {
+        track("next_session_clicked", { source: "report" });
+      } catch {
+        // ignore analytics failures
+      }
+      event.preventDefault();
       onRestart();
     }}
   >
     Upload Your Next Session →
-  </button>
+  </a>
 </div>
       </section>
 

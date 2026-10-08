@@ -33,6 +33,7 @@ import {
 import { stashPendingAssessment } from "../assessmentStorage";
 import { useAuth } from "../AuthProvider";
 import {
+  NEXT_SESSION_UPLOAD_HREF,
   navigateToNextSessionUpload,
   resolveNextSessionAction,
 } from "../nextSessionNavigation";
@@ -248,13 +249,23 @@ export default function ReportV2Flow({
     }
   }
 
-  function handleNextSession() {
-    // Always return to upload. Do not swallow the tap to scroll to an upgrade
-    // panel — after a completed assessment local credits are often empty and
-    // the upgrade wrap may be absent (e.g. Founding Athlete), so the old path
-    // looked like a dead button on iPhone.
-    track("next_session_clicked", { source: "report_v2" });
+  function handleNextSession(
+    event?: { preventDefault: () => void } | null,
+  ) {
+    // Always return to upload. Never swallow the tap into scroll-to-upgrade —
+    // that no-op'd on iPhone Safari when local credits were empty and the
+    // upgrade wrap was absent (Chrome often still had remaining credits in
+    // its separate storage, so it appeared to "work" only there).
+    try {
+      track("next_session_clicked", { source: "report_v2" });
+    } catch {
+      // Analytics must never block navigation on Safari.
+    }
     if (resolveNextSessionAction() !== "restart") return;
+
+    // Prefer an explicit hard navigation. The CTA is also a real <a href> so
+    // iOS Safari still leaves /r/* even if this handler is delayed/cached.
+    event?.preventDefault();
     if (onRestart) {
       onRestart();
       return;
@@ -588,15 +599,14 @@ export default function ReportV2Flow({
                   : "Share My Progress"}
             </button>
 
-            {onRestart ? (
-              <button
-                type="button"
-                className="rv2-primary rv2-next-session"
-                onClick={handleNextSession}
-              >
-                Upload Your Next Session →
-              </button>
-            ) : null}
+            <a
+              href={NEXT_SESSION_UPLOAD_HREF}
+              className="rv2-primary rv2-next-session"
+              data-testid="next-session-upload"
+              onClick={(event) => handleNextSession(event)}
+            >
+              Upload Your Next Session →
+            </a>
           </section>
         );
       default:

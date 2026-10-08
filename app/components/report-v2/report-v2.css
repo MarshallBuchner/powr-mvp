@@ -92,7 +92,7 @@
 
 .rv2-stage {
   flex: 1;
-  padding: 8px 14px 24px;
+  padding: 8px 14px calc(28px + env(safe-area-inset-bottom, 0px));
   animation: rv2-stage-in 0.22s ease;
 }
 
@@ -331,6 +331,12 @@
 
 .rv2-next-session {
   margin-top: 10px;
+  position: relative;
+  z-index: 2;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: rgba(200, 255, 61, 0.35);
+  cursor: pointer;
+  text-decoration: none;
 }
 
 .rv2-date {

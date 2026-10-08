@@ -13,6 +13,10 @@ import {
   createSampleRequest,
 } from "./components/shareReport";
 import { stashLastReport } from "./components/reportSession";
+import {
+  NEXT_SESSION_UPLOAD_HASH,
+  scrollToNextSessionUploadAnchor,
+} from "./components/nextSessionNavigation";
 
 type Screen = "upload" | "sample" | "analysis";
 
@@ -29,6 +33,19 @@ export default function Home() {
 
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+  }, [screen]);
+
+  // iOS Safari often lands on `/#start-assessment` without scrolling to the
+  // upload card (hash target exists only after client render).
+  useEffect(() => {
+    if (screen !== "upload") return;
+    if (window.location.hash.replace(/^#/, "") !== NEXT_SESSION_UPLOAD_HASH) {
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      scrollToNextSessionUploadAnchor();
+    }, 50);
+    return () => window.clearTimeout(timer);
   }, [screen]);
 
   /** Opens Analysis Lab immediately (API may still be pending). */

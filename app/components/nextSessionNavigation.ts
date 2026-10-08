@@ -1,12 +1,18 @@
 /**
  * "Upload Your Next Session" CTA helpers.
  *
- * Entitlement / upgrade gating belongs on the upload flow (UploadCard), not on
- * this button. Swallowing the tap to scroll to a possibly-missing upgrade panel
- * made the CTA appear broken on iPhone after a completed assessment.
+ * Chrome vs Safari (same iPhone):
+ * - Separate localStorage → Safari often has empty credits after an assessment
+ *   while Chrome still shows remaining. The old CTA swallowed empty-credit taps
+ *   into a scroll-to-upgrade no-op on Safari only.
+ * - Next.js `router.push("/#hash")` is unreliable on iOS Safari for leaving
+ *   `/r/*` routes. Prefer a real <a href> (full document navigation) and keep
+ *   JS helpers as a belt-and-suspenders fallback.
  */
 
 export const NEXT_SESSION_UPLOAD_HREF = "/#start-assessment";
+export const NEXT_SESSION_UPLOAD_PATH = "/";
+export const NEXT_SESSION_UPLOAD_HASH = "start-assessment";
 
 export type NextSessionAction = "restart";
 
@@ -20,17 +26,56 @@ export function resolveNextSessionAction(context?: {
   canRunLocally?: boolean;
   upgradeTargetPresent?: boolean;
 }): NextSessionAction {
-  // Context is accepted for call-site clarity / future flags; restart is mandatory.
   void context;
   return "restart";
 }
 
+export function buildNextSessionUploadUrl(origin?: string): string {
+  if (!origin) return NEXT_SESSION_UPLOAD_HREF;
+  try {
+    const url = new URL(NEXT_SESSION_UPLOAD_PATH, origin);
+    url.hash = NEXT_SESSION_UPLOAD_HASH;
+    return `${url.pathname}${url.hash}`;
+  } catch {
+    return NEXT_SESSION_UPLOAD_HREF;
+  }
+}
+
 /**
  * Hard navigation to the homepage upload anchor.
- * `router.push("/#…")` is unreliable on iOS Safari / Next App Router for
- * cross-route hash targets; assign() loads `/` and honors the hash.
+ * Tries multiple strategies for iOS Safari quirks.
  */
 export function navigateToNextSessionUpload(): void {
   if (typeof window === "undefined") return;
-  window.location.assign(NEXT_SESSION_UPLOAD_HREF);
+
+  const target = buildNextSessionUploadUrl(window.location.origin);
+
+  try {
+    // Absolute same-origin URL is the most reliable cross-route signal on iOS.
+    window.location.href = new URL(target, window.location.origin).toString();
+    return;
+  } catch {
+    // fall through
+  }
+
+  try {
+    window.location.assign(target);
+    return;
+  } catch {
+    // fall through
+  }
+
+  window.location.hash = NEXT_SESSION_UPLOAD_HASH;
+  if (window.location.pathname !== NEXT_SESSION_UPLOAD_PATH) {
+    window.location.pathname = NEXT_SESSION_UPLOAD_PATH;
+  }
+}
+
+/** Scroll homepage upload into view after a hash landing (Safari is flaky). */
+export function scrollToNextSessionUploadAnchor(): boolean {
+  if (typeof document === "undefined") return false;
+  const el = document.getElementById(NEXT_SESSION_UPLOAD_HASH);
+  if (!el) return false;
+  el.scrollIntoView({ behavior: "smooth", block: "start" });
+  return true;
 }
