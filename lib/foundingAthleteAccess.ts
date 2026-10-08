@@ -5,7 +5,7 @@
 
 export const FOUNDING_MONTHLY_ALLOWANCE = 20;
 export const FOUNDING_ACCESS_MONTHS = 6;
-export const FOUNDING_TIMEZONE = "America/Edmonton";
+export const FOUNDING_TIMEZONE = "America/Toronto";
 
 export type FoundingBalance = {
   active: boolean;
@@ -82,7 +82,7 @@ export function foundingBalanceFromProfile(
 
   const now = options?.now ?? new Date();
   const currentKey =
-    options?.currentMonthKey ?? edmontonMonthKey(now);
+    options?.currentMonthKey ?? torontoMonthKey(now);
   const storedKey = row?.founding_month_key ?? null;
   const monthUsed =
     storedKey && storedKey === currentKey
@@ -99,8 +99,53 @@ export function foundingBalanceFromProfile(
   };
 }
 
-/** Calendar month key in America/Edmonton (YYYY-MM). */
-export function edmontonMonthKey(date = new Date()): string {
+/**
+ * Copy when the monthly complimentary bucket is empty.
+ * Paid/free credits remain usable; purchase CTA applies only when those are gone.
+ */
+export function foundingAllowanceExhaustedMessage(options?: {
+  hasOtherBalance?: boolean;
+}): string {
+  if (options?.hasOtherBalance) {
+    return "You've used this month's complimentary Founding Athlete assessments. They renew next month. You can still use your remaining assessments.";
+  }
+  return "You've used this month's complimentary Founding Athlete assessments. They renew next month — or unlock a pack to continue now.";
+}
+
+export type ConsumeBuckets = {
+  foundingActive: boolean;
+  foundingMonthUsed: number;
+  freeUsed: number;
+  credits: number;
+};
+
+/**
+ * Mirrors consume_assessment_credit order for unit tests:
+ * founding monthly (cap 20) → free (1) → paid credits.
+ */
+export function simulateConsumeAssessmentCredit(input: ConsumeBuckets): {
+  ok: boolean;
+  consumedFrom: "founding" | "free" | "paid" | null;
+  next: ConsumeBuckets;
+} {
+  const next: ConsumeBuckets = { ...input };
+  if (input.foundingActive && input.foundingMonthUsed < FOUNDING_MONTHLY_ALLOWANCE) {
+    next.foundingMonthUsed = input.foundingMonthUsed + 1;
+    return { ok: true, consumedFrom: "founding", next };
+  }
+  if (input.freeUsed < 1) {
+    next.freeUsed = input.freeUsed + 1;
+    return { ok: true, consumedFrom: "free", next };
+  }
+  if (input.credits > 0) {
+    next.credits = input.credits - 1;
+    return { ok: true, consumedFrom: "paid", next };
+  }
+  return { ok: false, consumedFrom: null, next };
+}
+
+/** Calendar month key in America/Toronto (YYYY-MM). */
+export function torontoMonthKey(date = new Date()): string {
   const parts = new Intl.DateTimeFormat("en-CA", {
     timeZone: FOUNDING_TIMEZONE,
     year: "numeric",

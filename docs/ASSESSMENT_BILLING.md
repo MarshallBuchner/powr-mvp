@@ -78,7 +78,7 @@ Set `FOUNDING_ATHLETE_EMAILS` (server-only, comma-separated) to approved athlete
 emails. On first **verified** sign-in, the server activates a 6-month window via
 service-role RPC `activate_founding_athlete` (idempotent — re-login never extends).
 While active, `consume_assessment_credit` deducts from a **20 / calendar month**
-bucket (America/Edmonton, no rollover) **before** free or paid credits.
+bucket (America/Toronto, no rollover) **before** free or paid credits.
 Clients only see `foundingAthlete` / month remaining / expiry — never allowlist emails.
 Requires migration `supabase/migrations/20261007_founding_athlete.sql`.
 ## Auth redirect URLs (Supabase)

@@ -768,14 +768,17 @@ const personalizedCoachSummary =
   foundingMonthRemaining <= 0 ? (
     <p className="report-founding-renew">
       Complimentary Founding Athlete assessments renew next month.
+      {remaining > 0
+        ? " You can still use your remaining free or purchased assessments."
+        : ""}
     </p>
   ) : null}
 
   {!isSample &&
   realAnalysis &&
   !unlimited &&
-  !foundingAthlete &&
-  remaining <= 0 ? (
+  remaining <= 0 &&
+  !(foundingAthlete && foundingMonthRemaining > 0) ? (
     <div className="report-upgrade-wrap">
       <UpgradePanel source="report" remaining={remaining} compact />
     </div>

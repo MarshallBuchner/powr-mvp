@@ -168,7 +168,7 @@ begin
    for update;
 
   was_active := f_act is not null;
-  month_key := to_char((now() at time zone 'America/Edmonton'), 'YYYY-MM');
+  month_key := to_char((now() at time zone 'America/Toronto'), 'YYYY-MM');
 
   if not was_active then
     f_act := now();
@@ -202,6 +202,8 @@ revoke all on function public.activate_founding_athlete(uuid, integer) from publ
 grant execute on function public.activate_founding_athlete(uuid, integer) to service_role;
 
 -- Atomic consume: founding monthly → free → paid credits. FOR UPDATE lock.
+-- Ordinary customers (no founding activation) keep the production free→paid path:
+-- same FOR UPDATE lock, same column updates on success, no write on empty failure.
 create or replace function public.consume_assessment_credit()
 returns jsonb
 language plpgsql
@@ -218,6 +220,7 @@ declare
   f_used integer;
   month_key text;
   consumed_from text;
+  founding_live boolean;
 begin
   if uid is null then
     raise exception 'not_authenticated';
@@ -235,52 +238,67 @@ begin
    where id = uid
    for update;
 
-  month_key := to_char((now() at time zone 'America/Edmonton'), 'YYYY-MM');
-
-  if f_key is distinct from month_key then
-    f_key := month_key;
-    f_used := 0;
-  end if;
-
+  month_key := to_char((now() at time zone 'America/Toronto'), 'YYYY-MM');
+  founding_live := f_act is not null and f_exp is not null and f_exp > now();
   consumed_from := null;
 
-  if f_act is not null
-     and f_exp is not null
-     and f_exp > now()
-     and f_used < 20 then
-    f_used := f_used + 1;
-    consumed_from := 'founding';
-  elsif fre < 1 then
-    fre := fre + 1;
-    consumed_from := 'free';
-  elsif cred > 0 then
-    cred := cred - 1;
-    consumed_from := 'paid';
-  else
+  if founding_live then
+    if f_key is distinct from month_key then
+      f_key := month_key;
+      f_used := 0;
+    end if;
+
+    if f_used < 20 then
+      f_used := f_used + 1;
+      consumed_from := 'founding';
+    end if;
+  end if;
+
+  if consumed_from is null then
+    if fre < 1 then
+      fre := fre + 1;
+      consumed_from := 'free';
+    elsif cred > 0 then
+      cred := cred - 1;
+      consumed_from := 'paid';
+    else
+      -- Empty balance. Persist founding month rollover only when founding is live.
+      if founding_live then
+        update public.profiles
+           set founding_month_key = f_key,
+               founding_month_used = f_used,
+               updated_at = now()
+         where id = uid;
+      end if;
+
+      return jsonb_build_object(
+        'ok', false,
+        'free_assessments_used', fre,
+        'assessment_credits', cred,
+        'founding_activated_at', f_act,
+        'founding_expires_at', f_exp,
+        'founding_month_key', f_key,
+        'founding_month_used', f_used
+      );
+    end if;
+  end if;
+
+  if founding_live or f_act is not null then
     update public.profiles
-       set founding_month_key = f_key,
+       set free_assessments_used = fre,
+           assessment_credits = cred,
+           founding_month_key = f_key,
            founding_month_used = f_used,
            updated_at = now()
      where id = uid;
-
-    return jsonb_build_object(
-      'ok', false,
-      'free_assessments_used', fre,
-      'assessment_credits', cred,
-      'founding_activated_at', f_act,
-      'founding_expires_at', f_exp,
-      'founding_month_key', f_key,
-      'founding_month_used', f_used
-    );
+  else
+    -- Production-compatible update for ordinary customers.
+    update public.profiles
+       set free_assessments_used = fre,
+           assessment_credits = cred,
+           updated_at = now()
+     where id = uid;
   end if;
-
-  update public.profiles
-     set free_assessments_used = fre,
-         assessment_credits = cred,
-         founding_month_key = f_key,
-         founding_month_used = f_used,
-         updated_at = now()
-   where id = uid;
 
   return jsonb_build_object(
     'ok', true,

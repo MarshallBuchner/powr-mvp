@@ -176,7 +176,9 @@ export default function AssessmentsClient() {
           </p>
           {foundingMonthRemaining === 0 ? (
             <p className="founding-athlete-renew">
-              Complimentary assessments renew next month (no rollover).
+              Complimentary assessments renew next month (no rollover). Free or
+              purchased credits still work until then — unlock a pack if you need
+              more now.
             </p>
           ) : null}
         </section>
