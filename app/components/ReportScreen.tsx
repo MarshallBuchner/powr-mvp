@@ -63,6 +63,8 @@ const personalizedCoachSummary =
   const isSample = isSampleReport(request);
   const [remaining, setRemaining] = useState(1);
   const [unlimited, setUnlimited] = useState(false);
+  const [foundingAthlete, setFoundingAthlete] = useState(false);
+  const [foundingMonthRemaining, setFoundingMonthRemaining] = useState(0);
   const [evidenceMoments, setEvidenceMoments] = useState<
     AnalysisEvidenceMoment[]
   >(request.evidenceMoments ?? []);
@@ -74,6 +76,12 @@ const personalizedCoachSummary =
       if (balance) {
         setRemaining(balance.remaining);
         setUnlimited(Boolean(balance.unlimited));
+        setFoundingAthlete(Boolean(balance.foundingAthlete));
+        setFoundingMonthRemaining(
+          typeof balance.foundingMonthRemaining === "number"
+            ? balance.foundingMonthRemaining
+            : 0,
+        );
       }
     })();
   }, []);
@@ -753,7 +761,21 @@ const personalizedCoachSummary =
 </div>
 
 <div className="report-actions">
-  {!isSample && realAnalysis && !unlimited && remaining <= 0 ? (
+  {!isSample &&
+  realAnalysis &&
+  !unlimited &&
+  foundingAthlete &&
+  foundingMonthRemaining <= 0 ? (
+    <p className="report-founding-renew">
+      Complimentary Founding Athlete assessments renew next month.
+    </p>
+  ) : null}
+
+  {!isSample &&
+  realAnalysis &&
+  !unlimited &&
+  !foundingAthlete &&
+  remaining <= 0 ? (
     <div className="report-upgrade-wrap">
       <UpgradePanel source="report" remaining={remaining} compact />
     </div>

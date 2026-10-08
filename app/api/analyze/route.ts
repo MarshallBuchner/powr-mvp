@@ -1,7 +1,6 @@
 import OpenAI from "openai";
 import { NextRequest, NextResponse } from "next/server";
 import {
-  canRunAssessment,
   consumeAssessment,
   remainingAssessments,
   type EntitlementState,
@@ -10,10 +9,13 @@ import {
   readEntitlementCookie,
   writeEntitlementCookie,
 } from "@/lib/entitlementCookie";
+import type { FoundingBalance } from "@/lib/foundingAthleteAccess";
 import { isFounderUnlimited } from "@/lib/founderAccess";
 import {
+  canRunWithFounding,
   consumeProfileAssessment,
-  readProfileEntitlements,
+  readProfileEntitlementBundle,
+  remainingWithFounding,
 } from "@/lib/profileEntitlements";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { createClient } from "@/lib/supabase/server";
@@ -61,13 +63,15 @@ export async function POST(request: NextRequest) {
     );
 
     let entitlement: EntitlementState = cookieEntitlement;
+    let founding: FoundingBalance | null = null;
     if (authed) {
       try {
-        entitlement = await readProfileEntitlements(
+        const bundle = await readProfileEntitlementBundle(
           authed.supabase,
-          authed.user.id,
-          authed.user.email,
+          authed.user,
         );
+        entitlement = bundle.state;
+        founding = bundle.founding;
       } catch (error) {
         console.error("POWR profile entitlement gate failed", error);
         return NextResponse.json(
@@ -81,14 +85,22 @@ export async function POST(request: NextRequest) {
     }
 
     // Founder override: never 402; balances are not consumed below.
-    if (!founderUnlimited && !canRunAssessment(entitlement)) {
+    // Founding athletes use monthly complimentary allowance before paid credits.
+    if (!founderUnlimited && !canRunWithFounding(entitlement, founding)) {
+      const foundingExhausted =
+        Boolean(founding?.active) && founding!.monthRemaining <= 0;
       return NextResponse.json(
         {
           success: false,
           error: "free_assessment_used",
-          message:
-            "You've used your free assessment. Unlock a pack to analyze another clip.",
+          message: foundingExhausted
+            ? "You've used this month's complimentary Founding Athlete assessments. They renew next month."
+            : "You've used your free assessment. Unlock a pack to analyze another clip.",
           remaining: 0,
+          foundingAthlete: Boolean(founding?.active),
+          foundingMonthRemaining: founding?.active
+            ? founding.monthRemaining
+            : 0,
         },
         { status: 402 },
       );
@@ -311,11 +323,14 @@ Return a development assessment suitable for POWR.
     // Consume only after successful analysis (not on retries/errors above).
     // Founder unlimited: skip consume entirely — balances stay untouched.
     let nextEntitlement: EntitlementState;
+    let nextFounding: FoundingBalance | null = founding;
+    let remaining = remainingWithFounding(entitlement, founding);
     if (founderUnlimited && authed) {
       nextEntitlement = {
         ...entitlement,
         unlockedSessionIds: cookieEntitlement.unlockedSessionIds,
       };
+      remaining = remainingWithFounding(nextEntitlement, nextFounding);
     } else if (authed) {
       const consumed = await consumeProfileAssessment(authed.supabase);
       if (!consumed.ok) {
@@ -329,17 +344,25 @@ Return a development assessment suitable for POWR.
         ...consumed.state,
         unlockedSessionIds: cookieEntitlement.unlockedSessionIds,
       };
+      nextFounding = consumed.founding;
+      remaining = consumed.remaining;
     } else {
       nextEntitlement = consumeAssessment(cookieEntitlement);
+      remaining = remainingAssessments(nextEntitlement);
     }
 
     const json = NextResponse.json({
       success: true,
       analysis,
-      remaining: remainingAssessments(nextEntitlement),
+      remaining,
       entitlements: nextEntitlement,
       source: authed ? "profile" : "device",
       unlimited: founderUnlimited,
+      foundingAthlete: Boolean(nextFounding?.active),
+      foundingMonthRemaining: nextFounding?.active
+        ? nextFounding.monthRemaining
+        : 0,
+      foundingExpiresAt: nextFounding?.active ? nextFounding.expiresAt : null,
     });
 
     return writeEntitlementCookie(json, nextEntitlement);

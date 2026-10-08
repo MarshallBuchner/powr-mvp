@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/app/components/AuthProvider";
+import { fetchEntitlementBalance } from "@/app/components/assessmentEntitlements";
 import {
   PENDING_ASSESSMENT_KEY,
   type PendingAssessmentPayload,
@@ -26,6 +27,33 @@ export default function AssessmentsClient() {
   );
   const [message, setMessage] = useState("");
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [foundingAthlete, setFoundingAthlete] = useState(false);
+  const [foundingMonthRemaining, setFoundingMonthRemaining] = useState<
+    number | null
+  >(null);
+  const [foundingExpiresAt, setFoundingExpiresAt] = useState<string | null>(
+    null,
+  );
+
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    void (async () => {
+      const balance = await fetchEntitlementBalance();
+      if (!cancelled && balance) {
+        setFoundingAthlete(Boolean(balance.foundingAthlete));
+        setFoundingMonthRemaining(
+          typeof balance.foundingMonthRemaining === "number"
+            ? balance.foundingMonthRemaining
+            : null,
+        );
+        setFoundingExpiresAt(balance.foundingExpiresAt ?? null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
 
   useEffect(() => {
     if (!configured || loading) return;
@@ -130,6 +158,29 @@ export default function AssessmentsClient() {
         or create a share link from the report if you want others to view it.
         Need help? <a href={SUPPORT_MAILTO}>{SUPPORT_EMAIL}</a>
       </p>
+      {foundingAthlete ? (
+        <section className="founding-athlete-card" aria-label="Founding Athlete">
+          <p className="founding-athlete-eyebrow">POWR FOUNDING ATHLETE</p>
+          <h2>Complimentary access active</h2>
+          <p>
+            {foundingMonthRemaining != null
+              ? `${foundingMonthRemaining} assessment${foundingMonthRemaining === 1 ? "" : "s"} remaining this month`
+              : "Monthly complimentary assessments available"}
+            {foundingExpiresAt
+              ? ` · Access through ${new Date(foundingExpiresAt).toLocaleDateString(undefined, {
+                  year: "numeric",
+                  month: "short",
+                  day: "numeric",
+                })}`
+              : ""}
+          </p>
+          {foundingMonthRemaining === 0 ? (
+            <p className="founding-athlete-renew">
+              Complimentary assessments renew next month (no rollover).
+            </p>
+          ) : null}
+        </section>
+      ) : null}
       {message ? <p className="login-message">{message}</p> : null}
       {status === "loading" || status === "saving" ? (
         <p>{status === "saving" ? "Saving assessment…" : "Loading…"}</p>

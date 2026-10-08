@@ -7,8 +7,11 @@ import {
 import { isFounderUnlimited } from "@/lib/founderAccess";
 import {
   entitlementResponse,
+  foundingFromProfile,
   mergeDeviceIntoProfile,
-  readProfileEntitlements,
+  readProfileEntitlementBundle,
+  ensureProfileRow,
+  activateFoundingAthleteIfEligible,
 } from "@/lib/profileEntitlements";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { createClient } from "@/lib/supabase/server";
@@ -33,14 +36,13 @@ export async function GET(request: NextRequest) {
 
   if (authed) {
     try {
-      const state = await readProfileEntitlements(
+      const { state, founding } = await readProfileEntitlementBundle(
         authed.supabase,
-        authed.user.id,
-        authed.user.email,
+        authed.user,
       );
       const unlimited = isFounderUnlimited(authed.user.email);
       const response = NextResponse.json(
-        entitlementResponse(state, "profile", { unlimited }),
+        entitlementResponse(state, "profile", { unlimited, founding }),
       );
       return writeEntitlementCookie(response, {
         ...state,
@@ -84,10 +86,17 @@ export async function POST(request: NextRequest) {
 
   if (authed) {
     try {
+      await activateFoundingAthleteIfEligible(authed.user);
       const profile = await mergeDeviceIntoProfile(authed.supabase, deviceMerged);
+      const row = await ensureProfileRow(
+        authed.supabase,
+        authed.user.id,
+        authed.user.email,
+      );
+      const founding = foundingFromProfile(row);
       const unlimited = isFounderUnlimited(authed.user.email);
       const response = NextResponse.json(
-        entitlementResponse(profile, "profile", { unlimited }),
+        entitlementResponse(profile, "profile", { unlimited, founding }),
       );
       return writeEntitlementCookie(response, {
         ...profile,

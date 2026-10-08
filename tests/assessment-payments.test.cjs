@@ -99,3 +99,133 @@ test('founder access remains exact-email authenticated override', () => {
   assert.equal(isFounderUnlimited('other@gmail.com'), false);
   assert.equal(isFounderUnlimited(null), false);
 });
+
+test('founding athlete allowlist is server-env exact match only', () => {
+  const mod = load('lib/foundingAthleteAccess.ts', {}, {
+    FOUNDING_ATHLETE_EMAILS: 'athlete.one@example.com, athlete.two@example.com',
+  });
+  assert.equal(mod.isApprovedFoundingAthleteEmail('Athlete.One@example.com'), true);
+  assert.equal(mod.isApprovedFoundingAthleteEmail('athlete.two@example.com'), true);
+  assert.equal(mod.isApprovedFoundingAthleteEmail('other@example.com'), false);
+  assert.equal(mod.isApprovedFoundingAthleteEmail(null), false);
+  assert.equal(mod.hasVerifiedAuthEmail({ email: 'athlete.one@example.com', email_confirmed_at: '2026-01-01' }), true);
+  assert.equal(mod.hasVerifiedAuthEmail({ email: 'athlete.one@example.com', email_confirmed_at: null }), false);
+});
+
+test('founding balance treats calendar month reset and expiry correctly', () => {
+  const mod = load('lib/foundingAthleteAccess.ts', {});
+  const now = new Date('2026-10-15T12:00:00Z');
+  const active = mod.foundingBalanceFromProfile({
+    founding_activated_at: '2026-09-01T00:00:00Z',
+    founding_expires_at: '2027-03-01T00:00:00Z',
+    founding_month_key: '2026-09',
+    founding_month_used: 20,
+  }, { now, currentMonthKey: '2026-10' });
+  assert.equal(active.active, true);
+  assert.equal(active.monthUsed, 0);
+  assert.equal(active.monthRemaining, 20);
+
+  const sameMonth = mod.foundingBalanceFromProfile({
+    founding_activated_at: '2026-09-01T00:00:00Z',
+    founding_expires_at: '2027-03-01T00:00:00Z',
+    founding_month_key: '2026-10',
+    founding_month_used: 17,
+  }, { now, currentMonthKey: '2026-10' });
+  assert.equal(sameMonth.monthRemaining, 3);
+
+  const expired = mod.foundingBalanceFromProfile({
+    founding_activated_at: '2025-01-01T00:00:00Z',
+    founding_expires_at: '2025-07-01T00:00:00Z',
+    founding_month_key: '2026-10',
+    founding_month_used: 0,
+  }, { now, currentMonthKey: '2026-10' });
+  assert.equal(expired.active, false);
+  assert.equal(expired.monthRemaining, 0);
+});
+
+test('entitlement response prefers founding remaining and never exposes emails', () => {
+  const billing = load('lib/assessmentBilling.ts', {});
+  const founding = load('lib/foundingAthleteAccess.ts', {});
+  // profileEntitlements imports admin/supabase — stub those modules.
+  const pe = load('lib/profileEntitlements.ts', {
+    '@/lib/assessmentBilling': billing,
+    '@/lib/foundingAthleteAccess': founding,
+    '@/lib/supabase/admin': {
+      createServiceClient: () => ({ rpc: async () => ({ data: { ok: true }, error: null }) }),
+      isServiceRoleConfigured: () => true,
+    },
+  });
+  const state = { freeUsed: 1, credits: 5, unlockedSessionIds: [] };
+  const bal = founding.foundingBalanceFromProfile({
+    founding_activated_at: '2026-09-01T00:00:00Z',
+    founding_expires_at: '2027-03-01T00:00:00Z',
+    founding_month_key: '2026-10',
+    founding_month_used: 4,
+  }, { currentMonthKey: '2026-10', now: new Date('2026-10-15T12:00:00Z') });
+  const res = pe.entitlementResponse(state, 'profile', { founding: bal });
+  assert.equal(res.foundingAthlete, true);
+  assert.equal(res.foundingMonthRemaining, 16);
+  assert.equal(res.remaining, 16 + 5);
+  assert.equal(res.canRun, true);
+  assert.equal('email' in res, false);
+  const json = JSON.stringify(res);
+  assert.equal(json.includes('@'), false);
+});
+
+test('founding consume order: complimentary before paid credits', () => {
+  const billing = load('lib/assessmentBilling.ts', {});
+  const founding = load('lib/foundingAthleteAccess.ts', {});
+  const pe = load('lib/profileEntitlements.ts', {
+    '@/lib/assessmentBilling': billing,
+    '@/lib/foundingAthleteAccess': founding,
+    '@/lib/supabase/admin': {
+      createServiceClient: () => ({}),
+      isServiceRoleConfigured: () => false,
+    },
+  });
+  const state = { freeUsed: 0, credits: 5, unlockedSessionIds: [] };
+  const bal = {
+    active: true,
+    monthUsed: 0,
+    monthAllowance: 20,
+    monthRemaining: 20,
+    expiresAt: '2027-03-01T00:00:00Z',
+    activatedAt: '2026-09-01T00:00:00Z',
+  };
+  assert.equal(pe.canRunWithFounding(state, bal), true);
+  // founding(20) + freeLeft(1) + credits(5)
+  assert.equal(pe.remainingWithFounding(state, bal), 26);
+  assert.equal(pe.canRunWithFounding({ freeUsed: 1, credits: 0, unlockedSessionIds: [] }, {
+    ...bal, monthRemaining: 0, monthUsed: 20,
+  }), false);
+});
+
+test('activateFoundingAthleteIfEligible rejects unverified and non-allowlisted users', async () => {
+  const billing = load('lib/assessmentBilling.ts', {});
+  const founding = load('lib/foundingAthleteAccess.ts', {}, {
+    FOUNDING_ATHLETE_EMAILS: 'athlete.one@example.com',
+  });
+  let rpcCalls = 0;
+  const pe = load('lib/profileEntitlements.ts', {
+    '@/lib/assessmentBilling': billing,
+    '@/lib/foundingAthleteAccess': founding,
+    '@/lib/supabase/admin': {
+      createServiceClient: () => ({
+        rpc: async () => { rpcCalls += 1; return { data: { ok: true }, error: null }; },
+      }),
+      isServiceRoleConfigured: () => true,
+    },
+  });
+  await pe.activateFoundingAthleteIfEligible({
+    id: 'u1', email: 'other@example.com', email_confirmed_at: '2026-01-01',
+  });
+  assert.equal(rpcCalls, 0);
+  await pe.activateFoundingAthleteIfEligible({
+    id: 'u1', email: 'athlete.one@example.com', email_confirmed_at: null,
+  });
+  assert.equal(rpcCalls, 0);
+  await pe.activateFoundingAthleteIfEligible({
+    id: 'u1', email: 'athlete.one@example.com', email_confirmed_at: '2026-01-01',
+  });
+  assert.equal(rpcCalls, 1);
+});
