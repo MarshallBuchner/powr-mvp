@@ -13,6 +13,10 @@ import {
   createSampleRequest,
 } from "./components/shareReport";
 import { stashLastReport } from "./components/reportSession";
+import {
+  NEXT_SESSION_UPLOAD_HASH,
+  scrollToNextSessionUploadAnchor,
+} from "./components/nextSessionNavigation";
 
 type Screen = "upload" | "sample" | "analysis";
 
@@ -31,6 +35,19 @@ export default function Home() {
     window.scrollTo({ top: 0, left: 0, behavior: "auto" });
   }, [screen]);
 
+  // iOS Safari often lands on `/#start-assessment` without scrolling to the
+  // upload card (hash target exists only after client render).
+  useEffect(() => {
+    if (screen !== "upload") return;
+    if (window.location.hash.replace(/^#/, "") !== NEXT_SESSION_UPLOAD_HASH) {
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      scrollToNextSessionUploadAnchor();
+    }, 50);
+    return () => window.clearTimeout(timer);
+  }, [screen]);
+
   /** Opens Analysis Lab immediately (API may still be pending). */
   function handleAnalyze(request: AnalysisRequest) {
     analysisRequestRef.current = request;
@@ -45,7 +62,9 @@ export default function Home() {
 
   async function handleAnalysisComplete() {
     const request = analysisRequestRef.current;
-    if (!request?.analysis) return;
+    if (!request?.analysis) {
+      throw new Error("Analysis payload missing — cannot open report.");
+    }
     // Prefer tokenized share; never put analysis JSON in the URL.
     stashLastReport(request);
     const share = await createReportSharePath(request);

@@ -6,6 +6,10 @@ import {
   type EntitlementState,
 } from "@/lib/assessmentBilling";
 import {
+  shouldRejectAnalysisForQuality,
+  stripUsabilityFields,
+} from "@/lib/analysisUsability";
+import {
   readEntitlementCookie,
   writeEntitlementCookie,
 } from "@/lib/entitlementCookie";
@@ -13,6 +17,11 @@ import {
   foundingAllowanceExhaustedMessage,
   type FoundingBalance,
 } from "@/lib/foundingAthleteAccess";
+import {
+  inspectFrameDataUrl,
+  insufficientVideoQualityMessage,
+  summarizeFrameBatch,
+} from "@/lib/frameQuality";
 import { isFounderUnlimited } from "@/lib/founderAccess";
 import {
   canRunWithFounding,
@@ -124,6 +133,23 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Structural frame gate (blank / tiny payloads) — never bill these.
+    const frameInspections = frames.map((frame: unknown) =>
+      inspectFrameDataUrl(typeof frame === "string" ? frame : null),
+    );
+    const frameBatch = summarizeFrameBatch(frameInspections);
+    if (!frameBatch.usable) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "insufficient_video_quality",
+          message: insufficientVideoQualityMessage(frameBatch.issues),
+          issues: frameBatch.issues,
+        },
+        { status: 422 },
+      );
+    }
+
     const imageInputs = frames.map((frame: string) => ({
       type: "input_image" as const,
       image_url: frame,
@@ -159,8 +185,12 @@ Important rules:
 - Scores should reflect the visible evidence and should not automatically be high.
 - Keep feedback encouraging, specific, and coach-like.
 - Prioritize useful development advice over technical jargon.
+- First decide whether the frames are usable for a skating assessment.
+- Set assessmentUsable to false when the skater's legs/feet are cut off, the body is mostly out of frame, frames are blank/black/corrupted, the subject is not clearly a skater in motion, or there is not enough visible skating evidence to score mechanics.
+- When assessmentUsable is false: explain why in usabilityReason, set confidence.label to "Low", and do not invent detailed skating scores as if the clip were clear.
+- When assessmentUsable is true: the full body (or enough of the lower body for skating mechanics) should be visible enough to coach from.
 
-Evaluate:
+Evaluate (only when assessmentUsable is true):
 - skating stance and knee bend
 - stride extension
 - stride recovery
@@ -306,6 +336,14 @@ Return a development assessment suitable for POWR.
                 },
                 required: ["score", "label", "reason"],
               },
+
+              assessmentUsable: {
+                type: "boolean",
+              },
+
+              usabilityReason: {
+                type: "string",
+              },
             },
 
             required: [
@@ -317,15 +355,35 @@ Return a development assessment suitable for POWR.
               "movementMetrics",
               "drills",
               "confidence",
+              "assessmentUsable",
+              "usabilityReason",
             ],
           },
         },
       },
     });
 
-    const analysis = JSON.parse(response.output_text);
+    const rawAnalysis = JSON.parse(response.output_text) as Record<
+      string,
+      unknown
+    >;
 
-    // Consume only after successful analysis (not on retries/errors above).
+    // Unusable footage must never produce a billed skating score.
+    const qualityGate = shouldRejectAnalysisForQuality(rawAnalysis);
+    if (qualityGate.reject) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "insufficient_video_quality",
+          message: qualityGate.reason,
+        },
+        { status: 422 },
+      );
+    }
+
+    const analysis = stripUsabilityFields(rawAnalysis);
+
+    // Consume only after successful *usable* analysis (not on retries/errors above).
     // Founder unlimited: skip consume entirely — balances stay untouched.
     let nextEntitlement: EntitlementState;
     let nextFounding: FoundingBalance | null = founding;

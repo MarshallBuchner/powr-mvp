@@ -815,21 +815,22 @@ const personalizedCoachSummary =
         : "Share My POWR Assessment ↗"}
   </button>
 
-  <button
-    type="button"
+  <a
+    href="/#start-assessment"
+    className="share-assessment-button"
+    data-testid="next-session-upload"
     onClick={() => {
-      if (!isSample && !localCanRunAssessment()) {
-        track("upgrade_viewed", { source: "report_next_session" });
-        document
-          .querySelector(".report-upgrade-wrap")
-          ?.scrollIntoView({ behavior: "smooth", block: "center" });
-        return;
+      // Analytics only — never preventDefault. Native href is the navigation
+      // source of truth (critical when regular Safari has a stale JS session).
+      try {
+        track("next_session_clicked", { source: "report" });
+      } catch {
+        // ignore analytics failures
       }
-      onRestart();
     }}
   >
     Upload Your Next Session →
-  </button>
+  </a>
 </div>
       </section>
 

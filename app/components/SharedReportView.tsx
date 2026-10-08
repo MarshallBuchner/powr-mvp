@@ -1,7 +1,7 @@
 "use client";
 
 import { Suspense, useEffect, useMemo, useState } from "react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { track } from "@vercel/analytics";
 import ReportScreen from "./ReportScreen";
 import ReportV2Flow from "./report-v2/ReportV2Flow";
@@ -13,6 +13,7 @@ import {
   getLocalRemainingAssessments,
   localCanRunAssessment,
 } from "./assessmentEntitlements";
+import { navigateToNextSessionUpload } from "./nextSessionNavigation";
 import type { AnalysisEvidenceMoment, AnalysisRequest } from "./types";
 
 function SharedReportViewInner({
@@ -20,7 +21,6 @@ function SharedReportViewInner({
 }: {
   request: AnalysisRequest;
 }) {
-  const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const isSample = isSampleReport(request);
@@ -61,7 +61,7 @@ function SharedReportViewInner({
     return (
       <ReportScreen
         request={request}
-        onRestart={() => router.push("/")}
+        onRestart={navigateToNextSessionUpload}
       />
     );
   }
@@ -104,7 +104,7 @@ function SharedReportViewInner({
       initialStep={initialStep}
       basePath={pathname || "/r"}
       searchParams={preservedQuery}
-      onRestart={() => router.push("/#start-assessment")}
+      onRestart={navigateToNextSessionUpload}
     />
   );
 }

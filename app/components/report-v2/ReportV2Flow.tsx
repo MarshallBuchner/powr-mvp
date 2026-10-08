@@ -28,11 +28,14 @@ import {
 } from "./reportV2Steps";
 import {
   getLocalRemainingAssessments,
-  localCanRunAssessment,
   fetchEntitlementBalance,
 } from "../assessmentEntitlements";
 import { stashPendingAssessment } from "../assessmentStorage";
 import { useAuth } from "../AuthProvider";
+import {
+  NEXT_SESSION_UPLOAD_HREF,
+  resolveNextSessionAction,
+} from "../nextSessionNavigation";
 import { getScoreBand, scoreInterpretation } from "../scoreBands";
 import { createReportSharePath } from "../shareReport";
 import type { RealAnalysis } from "../types";
@@ -246,14 +249,20 @@ export default function ReportV2Flow({
   }
 
   function handleNextSession() {
-    if (!isSample && !demoMode && !localCanRunAssessment()) {
-      track("upgrade_viewed", { source: "report_v2_next_session" });
-      document
-        .querySelector(".rv2-upgrade-wrap")
-        ?.scrollIntoView({ behavior: "smooth", block: "center" });
-      return;
+    // Analytics only — never preventDefault.
+    // Regular Safari may keep a stale document/JS (Private Browsing does not).
+    // The real <a href="/#start-assessment"> must be allowed to navigate even
+    // if this handler is old, throws, or no-ops on stored entitlement state.
+    try {
+      track("next_session_clicked", { source: "report_v2" });
+    } catch {
+      // Analytics must never block navigation on Safari.
     }
-    onRestart?.();
+    // Lock intended action in the bundle for regression tests / future flags.
+    void resolveNextSessionAction({
+      canRunLocally: false,
+      upgradeTargetPresent: false,
+    });
   }
 
   const stepContent = useMemo(() => {
@@ -582,15 +591,14 @@ export default function ReportV2Flow({
                   : "Share My Progress"}
             </button>
 
-            {onRestart ? (
-              <button
-                type="button"
-                className="rv2-primary rv2-next-session"
-                onClick={handleNextSession}
-              >
-                Upload Your Next Session →
-              </button>
-            ) : null}
+            <a
+              href={NEXT_SESSION_UPLOAD_HREF}
+              className="rv2-primary rv2-next-session"
+              data-testid="next-session-upload"
+              onClick={() => handleNextSession()}
+            >
+              Upload Your Next Session →
+            </a>
           </section>
         );
       default:

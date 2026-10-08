@@ -37,6 +37,14 @@ const securityHeaders = [
   },
 ];
 
+/** HTML shells must revalidate so regular Safari does not keep a pre-fix CTA. */
+const htmlRevalidateHeaders = [
+  {
+    key: "Cache-Control",
+    value: "private, no-cache, no-store, must-revalidate",
+  },
+];
+
 const nextConfig: NextConfig = {
   async headers() {
     return [
@@ -44,6 +52,13 @@ const nextConfig: NextConfig = {
         source: "/:path*",
         headers: securityHeaders,
       },
+      // Document routes only — hashed /_next/static assets stay immutable.
+      { source: "/", headers: htmlRevalidateHeaders },
+      { source: "/r", headers: htmlRevalidateHeaders },
+      { source: "/r/:path*", headers: htmlRevalidateHeaders },
+      { source: "/assessments", headers: htmlRevalidateHeaders },
+      { source: "/login", headers: htmlRevalidateHeaders },
+      { source: "/unlock", headers: htmlRevalidateHeaders },
     ];
   },
 };
