@@ -52,18 +52,59 @@ export function clearCanvas(ctx: CanvasRenderingContext2D, w: number, h: number)
   ctx.clearRect(0, 0, w, h);
 }
 
+export type ContentRect = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
+
+/**
+ * Where the decoded video pixels are painted inside the element box when
+ * object-fit:contain letterboxes (common once max-height clamps mobile layout).
+ */
+export function videoContentRect(
+  video: Pick<HTMLVideoElement, "videoWidth" | "videoHeight" | "clientWidth" | "clientHeight">,
+): ContentRect {
+  const iw = video.videoWidth || 0;
+  const ih = video.videoHeight || 0;
+  const cw = video.clientWidth || 0;
+  const ch = video.clientHeight || 0;
+  if (iw <= 0 || ih <= 0 || cw <= 0 || ch <= 0) {
+    return { x: 0, y: 0, width: cw, height: ch };
+  }
+  const videoRatio = iw / ih;
+  const clientRatio = cw / ch;
+  if (videoRatio > clientRatio) {
+    const width = cw;
+    const height = cw / videoRatio;
+    return { x: 0, y: (ch - height) / 2, width, height };
+  }
+  const height = ch;
+  const width = ch * videoRatio;
+  return { x: (cw - width) / 2, y: 0, width, height };
+}
+
 export function drawPoseLandmarks(
   ctx: CanvasRenderingContext2D,
   landmarks: NormalizedLandmark[],
   width: number,
   height: number,
   options: DrawPoseOptions,
+  content?: ContentRect,
 ) {
   const minV = options.minVisibility ?? 0.35;
   const palette = COLORS[options.color];
+  const ox = content?.x ?? 0;
+  const oy = content?.y ?? 0;
+  const bw = content?.width ?? width;
+  const bh = content?.height ?? height;
+
+  const mapX = (x: number) => ox + x * bw;
+  const mapY = (y: number) => oy + y * bh;
 
   if (options.showSkeleton) {
-    ctx.lineWidth = Math.max(2, Math.round(width * 0.0035));
+    ctx.lineWidth = Math.max(2, Math.round(bw * 0.0035));
     ctx.lineCap = "round";
     ctx.strokeStyle = palette.line;
     ctx.shadowColor = palette.line;
@@ -75,33 +116,33 @@ export function drawPoseLandmarks(
       if (!a || !b) continue;
       if (!isVisible(a, minV) || !isVisible(b, minV)) continue;
       ctx.beginPath();
-      ctx.moveTo(a.x * width, a.y * height);
-      ctx.lineTo(b.x * width, b.y * height);
+      ctx.moveTo(mapX(a.x), mapY(a.y));
+      ctx.lineTo(mapX(b.x), mapY(b.y));
       ctx.stroke();
     }
     ctx.shadowBlur = 0;
   }
 
   if (options.showKeypoints) {
-    const r = Math.max(3, Math.round(width * 0.006));
+    const r = Math.max(3, Math.round(bw * 0.006));
     for (let i = 0; i < landmarks.length; i++) {
       const lm = landmarks[i];
       if (!isVisible(lm, minV)) continue;
       ctx.beginPath();
       ctx.fillStyle = palette.joint;
-      ctx.arc(lm.x * width, lm.y * height, r, 0, Math.PI * 2);
+      ctx.arc(mapX(lm.x), mapY(lm.y), r, 0, Math.PI * 2);
       ctx.fill();
     }
   }
 
   if (options.showLabels) {
-    ctx.font = `600 ${Math.max(10, Math.round(width * 0.018))}px system-ui, sans-serif`;
+    ctx.font = `600 ${Math.max(10, Math.round(bw * 0.018))}px system-ui, sans-serif`;
     ctx.fillStyle = palette.label;
     ctx.textBaseline = "bottom";
     for (const [idxStr, label] of Object.entries(LABEL_MAP)) {
       const lm = landmarks[Number(idxStr)];
       if (!lm || !isVisible(lm, minV)) continue;
-      ctx.fillText(label, lm.x * width + 6, lm.y * height - 6);
+      ctx.fillText(label, mapX(lm.x) + 6, mapY(lm.y) - 6);
     }
   }
 }

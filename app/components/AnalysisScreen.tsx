@@ -13,6 +13,7 @@ import type { AnalysisRequest } from "./types";
 import {
   buildEvidenceMoments,
   extractVideoFrames,
+  InsufficientVideoFramesError,
 } from "./videoFrames";
 import {
   localConsumeAssessment,
@@ -152,10 +153,23 @@ export default function AnalysisScreen({
       onReady?.(finalRequest);
       setActiveStep(LAB_STAGES.length - 1);
       setIsComplete(true);
-      window.setTimeout(() => setIsLeaving(true), 700);
-      window.setTimeout(() => {
-        void onComplete();
-      }, 1100);
+      // Navigate while the lab is still visible. Fading first caused a long
+      // blank stretch on mobile while the share token request was in flight.
+      void (async () => {
+        try {
+          await onComplete();
+        } catch (err) {
+          console.error("POWR report navigation failed", err);
+          finishedRef.current = false;
+          setIsComplete(false);
+          setIsLeaving(false);
+          setError(
+            "Your analysis finished, but opening the report failed. Tap below to try again.",
+          );
+          return;
+        }
+        setIsLeaving(true);
+      })();
     },
     [onComplete, onReady],
   );
@@ -214,10 +228,22 @@ export default function AnalysisScreen({
               "You've used your free assessment. Unlock a pack to continue.",
           );
         }
+        if (
+          response.status === 422 ||
+          result.error === "insufficient_video_quality"
+        ) {
+          throw new InsufficientVideoFramesError(
+            result.message ||
+              "This clip does not have enough visible skating evidence for a reliable assessment.",
+            Array.isArray(result.issues) ? result.issues : [],
+          );
+        }
         if (!response.ok || !result.success) {
           throw new Error(result.error || "Analysis failed.");
         }
 
+        // Only mirror entitlements after a successful usable analysis.
+        // Unusable clips return above without consuming credits.
         if (result.entitlements) {
           writeLocalEntitlements(result.entitlements);
         } else {
@@ -251,6 +277,10 @@ export default function AnalysisScreen({
       } catch (err) {
         if (cancelled) return;
         console.error("POWR analysis lab failed", err);
+        if (err instanceof InsufficientVideoFramesError) {
+          setError(err.message);
+          return;
+        }
         setError(
           err instanceof Error
             ? err.message

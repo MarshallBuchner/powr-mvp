@@ -45,7 +45,9 @@ export default function Home() {
 
   async function handleAnalysisComplete() {
     const request = analysisRequestRef.current;
-    if (!request?.analysis) return;
+    if (!request?.analysis) {
+      throw new Error("Analysis payload missing — cannot open report.");
+    }
     // Prefer tokenized share; never put analysis JSON in the URL.
     stashLastReport(request);
     const share = await createReportSharePath(request);

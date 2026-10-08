@@ -1972,6 +1972,9 @@ button {
   display: block;
   width: 100%;
   height: auto;
+  max-height: min(70vh, 720px);
+  object-fit: contain;
+  object-position: center center;
   background: #000;
 }
 

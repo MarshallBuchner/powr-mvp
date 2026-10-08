@@ -1,10 +1,28 @@
 /** Shared video frame sampling for /api/analyze (client-only). */
 
+import {
+  analyzeImageData,
+  inspectFrameDataUrl,
+  insufficientVideoQualityMessage,
+  summarizeFrameBatch,
+  type FrameQualityResult,
+} from "@/lib/frameQuality";
+
 export type ExtractedFrame = {
   dataUrl: string;
   timeSeconds: number;
   timeLabel: string;
+  quality?: FrameQualityResult;
 };
+
+export class InsufficientVideoFramesError extends Error {
+  issues: string[];
+  constructor(message: string, issues: string[] = []) {
+    super(message);
+    this.name = "InsufficientVideoFramesError";
+    this.issues = issues;
+  }
+}
 
 function formatTimestamp(seconds: number) {
   if (!Number.isFinite(seconds) || seconds < 0) {
@@ -17,65 +35,180 @@ function formatTimestamp(seconds: number) {
   return `${minutes}:${remainingSeconds}`;
 }
 
+function waitForEvent(
+  target: HTMLMediaElement,
+  event: string,
+  timeoutMs: number,
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const timer = window.setTimeout(() => {
+      cleanup();
+      reject(new Error(`Timed out waiting for video ${event}.`));
+    }, timeoutMs);
+    const onOk = () => {
+      cleanup();
+      resolve();
+    };
+    const onErr = () => {
+      cleanup();
+      reject(new Error("Could not read video."));
+    };
+    const cleanup = () => {
+      window.clearTimeout(timer);
+      target.removeEventListener(event, onOk);
+      target.removeEventListener("error", onErr);
+    };
+    target.addEventListener(event, onOk, { once: true });
+    target.addEventListener("error", onErr, { once: true });
+  });
+}
+
+async function ensureDecodableDimensions(video: HTMLVideoElement) {
+  // iOS Safari often reports 0×0 on loadedmetadata until a frame is available.
+  if (video.videoWidth > 0 && video.videoHeight > 0) return;
+
+  try {
+    await video.play();
+  } catch {
+    // Autoplay may be blocked even when muted; fall through to loadeddata.
+  }
+
+  if (video.videoWidth > 0 && video.videoHeight > 0) {
+    video.pause();
+    return;
+  }
+
+  await waitForEvent(video, "loadeddata", 8000);
+  if (video.videoWidth <= 0 || video.videoHeight <= 0) {
+    throw new InsufficientVideoFramesError(
+      insufficientVideoQualityMessage(["decode_failed"]),
+      ["decode_failed"],
+    );
+  }
+  video.pause();
+}
+
+async function seekVideo(video: HTMLVideoElement, time: number) {
+  if (!Number.isFinite(video.duration) || video.duration <= 0) {
+    throw new InsufficientVideoFramesError(
+      insufficientVideoQualityMessage(["decode_failed"]),
+      ["decode_failed"],
+    );
+  }
+
+  const seekTime = Math.min(
+    Math.max(0, time),
+    Math.max(video.duration - 0.05, 0),
+  );
+
+  if (Math.abs(video.currentTime - seekTime) < 0.001 && video.readyState >= 2) {
+    return seekTime;
+  }
+
+  const seeked = waitForEvent(video, "seeked", 8000);
+  video.currentTime = seekTime;
+  await seeked;
+  return seekTime;
+}
+
+function sampleFrameQuality(
+  context: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  dataUrl: string,
+): FrameQualityResult {
+  const structural = inspectFrameDataUrl(dataUrl);
+  if (!structural.usable) return structural;
+
+  try {
+    const image = context.getImageData(0, 0, width, height);
+    return analyzeImageData(image);
+  } catch {
+    return {
+      ...structural,
+      usable: false,
+      issues: ["decode_failed"],
+      width,
+      height,
+    };
+  }
+}
+
 export async function extractVideoFrames(
   file: File,
   frameCount = 5,
 ): Promise<ExtractedFrame[]> {
-  return new Promise((resolve, reject) => {
-    const video = document.createElement("video");
-    const canvas = document.createElement("canvas");
-    const context = canvas.getContext("2d");
+  const video = document.createElement("video");
+  const canvas = document.createElement("canvas");
+  const context = canvas.getContext("2d", { willReadFrequently: true });
 
-    if (!context) {
-      reject(new Error("Could not create canvas context."));
-      return;
-    }
+  if (!context) {
+    throw new Error("Could not create canvas context.");
+  }
 
-    const videoUrl = URL.createObjectURL(file);
-    const frames: ExtractedFrame[] = [];
+  const videoUrl = URL.createObjectURL(file);
+  const frames: ExtractedFrame[] = [];
 
-    video.preload = "metadata";
+  try {
+    video.preload = "auto";
     video.muted = true;
     video.playsInline = true;
+    video.setAttribute("playsinline", "true");
+    video.setAttribute("webkit-playsinline", "true");
+    // Do not set crossOrigin for blob: URLs — Safari can fail to decode samples.
     video.src = videoUrl;
 
-    video.onloadedmetadata = async () => {
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
+    await waitForEvent(video, "loadedmetadata", 10000);
+    await ensureDecodableDimensions(video);
 
-      const duration = video.duration;
+    const width = video.videoWidth;
+    const height = video.videoHeight;
+    if (width < 160 || height < 120) {
+      throw new InsufficientVideoFramesError(
+        insufficientVideoQualityMessage(["too_small"]),
+        ["too_small"],
+      );
+    }
 
-      for (let i = 0; i < frameCount; i++) {
-        const time =
-          frameCount === 1
-            ? duration / 2
-            : (duration * i) / (frameCount - 1);
+    canvas.width = width;
+    canvas.height = height;
+    const duration = video.duration;
+    const qualities: FrameQualityResult[] = [];
 
-        const seekTime = Math.min(time, Math.max(duration - 0.05, 0));
-        video.currentTime = seekTime;
+    for (let i = 0; i < frameCount; i++) {
+      const time =
+        frameCount === 1
+          ? duration / 2
+          : (duration * i) / (frameCount - 1);
 
-        await new Promise<void>((seekResolve) => {
-          video.onseeked = () => seekResolve();
-        });
+      const seekTime = await seekVideo(video, time);
+      context.drawImage(video, 0, 0, width, height);
+      const dataUrl = canvas.toDataURL("image/jpeg", 0.72);
+      const quality = sampleFrameQuality(context, width, height, dataUrl);
+      qualities.push(quality);
 
-        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+      frames.push({
+        dataUrl,
+        timeSeconds: seekTime,
+        timeLabel: formatTimestamp(seekTime),
+        quality,
+      });
+    }
 
-        frames.push({
-          dataUrl: canvas.toDataURL("image/jpeg", 0.72),
-          timeSeconds: seekTime,
-          timeLabel: formatTimestamp(seekTime),
-        });
-      }
+    const batch = summarizeFrameBatch(qualities);
+    if (!batch.usable) {
+      throw new InsufficientVideoFramesError(
+        insufficientVideoQualityMessage(batch.issues),
+        batch.issues,
+      );
+    }
 
-      URL.revokeObjectURL(videoUrl);
-      resolve(frames);
-    };
-
-    video.onerror = () => {
-      URL.revokeObjectURL(videoUrl);
-      reject(new Error("Could not read video."));
-    };
-  });
+    return frames;
+  } finally {
+    URL.revokeObjectURL(videoUrl);
+    video.removeAttribute("src");
+    video.load();
+  }
 }
 
 export function buildEvidenceMoments(

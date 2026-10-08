@@ -20,6 +20,7 @@ import {
 import {
   clearCanvas,
   drawPoseLandmarks,
+  videoContentRect,
   type SkeletonColor,
 } from "./poseDrawing";
 import { computePrototypeMetrics, type PrototypeMetrics } from "./poseMetrics";
@@ -162,16 +163,23 @@ export default function PoseVideoPlayer({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  /**
+   * Size the overlay bitmap to the video element's layout box, then draw
+   * landmarks inside the object-fit:contain content rect so letterboxing on
+   * mobile (max-height clamps) does not squash the skeleton into one region.
+   */
   const syncCanvasSize = useCallback(() => {
     const video = videoRef.current;
     const canvas = canvasRef.current;
     if (!video || !canvas) return;
-    const w = video.clientWidth;
-    const h = video.clientHeight;
-    if (w <= 0 || h <= 0) return;
-    if (canvas.width !== w || canvas.height !== h) {
-      canvas.width = w;
-      canvas.height = h;
+
+    const layoutW = Math.max(1, Math.round(video.clientWidth));
+    const layoutH = Math.max(1, Math.round(video.clientHeight));
+    if (video.clientWidth <= 0 || video.clientHeight <= 0) return;
+
+    if (canvas.width !== layoutW || canvas.height !== layoutH) {
+      canvas.width = layoutW;
+      canvas.height = layoutH;
     }
   }, []);
 
@@ -181,11 +189,17 @@ export default function PoseVideoPlayer({
     const landmarker = landmarkerRef.current;
     if (!video || !canvas) return;
 
+    // Wait until the element has a decodable frame (iOS often starts at 0×0).
+    if (video.readyState < 2 || video.videoWidth <= 0 || video.videoHeight <= 0) {
+      return;
+    }
+
     syncCanvasSize();
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
     const { width, height } = canvas;
+    if (width <= 0 || height <= 0) return;
     clearCanvas(ctx, width, height);
 
     // Skip detection entirely once the model is in a hard-error state so WebGL
@@ -258,9 +272,14 @@ export default function PoseVideoPlayer({
 
     const pose = landmarksRef.current;
     if (pose?.length) {
-      drawPoseLandmarks(ctx, pose, width, height, {
-        ...drawOptsRef.current,
-      });
+      drawPoseLandmarks(
+        ctx,
+        pose,
+        width,
+        height,
+        { ...drawOptsRef.current },
+        videoContentRect(video),
+      );
     }
   }, [syncCanvasSize]);
 
@@ -335,7 +354,6 @@ export default function PoseVideoPlayer({
   return (
     <div className={`skel-player${labMode ? " is-lab" : ""}`}>
       <div className="skel-player-stage" ref={wrapRef}>
-        {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
         <video
           ref={videoRef}
           src={src}
@@ -345,7 +363,12 @@ export default function PoseVideoPlayer({
           muted
           loop={labMode}
           autoPlay={labMode}
-          crossOrigin="anonymous"
+          // Only set CORS for remote URLs. blob: + crossOrigin breaks sampling /
+          // WebGL texture upload on some iPhone Safari builds.
+          crossOrigin={src.startsWith("blob:") ? undefined : "anonymous"}
+          onLoadedMetadata={() => {
+            syncCanvasSize();
+          }}
           onLoadedData={() => {
             syncCanvasSize();
             lastTsRef.current = -1;
