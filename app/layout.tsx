@@ -5,6 +5,7 @@ import "./globals.css";
 import { Analytics } from "@vercel/analytics/next";
 import { AuthProvider } from "./components/AuthProvider";
 import AccountBar from "./components/AccountBar";
+import ClientRuntimeHygiene from "./components/ClientRuntimeHygiene";
 import CreatorReferralCapture from "./components/CreatorReferralCapture";
 
 const geistSans = Geist({
@@ -53,6 +54,7 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col">
         <AuthProvider>
+          <ClientRuntimeHygiene />
           <AccountBar />
           <Suspense fallback={null}>
             <CreatorReferralCapture />

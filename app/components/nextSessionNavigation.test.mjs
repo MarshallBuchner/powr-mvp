@@ -106,3 +106,13 @@ test("Safari/Chrome storage divergence explains old no-op: empty credits + missi
     "restart",
   );
 });
+
+test("Private vs regular Safari: CTA href must not depend on stored can-run state", () => {
+  // Regular Safari (used session) and Private Safari (clean) must resolve the
+  // same restart action — navigation is href-based, not entitlement-gated.
+  assert.equal(
+    resolveNextSessionAction({ canRunLocally: false }),
+    resolveNextSessionAction({ canRunLocally: true }),
+  );
+  assert.equal(NEXT_SESSION_UPLOAD_HREF.startsWith("/#"), true);
+});

@@ -1,13 +1,20 @@
 /**
  * "Upload Your Next Session" CTA helpers.
  *
- * Chrome vs Safari (same iPhone):
- * - Separate localStorage → Safari often has empty credits after an assessment
- *   while Chrome still shows remaining. The old CTA swallowed empty-credit taps
- *   into a scroll-to-upgrade no-op on Safari only.
- * - Next.js `router.push("/#hash")` is unreliable on iOS Safari for leaving
- *   `/r/*` routes. Prefer a real <a href> (full document navigation) and keep
- *   JS helpers as a belt-and-suspenders fallback.
+ * Observed on the same iPhone:
+ * - Chrome: works
+ * - Safari Private Browsing: works
+ * - Regular Safari: fails
+ *
+ * That pattern points at session/cache state, not a universally broken handler:
+ * 1) Separate WebKit localStorage can leave regular Safari with empty credits
+ *    while Private is a clean profile (old handler no-op'd on empty credits).
+ * 2) Regular Safari can retain a cached HTML shell / JS chunk from before the
+ *    fix; Private always fetches fresh. There is no first-party service worker
+ *    in this repo — HTTP cache + bfcache are the likely shell retainers.
+ *
+ * Mitigation: real <a href="/#start-assessment"> with no preventDefault, HTML
+ * Cache-Control: no-store on document routes, and best-effort SW unregister.
  */
 
 export const NEXT_SESSION_UPLOAD_HREF = "/#start-assessment";

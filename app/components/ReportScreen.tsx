@@ -819,16 +819,14 @@ const personalizedCoachSummary =
     href="/#start-assessment"
     className="share-assessment-button"
     data-testid="next-session-upload"
-    onClick={(event) => {
-      // Always return to upload — UploadCard owns entitlement / upgrade UX.
-      // Real <a href> keeps iOS Safari navigation working even if JS is stale.
+    onClick={() => {
+      // Analytics only — never preventDefault. Native href is the navigation
+      // source of truth (critical when regular Safari has a stale JS session).
       try {
         track("next_session_clicked", { source: "report" });
       } catch {
         // ignore analytics failures
       }
-      event.preventDefault();
-      onRestart();
     }}
   >
     Upload Your Next Session →

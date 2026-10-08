@@ -34,7 +34,6 @@ import { stashPendingAssessment } from "../assessmentStorage";
 import { useAuth } from "../AuthProvider";
 import {
   NEXT_SESSION_UPLOAD_HREF,
-  navigateToNextSessionUpload,
   resolveNextSessionAction,
 } from "../nextSessionNavigation";
 import { getScoreBand, scoreInterpretation } from "../scoreBands";
@@ -249,28 +248,21 @@ export default function ReportV2Flow({
     }
   }
 
-  function handleNextSession(
-    event?: { preventDefault: () => void } | null,
-  ) {
-    // Always return to upload. Never swallow the tap into scroll-to-upgrade —
-    // that no-op'd on iPhone Safari when local credits were empty and the
-    // upgrade wrap was absent (Chrome often still had remaining credits in
-    // its separate storage, so it appeared to "work" only there).
+  function handleNextSession() {
+    // Analytics only — never preventDefault.
+    // Regular Safari may keep a stale document/JS (Private Browsing does not).
+    // The real <a href="/#start-assessment"> must be allowed to navigate even
+    // if this handler is old, throws, or no-ops on stored entitlement state.
     try {
       track("next_session_clicked", { source: "report_v2" });
     } catch {
       // Analytics must never block navigation on Safari.
     }
-    if (resolveNextSessionAction() !== "restart") return;
-
-    // Prefer an explicit hard navigation. The CTA is also a real <a href> so
-    // iOS Safari still leaves /r/* even if this handler is delayed/cached.
-    event?.preventDefault();
-    if (onRestart) {
-      onRestart();
-      return;
-    }
-    navigateToNextSessionUpload();
+    // Lock intended action in the bundle for regression tests / future flags.
+    void resolveNextSessionAction({
+      canRunLocally: false,
+      upgradeTargetPresent: false,
+    });
   }
 
   const stepContent = useMemo(() => {
@@ -603,7 +595,7 @@ export default function ReportV2Flow({
               href={NEXT_SESSION_UPLOAD_HREF}
               className="rv2-primary rv2-next-session"
               data-testid="next-session-upload"
-              onClick={(event) => handleNextSession(event)}
+              onClick={() => handleNextSession()}
             >
               Upload Your Next Session →
             </a>
