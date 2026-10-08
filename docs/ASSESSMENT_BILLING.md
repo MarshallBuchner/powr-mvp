@@ -65,12 +65,22 @@ STRIPE_WEBHOOK_SECRET=
 STRIPE_ASSESSMENT_PRICE_ID=         # optional
 OPENAI_API_KEY=
 FOUNDER_UNLIMITED_EMAIL=            # optional; exact email for founder unlimited access
+FOUNDING_ATHLETE_EMAILS=            # optional; comma-separated verified emails
 ```
 
 ### Founder unlimited access (optional)
 Set `FOUNDER_UNLIMITED_EMAIL` (server-only) to one exact email. That authenticated
 user skips free/credit consume on `POST /api/analyze` and never receives a `402`.
 Everyone else is unchanged. UI shows “Founder access” instead of a remaining count.
+
+### Founding Athlete access (optional)
+Set `FOUNDING_ATHLETE_EMAILS` (server-only, comma-separated) to approved athlete
+emails. On first **verified** sign-in, the server activates a 6-month window via
+service-role RPC `activate_founding_athlete` (idempotent — re-login never extends).
+While active, `consume_assessment_credit` deducts from a **20 / calendar month**
+bucket (America/Edmonton, no rollover) **before** free or paid credits.
+Clients only see `foundingAthlete` / month remaining / expiry — never allowlist emails.
+Requires migration `supabase/migrations/20261007_founding_athlete.sql`.
 ## Auth redirect URLs (Supabase)
 - Site URL: `https://trainwithpowr.com`
 - Redirect URLs:

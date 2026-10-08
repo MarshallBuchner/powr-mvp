@@ -91,6 +91,8 @@ export default function ReportV2Flow({
   const [activeDrill, setActiveDrill] = useState<ReportV2Drill | null>(null);
   const [remaining, setRemaining] = useState(() => getLocalRemainingAssessments());
   const [unlimited, setUnlimited] = useState(false);
+  const [foundingAthlete, setFoundingAthlete] = useState(false);
+  const [foundingMonthRemaining, setFoundingMonthRemaining] = useState(0);
   const [shareStatus, setShareStatus] = useState<"idle" | "copied">("idle");
   const [saveStatus, setSaveStatus] = useState<
     "idle" | "saving" | "saved" | "error"
@@ -104,6 +106,12 @@ export default function ReportV2Flow({
       if (!cancelled && balance) {
         setRemaining(balance.remaining);
         setUnlimited(Boolean(balance.unlimited));
+        setFoundingAthlete(Boolean(balance.foundingAthlete));
+        setFoundingMonthRemaining(
+          typeof balance.foundingMonthRemaining === "number"
+            ? balance.foundingMonthRemaining
+            : 0,
+        );
       }
     })();
     return () => {
@@ -507,7 +515,21 @@ export default function ReportV2Flow({
               </li>
             </ul>
 
-            {!demoMode && !isSample && !unlimited && remaining <= 0 ? (
+            {!demoMode &&
+            !isSample &&
+            !unlimited &&
+            foundingAthlete &&
+            foundingMonthRemaining <= 0 ? (
+              <p className="rv2-founding-renew">
+                Complimentary Founding Athlete assessments renew next month.
+              </p>
+            ) : null}
+
+            {!demoMode &&
+            !isSample &&
+            !unlimited &&
+            !foundingAthlete &&
+            remaining <= 0 ? (
               <div className="rv2-upgrade-wrap">
                 <UpgradePanel source="report" remaining={remaining} compact />
               </div>
@@ -593,6 +615,8 @@ export default function ReportV2Flow({
     drillSlides,
     remaining,
     unlimited,
+    foundingAthlete,
+    foundingMonthRemaining,
     shareStatus,
     onRestart,
     basePath,

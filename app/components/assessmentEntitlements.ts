@@ -19,6 +19,10 @@ export type EntitlementBalance = EntitlementState & {
   source?: "profile" | "device";
   /** Server-only founder override — never set from the client. */
   unlimited?: boolean;
+  /** Active Founding Athlete window — server-derived; never from client email. */
+  foundingAthlete?: boolean;
+  foundingMonthRemaining?: number;
+  foundingExpiresAt?: string | null;
 };
 
 export function readLocalEntitlements(): EntitlementState {

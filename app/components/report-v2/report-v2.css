@@ -291,6 +291,14 @@
   margin: 0;
 }
 
+.rv2-founding-renew {
+  margin: 0 0 12px;
+  color: #8fa297;
+  font-size: 0.88rem;
+  line-height: 1.45;
+  text-align: center;
+}
+
 .rv2-save-cta {
   display: grid;
   gap: 8px;

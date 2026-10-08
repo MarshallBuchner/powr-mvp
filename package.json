@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "node --experimental-strip-types --test --test-reporter=spec lib/consent.test.mjs",
+    "test": "node --experimental-strip-types --test --test-reporter=spec lib/consent.test.mjs tests/assessment-payments.test.cjs",
     "build:recruit-toolkit": "python3 scripts/build-recruit-toolkit.py"
   },
   "dependencies": {

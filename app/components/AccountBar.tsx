@@ -17,6 +17,13 @@ export default function AccountBar() {
   const { configured, loading, user, email, signOut } = useAuth();
   const [remaining, setRemaining] = useState<number | null>(null);
   const [unlimited, setUnlimited] = useState(false);
+  const [foundingAthlete, setFoundingAthlete] = useState(false);
+  const [foundingMonthRemaining, setFoundingMonthRemaining] = useState<
+    number | null
+  >(null);
+  const [foundingExpiresAt, setFoundingExpiresAt] = useState<string | null>(
+    null,
+  );
   const [menuOpen, setMenuOpen] = useState(false);
   const initial = useMemo(() => accountInitial(email), [email]);
 
@@ -24,6 +31,9 @@ export default function AccountBar() {
     if (!user) {
       setRemaining(null);
       setUnlimited(false);
+      setFoundingAthlete(false);
+      setFoundingMonthRemaining(null);
+      setFoundingExpiresAt(null);
       return;
     }
 
@@ -33,6 +43,13 @@ export default function AccountBar() {
       if (!cancelled && balance) {
         setRemaining(balance.remaining);
         setUnlimited(Boolean(balance.unlimited));
+        setFoundingAthlete(Boolean(balance.foundingAthlete));
+        setFoundingMonthRemaining(
+          typeof balance.foundingMonthRemaining === "number"
+            ? balance.foundingMonthRemaining
+            : null,
+        );
+        setFoundingExpiresAt(balance.foundingExpiresAt ?? null);
       }
     })();
 
@@ -124,6 +141,22 @@ export default function AccountBar() {
               {unlimited ? (
                 <span className="account-bar-muted" title="Founder unlimited access">
                   Founder access
+                </span>
+              ) : foundingAthlete ? (
+                <span
+                  className="account-bar-muted account-bar-founding"
+                  title={
+                    foundingExpiresAt
+                      ? `Complimentary access through ${new Date(foundingExpiresAt).toLocaleDateString()}`
+                      : "POWR Founding Athlete"
+                  }
+                >
+                  Founding Athlete
+                  {foundingMonthRemaining != null
+                    ? ` · ${foundingMonthRemaining} left`
+                    : remaining != null
+                      ? ` · ${remaining} left`
+                      : ""}
                 </span>
               ) : remaining != null ? (
                 <span className="account-bar-muted" title="Assessments remaining">

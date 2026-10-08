@@ -76,6 +76,11 @@ export default function UploadCard({ onAnalyze }: UploadCardProps) {
   const [remaining, setRemaining] = useState(1);
   const [needsUpgrade, setNeedsUpgrade] = useState(false);
   const [unlimited, setUnlimited] = useState(false);
+  const [foundingAthlete, setFoundingAthlete] = useState(false);
+  const [foundingMonthRemaining, setFoundingMonthRemaining] = useState(0);
+  const [foundingExpiresAt, setFoundingExpiresAt] = useState<string | null>(
+    null,
+  );
   const [ageBand, setAgeBand] = useState<AgeBand | null>(null);
   const [consented, setConsented] = useState(false);
 
@@ -97,10 +102,21 @@ export default function UploadCard({ onAnalyze }: UploadCardProps) {
             unlockedSessionIds: data.unlockedSessionIds || [],
           });
           const isUnlimited = Boolean(data.unlimited);
+          const isFounding = Boolean(data.foundingAthlete);
+          const foundingLeft =
+            typeof data.foundingMonthRemaining === "number"
+              ? data.foundingMonthRemaining
+              : 0;
           setUnlimited(isUnlimited);
+          setFoundingAthlete(isFounding);
+          setFoundingMonthRemaining(foundingLeft);
+          setFoundingExpiresAt(data.foundingExpiresAt ?? null);
           setRemaining(data.remaining ?? getLocalRemainingAssessments());
+          // Hide upgrades while complimentary Founding assessments remain.
           setNeedsUpgrade(
-            isUnlimited ? false : !(data.canRun ?? localCanRunAssessment()),
+            isUnlimited || (isFounding && foundingLeft > 0)
+              ? false
+              : !(data.canRun ?? localCanRunAssessment()),
           );
         } else {
           await syncEntitlementCookie(readLocalEntitlements());
@@ -215,7 +231,18 @@ export default function UploadCard({ onAnalyze }: UploadCardProps) {
       return;
     }
 
-    if (!unlimited && !localCanRunAssessment()) {
+    if (
+      !unlimited &&
+      !(foundingAthlete && foundingMonthRemaining > 0) &&
+      !localCanRunAssessment()
+    ) {
+      if (foundingAthlete && foundingMonthRemaining <= 0) {
+        setNeedsUpgrade(false);
+        setError(
+          "You've used this month's complimentary Founding Athlete assessments. They renew next month.",
+        );
+        return;
+      }
       setNeedsUpgrade(true);
       track("upgrade_viewed", { source: "upload_blocked" });
       setError("You've used your free assessment. Unlock a pack to continue.");
@@ -246,11 +273,23 @@ export default function UploadCard({ onAnalyze }: UploadCardProps) {
 
   const quotaPrimary = unlimited
     ? "Founder access — unlimited assessments"
-    : remaining > 0
-      ? `${remaining} free assessment${remaining === 1 ? "" : "s"} remaining`
-      : "Free assessment used — unlock a pack to continue";
+    : foundingAthlete
+      ? foundingMonthRemaining > 0
+        ? `Founding Athlete — ${foundingMonthRemaining} complimentary assessment${foundingMonthRemaining === 1 ? "" : "s"} left this month`
+        : "Founding Athlete — complimentary assessments renew next month"
+      : remaining > 0
+        ? `${remaining} free assessment${remaining === 1 ? "" : "s"} remaining`
+        : "Free assessment used — unlock a pack to continue";
 
-  const showPackHint = !unlimited && remaining > 0 && remaining <= 1 && !needsUpgrade;
+  const showPackHint =
+    !unlimited &&
+    !foundingAthlete &&
+    remaining > 0 &&
+    remaining <= 1 &&
+    !needsUpgrade;
+
+  const showFoundingRenewNote =
+    foundingAthlete && foundingMonthRemaining <= 0 && !unlimited;
 
   return (
     <section className="card upload-card" id="start-assessment">
@@ -416,6 +455,23 @@ export default function UploadCard({ onAnalyze }: UploadCardProps) {
       </div>
 
       <p className="assessment-quota-note">{quotaPrimary}</p>
+      {foundingAthlete && foundingExpiresAt ? (
+        <p className="assessment-quota-hint">
+          Complimentary access through{" "}
+          {new Date(foundingExpiresAt).toLocaleDateString(undefined, {
+            year: "numeric",
+            month: "short",
+            day: "numeric",
+          })}
+          .
+        </p>
+      ) : null}
+      {showFoundingRenewNote ? (
+        <p className="assessment-quota-hint">
+          Your monthly Founding Athlete allowance resets automatically next
+          month (no rollover).
+        </p>
+      ) : null}
       {showPackHint ? (
         <p className="assessment-quota-hint">
           Then {ASSESSMENT_PACK_CREDITS} more assessments for{" "}
@@ -423,7 +479,7 @@ export default function UploadCard({ onAnalyze }: UploadCardProps) {
         </p>
       ) : null}
 
-      {needsUpgrade ? (
+      {needsUpgrade && !foundingAthlete ? (
         <UpgradePanel source="upload_card" remaining={remaining} />
       ) : null}
 
