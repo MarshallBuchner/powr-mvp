@@ -193,7 +193,8 @@ test('founding consume order: complimentary before paid credits', () => {
     activatedAt: '2026-09-01T00:00:00Z',
   };
   assert.equal(pe.canRunWithFounding(state, bal), true);
-  assert.equal(pe.remainingWithFounding(state, bal), 21);
+  // founding(20) + freeLeft(1) + credits(5)
+  assert.equal(pe.remainingWithFounding(state, bal), 26);
   assert.equal(pe.canRunWithFounding({ freeUsed: 1, credits: 0, unlockedSessionIds: [] }, {
     ...bal, monthRemaining: 0, monthUsed: 20,
   }), false);

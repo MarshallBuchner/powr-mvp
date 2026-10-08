@@ -36,12 +36,7 @@ export default function AssessmentsClient() {
   );
 
   useEffect(() => {
-    if (!user) {
-      setFoundingAthlete(false);
-      setFoundingMonthRemaining(null);
-      setFoundingExpiresAt(null);
-      return;
-    }
+    if (!user) return;
     let cancelled = false;
     void (async () => {
       const balance = await fetchEntitlementBalance();
