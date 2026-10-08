@@ -522,14 +522,17 @@ export default function ReportV2Flow({
             foundingMonthRemaining <= 0 ? (
               <p className="rv2-founding-renew">
                 Complimentary Founding Athlete assessments renew next month.
+                {remaining > 0
+                  ? " You can still use your remaining free or purchased assessments."
+                  : ""}
               </p>
             ) : null}
 
             {!demoMode &&
             !isSample &&
             !unlimited &&
-            !foundingAthlete &&
-            remaining <= 0 ? (
+            remaining <= 0 &&
+            !(foundingAthlete && foundingMonthRemaining > 0) ? (
               <div className="rv2-upgrade-wrap">
                 <UpgradePanel source="report" remaining={remaining} compact />
               </div>

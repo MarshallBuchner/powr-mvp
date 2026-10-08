@@ -9,7 +9,10 @@ import {
   readEntitlementCookie,
   writeEntitlementCookie,
 } from "@/lib/entitlementCookie";
-import type { FoundingBalance } from "@/lib/foundingAthleteAccess";
+import {
+  foundingAllowanceExhaustedMessage,
+  type FoundingBalance,
+} from "@/lib/foundingAthleteAccess";
 import { isFounderUnlimited } from "@/lib/founderAccess";
 import {
   canRunWithFounding,
@@ -89,18 +92,20 @@ export async function POST(request: NextRequest) {
     if (!founderUnlimited && !canRunWithFounding(entitlement, founding)) {
       const foundingExhausted =
         Boolean(founding?.active) && founding!.monthRemaining <= 0;
+      // Reaching here means free + paid are also empty.
       return NextResponse.json(
         {
           success: false,
           error: "free_assessment_used",
           message: foundingExhausted
-            ? "You've used this month's complimentary Founding Athlete assessments. They renew next month."
+            ? foundingAllowanceExhaustedMessage({ hasOtherBalance: false })
             : "You've used your free assessment. Unlock a pack to analyze another clip.",
           remaining: 0,
           foundingAthlete: Boolean(founding?.active),
           foundingMonthRemaining: founding?.active
             ? founding.monthRemaining
             : 0,
+          canPurchase: true,
         },
         { status: 402 },
       );

@@ -200,6 +200,121 @@ test('founding consume order: complimentary before paid credits', () => {
   }), false);
 });
 
+test('founding calendar month uses America/Toronto', () => {
+  const mod = load('lib/foundingAthleteAccess.ts', {});
+  assert.equal(mod.FOUNDING_TIMEZONE, 'America/Toronto');
+  assert.equal(mod.torontoMonthKey(new Date('2026-10-15T12:00:00Z')), '2026-10');
+});
+
+test('after 20th complimentary consume, next assessment uses paid credits', () => {
+  const mod = load('lib/foundingAthleteAccess.ts', {});
+  const billing = load('lib/assessmentBilling.ts', {});
+  const pe = load('lib/profileEntitlements.ts', {
+    '@/lib/assessmentBilling': billing,
+    '@/lib/foundingAthleteAccess': mod,
+    '@/lib/supabase/admin': {
+      createServiceClient: () => ({}),
+      isServiceRoleConfigured: () => false,
+    },
+  });
+
+  let buckets = {
+    foundingActive: true,
+    foundingMonthUsed: 19,
+    freeUsed: 1,
+    credits: 5,
+  };
+
+  const twentieth = mod.simulateConsumeAssessmentCredit(buckets);
+  assert.equal(twentieth.ok, true);
+  assert.equal(twentieth.consumedFrom, 'founding');
+  assert.equal(twentieth.next.foundingMonthUsed, 20);
+  assert.equal(twentieth.next.credits, 5);
+
+  const twentyFirst = mod.simulateConsumeAssessmentCredit(twentieth.next);
+  assert.equal(twentyFirst.ok, true);
+  assert.equal(twentyFirst.consumedFrom, 'paid');
+  assert.equal(twentyFirst.next.credits, 4);
+  assert.equal(twentyFirst.next.foundingMonthUsed, 20);
+
+  const balAfter20 = mod.foundingBalanceFromProfile({
+    founding_activated_at: '2026-09-01T00:00:00Z',
+    founding_expires_at: '2027-03-01T00:00:00Z',
+    founding_month_key: '2026-10',
+    founding_month_used: 20,
+  }, { currentMonthKey: '2026-10', now: new Date('2026-10-15T12:00:00Z') });
+  assert.equal(balAfter20.active, true);
+  assert.equal(balAfter20.monthRemaining, 0);
+
+  const state = { freeUsed: 1, credits: 4, unlockedSessionIds: [] };
+  assert.equal(pe.canRunWithFounding(state, balAfter20), true);
+  assert.equal(pe.remainingWithFounding(state, balAfter20), 4);
+
+  const api = pe.entitlementResponse(state, 'profile', { founding: balAfter20 });
+  assert.equal(api.foundingAthlete, true);
+  assert.equal(api.foundingMonthRemaining, 0);
+  assert.equal(api.remaining, 4);
+  assert.equal(api.canRun, true);
+  // UI should still allow analyze and not force purchase while credits remain.
+  assert.equal(api.canRun && api.remaining > 0, true);
+});
+
+test('founding exhausted with no credits surfaces purchase + renew messaging', () => {
+  const mod = load('lib/foundingAthleteAccess.ts', {});
+  const billing = load('lib/assessmentBilling.ts', {});
+  const pe = load('lib/profileEntitlements.ts', {
+    '@/lib/assessmentBilling': billing,
+    '@/lib/foundingAthleteAccess': mod,
+    '@/lib/supabase/admin': {
+      createServiceClient: () => ({}),
+      isServiceRoleConfigured: () => false,
+    },
+  });
+
+  const empty = mod.simulateConsumeAssessmentCredit({
+    foundingActive: true,
+    foundingMonthUsed: 20,
+    freeUsed: 1,
+    credits: 0,
+  });
+  assert.equal(empty.ok, false);
+  assert.equal(empty.consumedFrom, null);
+
+  const bal = mod.foundingBalanceFromProfile({
+    founding_activated_at: '2026-09-01T00:00:00Z',
+    founding_expires_at: '2027-03-01T00:00:00Z',
+    founding_month_key: '2026-10',
+    founding_month_used: 20,
+  }, { currentMonthKey: '2026-10', now: new Date('2026-10-15T12:00:00Z') });
+
+  const state = { freeUsed: 1, credits: 0, unlockedSessionIds: [] };
+  const api = pe.entitlementResponse(state, 'profile', { founding: bal });
+  assert.equal(api.canRun, false);
+  assert.equal(api.remaining, 0);
+  assert.equal(api.foundingAthlete, true);
+  assert.equal(api.foundingMonthRemaining, 0);
+
+  const withCreditsMsg = mod.foundingAllowanceExhaustedMessage({ hasOtherBalance: true });
+  const purchaseMsg = mod.foundingAllowanceExhaustedMessage({ hasOtherBalance: false });
+  assert.match(withCreditsMsg, /remaining assessments/i);
+  assert.match(purchaseMsg, /unlock a pack/i);
+  assert.match(purchaseMsg, /renew next month/i);
+});
+
+test('ordinary customer consume path ignores founding when not activated', () => {
+  const mod = load('lib/foundingAthleteAccess.ts', {});
+  const first = mod.simulateConsumeAssessmentCredit({
+    foundingActive: false,
+    foundingMonthUsed: 0,
+    freeUsed: 0,
+    credits: 5,
+  });
+  assert.equal(first.consumedFrom, 'free');
+  const second = mod.simulateConsumeAssessmentCredit(first.next);
+  assert.equal(second.consumedFrom, 'paid');
+  assert.equal(second.next.credits, 4);
+});
+
 test('activateFoundingAthleteIfEligible rejects unverified and non-allowlisted users', async () => {
   const billing = load('lib/assessmentBilling.ts', {});
   const founding = load('lib/foundingAthleteAccess.ts', {}, {

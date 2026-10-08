@@ -112,7 +112,9 @@ export default function UploadCard({ onAnalyze }: UploadCardProps) {
           setFoundingMonthRemaining(foundingLeft);
           setFoundingExpiresAt(data.foundingExpiresAt ?? null);
           setRemaining(data.remaining ?? getLocalRemainingAssessments());
-          // Hide upgrades while complimentary Founding assessments remain.
+          // Hide upgrades only while complimentary Founding assessments remain.
+          // After the monthly bucket is empty, free/paid credits still run;
+          // upgrade shows when those are also gone.
           setNeedsUpgrade(
             isUnlimited || (isFounding && foundingLeft > 0)
               ? false
@@ -236,16 +238,13 @@ export default function UploadCard({ onAnalyze }: UploadCardProps) {
       !(foundingAthlete && foundingMonthRemaining > 0) &&
       !localCanRunAssessment()
     ) {
-      if (foundingAthlete && foundingMonthRemaining <= 0) {
-        setNeedsUpgrade(false);
-        setError(
-          "You've used this month's complimentary Founding Athlete assessments. They renew next month.",
-        );
-        return;
-      }
       setNeedsUpgrade(true);
       track("upgrade_viewed", { source: "upload_blocked" });
-      setError("You've used your free assessment. Unlock a pack to continue.");
+      setError(
+        foundingAthlete && foundingMonthRemaining <= 0
+          ? "You've used this month's complimentary Founding Athlete assessments. They renew next month — or unlock a pack to continue now."
+          : "You've used your free assessment. Unlock a pack to continue.",
+      );
       return;
     }
 
@@ -276,20 +275,25 @@ export default function UploadCard({ onAnalyze }: UploadCardProps) {
     : foundingAthlete
       ? foundingMonthRemaining > 0
         ? `Founding Athlete — ${foundingMonthRemaining} complimentary assessment${foundingMonthRemaining === 1 ? "" : "s"} left this month`
-        : "Founding Athlete — complimentary assessments renew next month"
+        : remaining > 0
+          ? `Founding Athlete — complimentary renews next month · ${remaining} from your balance`
+          : "Founding Athlete — complimentary assessments renew next month"
       : remaining > 0
         ? `${remaining} free assessment${remaining === 1 ? "" : "s"} remaining`
         : "Free assessment used — unlock a pack to continue";
 
   const showPackHint =
     !unlimited &&
-    !foundingAthlete &&
+    !(foundingAthlete && foundingMonthRemaining > 0) &&
     remaining > 0 &&
     remaining <= 1 &&
     !needsUpgrade;
 
   const showFoundingRenewNote =
     foundingAthlete && foundingMonthRemaining <= 0 && !unlimited;
+
+  const showUpgradePanel =
+    needsUpgrade && !(foundingAthlete && foundingMonthRemaining > 0);
 
   return (
     <section className="card upload-card" id="start-assessment">
@@ -479,7 +483,7 @@ export default function UploadCard({ onAnalyze }: UploadCardProps) {
         </p>
       ) : null}
 
-      {needsUpgrade && !foundingAthlete ? (
+      {showUpgradePanel ? (
         <UpgradePanel source="upload_card" remaining={remaining} />
       ) : null}
 
