@@ -23,6 +23,14 @@ import { stashEvidenceFrames } from "./evidenceStorage";
 import type { PrototypeMetrics } from "./prototype/poseMetrics";
 import type { PoseDebugInfo } from "./prototype/PoseVideoPlayer";
 import { isSampleReport } from "./shareReport";
+import {
+  SAMPLE_DEMO_COMPLETE_HOLD_MS,
+  SAMPLE_DEMO_DURATION_MS,
+  SAMPLE_DEMO_LEAVE_MS,
+  SAMPLE_DEMO_STAGES,
+  sampleDemoProgressPct,
+  sampleDemoStageStartTimes,
+} from "@/lib/sampleLabDemo";
 
 const PoseVideoPlayer = dynamic(
   () => import("./prototype/PoseVideoPlayer"),
@@ -118,15 +126,21 @@ export default function AnalysisScreen({
   const [poseStatus, setPoseStatus] = useState<"loading" | "ready" | "error">(
     "loading",
   );
-  const [poseLimited, setPoseLimited] = useState(false);
+  const [sampleElapsedMs, setSampleElapsedMs] = useState(0);
   const isSampleDemo = isSampleReport(request);
+  const poseLimited = poseStatus === "error";
   const finishedRef = useRef(false);
   const requestRef = useRef(request);
-  requestRef.current = request;
+
+  useEffect(() => {
+    requestRef.current = request;
+  }, [request]);
+
+  const visibleStages = isSampleDemo ? SAMPLE_DEMO_STAGES : LAB_STAGES;
 
   const completedSteps = useMemo(
-    () => (isComplete ? LAB_STAGES.length : activeStep),
-    [activeStep, isComplete],
+    () => (isComplete ? visibleStages.length : activeStep),
+    [activeStep, isComplete, visibleStages.length],
   );
 
   const headline = isComplete
@@ -134,7 +148,8 @@ export default function AnalysisScreen({
       ? "Your sample report is ready."
       : "Your development report is ready."
     : isSampleDemo
-      ? "Loading the pre-generated sample report."
+      ? (SAMPLE_DEMO_STAGES[activeStep]?.label ??
+        SAMPLE_DEMO_STAGES[0].label)
       : `Reviewing your ${request.goal.toLowerCase()} mechanics.`;
 
   const subcopy = isComplete
@@ -142,7 +157,8 @@ export default function AnalysisScreen({
       ? "This is a pre-generated demo report — not a new live assessment."
       : "Your personalized development report is ready to review."
     : isSampleDemo
-      ? "Demo mode: showing how a finished POWR report looks. No live AI analysis is running on this clip."
+      ? (SAMPLE_DEMO_STAGES[activeStep]?.detail ??
+        SAMPLE_DEMO_STAGES[0].detail)
       : LAB_STAGES[activeStep]?.detail ??
         "Taking a closer look at the movement patterns visible in your clip.";
 
@@ -153,8 +169,8 @@ export default function AnalysisScreen({
       onReady?.(finalRequest);
       setActiveStep(LAB_STAGES.length - 1);
       setIsComplete(true);
-      // Navigate while the lab is still visible. Fading first caused a long
-      // blank stretch on mobile while the share token request was in flight.
+      // Live path: navigate while the lab is still visible. Fading first caused
+      // a long blank stretch on mobile while the share token request was in flight.
       void (async () => {
         try {
           await onComplete();
@@ -169,6 +185,34 @@ export default function AnalysisScreen({
           return;
         }
         setIsLeaving(true);
+      })();
+    },
+    [onComplete, onReady],
+  );
+
+  /** Sample-only: hold a complete beat, fade out, then open the fixed report. */
+  const finishSampleDemo = useCallback(
+    (finalRequest: AnalysisRequest) => {
+      if (finishedRef.current) return;
+      finishedRef.current = true;
+      onReady?.(finalRequest);
+      setActiveStep(SAMPLE_DEMO_STAGES.length - 1);
+      setIsComplete(true);
+      void (async () => {
+        try {
+          await delay(SAMPLE_DEMO_COMPLETE_HOLD_MS);
+          setIsLeaving(true);
+          await delay(SAMPLE_DEMO_LEAVE_MS);
+          await onComplete();
+        } catch (err) {
+          console.error("POWR sample report navigation failed", err);
+          finishedRef.current = false;
+          setIsComplete(false);
+          setIsLeaving(false);
+          setError(
+            "The sample demo finished, but opening the report failed. Tap below to try again.",
+          );
+        }
       })();
     },
     [onComplete, onReady],
@@ -289,7 +333,8 @@ export default function AnalysisScreen({
       }
     }
 
-    function runTheatrical() {
+    function runLiveTheatrical() {
+      // Non-sample theatrical fallback (kept short). Sample uses runSampleDemo.
       const total = 2400;
       const timers = LAB_STAGES.slice(1).map((_, index) =>
         window.setTimeout(
@@ -308,10 +353,45 @@ export default function AnalysisScreen({
       };
     }
 
+    function runSampleDemo() {
+      // ~13.5s choreography so visitors can see skating + green skeleton.
+      // Does not call /api/analyze or consume credits.
+      const starts = sampleDemoStageStartTimes();
+      const startedAt = performance.now();
+      setSampleElapsedMs(0);
+      setActiveStep(0);
+
+      const stageTimers = starts.slice(1).map((startAt, index) =>
+        window.setTimeout(() => {
+          if (!cancelled) setActiveStep(index + 1);
+        }, startAt),
+      );
+
+      const progressTick = window.setInterval(() => {
+        if (cancelled) return;
+        setSampleElapsedMs(performance.now() - startedAt);
+      }, 100);
+
+      const done = window.setTimeout(() => {
+        window.clearInterval(progressTick);
+        if (cancelled) return;
+        setSampleElapsedMs(SAMPLE_DEMO_DURATION_MS);
+        finishSampleDemo(current);
+      }, SAMPLE_DEMO_DURATION_MS);
+
+      return () => {
+        stageTimers.forEach((t) => window.clearTimeout(t));
+        window.clearInterval(progressTick);
+        window.clearTimeout(done);
+      };
+    }
+
     let cleanupTheatrical: (() => void) | undefined;
 
-    if (current.analysis || (!current.file && current.videoUrl)) {
-      cleanupTheatrical = runTheatrical();
+    if (isSampleReport(current)) {
+      cleanupTheatrical = runSampleDemo();
+    } else if (current.analysis || (!current.file && current.videoUrl)) {
+      cleanupTheatrical = runLiveTheatrical();
     } else if (current.file) {
       void runLiveAnalyze();
     } else {
@@ -326,26 +406,39 @@ export default function AnalysisScreen({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  useEffect(() => {
-    if (poseStatus === "error") setPoseLimited(true);
-  }, [poseStatus]);
-
   const progressPct = isComplete
     ? 100
-    : Math.min(
-        96,
-        Math.round(((activeStep + (isComplete ? 1 : 0.35)) / LAB_STAGES.length) * 100),
-      );
+    : isSampleDemo
+      ? sampleDemoProgressPct(sampleElapsedMs)
+      : Math.min(
+          96,
+          Math.round(
+            ((activeStep + 0.35) / LAB_STAGES.length) * 100,
+          ),
+        );
 
   return (
-    <main className={`analysis-lab ${isLeaving ? "is-leaving" : ""}`}>
+    <main
+      className={`analysis-lab${isSampleDemo ? " is-sample-demo" : ""}${
+        isLeaving ? " is-leaving" : ""
+      }`}
+    >
       <section className="analysis-lab-shell">
         <header className="analysis-lab-heading">
           <p className="eyebrow">
             {isSampleDemo ? "POWR SAMPLE DEMO" : "POWR ANALYSIS"}
           </p>
-          <h1>{headline}</h1>
-          <p>{subcopy}</p>
+          <h1 key={headline} className="analysis-lab-headline">
+            {headline}
+          </h1>
+          <p key={subcopy} className="analysis-lab-subcopy">
+            {subcopy}
+          </p>
+          {!isComplete && !error && isSampleDemo ? (
+            <p className="analysis-lab-demo-note">
+              Pre-generated demo — no live AI analysis on this clip.
+            </p>
+          ) : null}
           {!isComplete && !error && !isSampleDemo ? (
             <p className="analysis-lab-keep-open">
               Keep this page open while we finish your assessment.
@@ -420,7 +513,7 @@ export default function AnalysisScreen({
                       ? "Sample ready"
                       : "Analysis complete"
                     : isSampleDemo
-                      ? "Sample demo"
+                      ? "Demo tracking"
                       : "AI tracking active"}
                 </span>
               </div>
@@ -431,7 +524,7 @@ export default function AnalysisScreen({
                 <h2>{isSampleDemo ? "DEMO PREVIEW" : "AI TRACKING"}</h2>
                 <p className="analysis-lab-card-note">
                   {isSampleDemo
-                    ? "Optional pose overlay — not a live assessment"
+                    ? "Live pose overlay on a sample clip — results are pre-generated"
                     : "Pose estimates"}
                 </p>
                 <ul className="analysis-lab-metrics">
@@ -486,14 +579,18 @@ export default function AnalysisScreen({
 
               <div className="analysis-lab-card">
                 <div className="analysis-lab-progress-head">
-                  <h2>{isSampleDemo ? "SAMPLE REPORT" : "REPORT GENERATION"}</h2>
+                  <h2>
+                    {isSampleDemo ? "SAMPLE DEMO" : "REPORT GENERATION"}
+                  </h2>
                   <strong>{isComplete ? "100%" : `${progressPct}%`}</strong>
                 </div>
                 <div
                   className={`analysis-lab-progress-track${isComplete ? " is-complete" : ""}`}
                   role="progressbar"
                   aria-valuenow={progressPct}
-                  aria-label="Analysis progress"
+                  aria-label={
+                    isSampleDemo ? "Sample demo progress" : "Analysis progress"
+                  }
                 >
                   <span
                     className="analysis-lab-progress-fill"
@@ -501,7 +598,7 @@ export default function AnalysisScreen({
                   />
                 </div>
                 <ol className="analysis-lab-stages">
-                  {LAB_STAGES.map((step, index) => {
+                  {visibleStages.map((step, index) => {
                     const done = index < completedSteps || isComplete;
                     const active = !isComplete && index === activeStep;
                     return (
@@ -533,7 +630,7 @@ export default function AnalysisScreen({
             <h2>{isSampleDemo ? "Sample ready" : "Analysis complete"}</h2>
             <p>
               {isSampleDemo
-                ? "Open the pre-generated demo report to explore the POWR layout."
+                ? "Opening the pre-generated demo report — not a live assessment."
                 : "Your personalized development report is ready to review."}
             </p>
             <button
