@@ -72,13 +72,14 @@ export default function SampleAssessment({
           disabled={!acknowledged}
           onClick={onAnalyze}
         >
-          <span>View sample report</span>
+          <span>Watch sample analysis</span>
           <span>→</span>
         </button>
 
         <p className="sample-explainer">
-          This demo uses fixed sample results so you can explore the report UI
-          without uploading your own video or consuming an assessment credit.
+          Next you&apos;ll see the sample clip with a green tracking overlay,
+          then a <strong>pre-generated</strong> report — no live AI analysis and
+          no assessment credit used.
         </p>
       </div>
     </main>

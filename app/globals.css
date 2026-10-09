@@ -2169,6 +2169,53 @@ button {
   transform: translateY(-8px);
 }
 
+/* Sample demo: longer cinematic exit into the fixed report. */
+.analysis-lab.is-sample-demo.is-leaving {
+  opacity: 0;
+  transform: scale(0.985) translateY(-14px);
+  transition:
+    opacity 750ms cubic-bezier(0.22, 1, 0.36, 1),
+    transform 750ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.analysis-lab-headline {
+  animation: analysis-lab-copy-in 420ms ease both;
+}
+
+.analysis-lab-subcopy {
+  animation: analysis-lab-copy-in 520ms ease both;
+}
+
+.analysis-lab-demo-note {
+  margin-top: 10px !important;
+  color: rgba(184, 255, 59, 0.85) !important;
+  font-size: 0.92rem;
+  font-weight: 650;
+  letter-spacing: 0.01em;
+}
+
+@keyframes analysis-lab-copy-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .analysis-lab-headline,
+  .analysis-lab-subcopy {
+    animation: none;
+  }
+
+  .analysis-lab.is-sample-demo.is-leaving {
+    transition-duration: 200ms;
+  }
+}
+
 .analysis-lab-shell {
   width: min(1080px, 100%);
   margin: 0 auto;
