@@ -24,6 +24,7 @@ import {
   type SkeletonColor,
 } from "./poseDrawing";
 import { computePrototypeMetrics, type PrototypeMetrics } from "./poseMetrics";
+import { logLabPlayback, snapshotVideoPlayback } from "@/lib/labPlayback";
 
 const WASM_BASE =
   "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.0.1/wasm";
@@ -333,14 +334,95 @@ export default function PoseVideoPlayer({
     else video.pause();
   };
 
-  // Lab mode: keep the clip looping so pose tracking stays visible
+  // Lab mode: keep the clip looping so pose tracking stays visible.
+  // Also recover if iOS Safari pauses us (ConcurrentPlaybackNotPermitted or
+  // a stalled decode) — without this, the skeleton freezes on one frame.
   useEffect(() => {
     if (!labMode) return;
     const video = videoRef.current;
     if (!video) return;
-    video.muted = true;
-    video.loop = true;
-    void video.play().catch(() => undefined);
+
+    let cancelled = false;
+    let resumeAttempts = 0;
+
+    const ensurePlaying = (reason: string) => {
+      if (cancelled) return;
+      video.muted = true;
+      video.playsInline = true;
+      video.setAttribute("playsinline", "true");
+      video.setAttribute("webkit-playsinline", "true");
+      video.loop = true;
+
+      const snap = snapshotVideoPlayback(video);
+      logLabPlayback(`ensure_playing:${reason}`, snap);
+
+      if (!video.paused && !video.ended) return;
+
+      resumeAttempts += 1;
+      void video
+        .play()
+        .then(() => {
+          logLabPlayback("play_ok", {
+            reason,
+            attempt: resumeAttempts,
+            ...snapshotVideoPlayback(video),
+          });
+        })
+        .catch((err) => {
+          logLabPlayback("play_rejected", {
+            reason,
+            attempt: resumeAttempts,
+            message: err instanceof Error ? err.message : String(err),
+            ...snapshotVideoPlayback(video),
+          });
+        });
+    };
+
+    const onPause = () => ensurePlaying("pause_event");
+    const onStalled = () => {
+      logLabPlayback("stalled", snapshotVideoPlayback(video));
+      ensurePlaying("stalled");
+    };
+    const onWaiting = () => logLabPlayback("waiting", snapshotVideoPlayback(video));
+    const onPlaying = () => logLabPlayback("playing", snapshotVideoPlayback(video));
+    const onLoadedData = () => ensurePlaying("loadeddata");
+    const onCanPlay = () => ensurePlaying("canplay");
+    const onEnded = () => {
+      // loop=true should restart; force it if WebKit drops the loop flag.
+      logLabPlayback("ended", snapshotVideoPlayback(video));
+      video.currentTime = 0;
+      ensurePlaying("ended");
+    };
+
+    video.addEventListener("pause", onPause);
+    video.addEventListener("stalled", onStalled);
+    video.addEventListener("waiting", onWaiting);
+    video.addEventListener("playing", onPlaying);
+    video.addEventListener("loadeddata", onLoadedData);
+    video.addEventListener("canplay", onCanPlay);
+    video.addEventListener("ended", onEnded);
+
+    ensurePlaying("effect_mount");
+
+    // Periodic watchdog: frozen currentTime while "paused" is the reported bug.
+    const watchdog = window.setInterval(() => {
+      if (cancelled) return;
+      if (video.paused || video.ended) {
+        ensurePlaying("watchdog");
+      }
+    }, 1500);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(watchdog);
+      video.removeEventListener("pause", onPause);
+      video.removeEventListener("stalled", onStalled);
+      video.removeEventListener("waiting", onWaiting);
+      video.removeEventListener("playing", onPlaying);
+      video.removeEventListener("loadeddata", onLoadedData);
+      video.removeEventListener("canplay", onCanPlay);
+      video.removeEventListener("ended", onEnded);
+    };
   }, [labMode, src, modelStatus]);
 
   const overlayStyle: CSSProperties = {

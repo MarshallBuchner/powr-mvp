@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "node --experimental-strip-types --test --test-reporter=spec lib/consent.test.mjs lib/frameQuality.test.mjs lib/analysisUsability.test.mjs lib/poseOverlayLayout.test.mjs lib/clientRuntimeHygiene.test.mjs app/components/nextSessionNavigation.test.mjs tests/assessment-payments.test.cjs",
+    "test": "node --experimental-strip-types --test --test-reporter=spec lib/consent.test.mjs lib/frameQuality.test.mjs lib/analysisUsability.test.mjs lib/labPlayback.test.mjs lib/poseOverlayLayout.test.mjs lib/clientRuntimeHygiene.test.mjs app/components/nextSessionNavigation.test.mjs tests/assessment-payments.test.cjs",
     "build:recruit-toolkit": "python3 scripts/build-recruit-toolkit.py"
   },
   "dependencies": {

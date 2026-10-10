@@ -7,6 +7,7 @@ import {
   summarizeFrameBatch,
   type FrameQualityResult,
 } from "@/lib/frameQuality";
+import { logLabPlayback, snapshotVideoPlayback } from "@/lib/labPlayback";
 
 export type ExtractedFrame = {
   dataUrl: string;
@@ -67,10 +68,27 @@ async function ensureDecodableDimensions(video: HTMLVideoElement) {
   // iOS Safari often reports 0×0 on loadedmetadata until a frame is available.
   if (video.videoWidth > 0 && video.videoHeight > 0) return;
 
+  // Prefer loadeddata over play() — play() on this offscreen element can pause
+  // any concurrent lab preview under iOS ConcurrentPlaybackNotPermitted.
   try {
-    await video.play();
+    await waitForEvent(video, "loadeddata", 4000);
   } catch {
-    // Autoplay may be blocked even when muted; fall through to loadeddata.
+    logLabPlayback("extract_loadeddata_timeout", snapshotVideoPlayback(video));
+  }
+
+  if (video.videoWidth > 0 && video.videoHeight > 0) {
+    video.pause();
+    return;
+  }
+
+  try {
+    logLabPlayback("extract_play_for_dimensions", snapshotVideoPlayback(video));
+    await video.play();
+  } catch (err) {
+    logLabPlayback("extract_play_rejected", {
+      message: err instanceof Error ? err.message : String(err),
+      ...snapshotVideoPlayback(video),
+    });
   }
 
   if (video.videoWidth > 0 && video.videoHeight > 0) {
@@ -150,6 +168,8 @@ export async function extractVideoFrames(
   const frames: ExtractedFrame[] = [];
 
   try {
+    // Keep this element off-DOM and paused between seeks. Never leave it
+    // playing — that races the visible Analysis Lab player on iPhone Safari.
     video.preload = "auto";
     video.muted = true;
     video.playsInline = true;
@@ -158,8 +178,13 @@ export async function extractVideoFrames(
     // Do not set crossOrigin for blob: URLs — Safari can fail to decode samples.
     video.src = videoUrl;
 
+    logLabPlayback("extract_offscreen_start", {
+      fileSize: file.size,
+      fileType: file.type,
+    });
     await waitForEvent(video, "loadedmetadata", 10000);
     await ensureDecodableDimensions(video);
+    logLabPlayback("extract_dimensions_ready", snapshotVideoPlayback(video));
 
     const width = video.videoWidth;
     const height = video.videoHeight;
