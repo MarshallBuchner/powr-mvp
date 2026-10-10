@@ -4,6 +4,10 @@
  * POWR Analysis Lab — full-screen “watch POWR analyze your clip” experience.
  * Runs the real /api/analyze request while MediaPipe pose overlays the uploaded video.
  * Pose is an enhancement: if it fails, assessment generation continues normally.
+ *
+ * Live assessments: still-frame extraction first (Safari ConcurrentPlaybackNotPermitted),
+ * then mount the looping overlay and run /api/analyze immediately. Presentation lasts
+ * ~25–35s so users can see skeleton tracking; billing is never delayed for UX.
  */
 
 import dynamic from "next/dynamic";
@@ -27,6 +31,16 @@ import {
   logLabPlayback,
   shouldDeferPoseOverlay,
 } from "@/lib/labPlayback";
+import {
+  LIVE_COMPLETE_HOLD_MS,
+  LIVE_LAB_STAGES,
+  canNavigateToLiveReport,
+  liveLabProgressPct,
+  liveLabStageCopy,
+  liveMinPresentationMs,
+  prefersReducedMotion,
+  resolveLiveLabStageIndex,
+} from "@/lib/liveLabPresentation";
 
 const PoseVideoPlayer = dynamic(
   () => import("./prototype/PoseVideoPlayer"),
@@ -46,7 +60,8 @@ type AnalysisScreenProps = {
   onBack?: () => void;
 };
 
-const LAB_STAGES = [
+/** Sample / non-live theatrical stages (unchanged short path). */
+const SAMPLE_LAB_STAGES = [
   {
     label: "Preparing video",
     detail: "Preparing your clip for analysis",
@@ -122,25 +137,56 @@ export default function AnalysisScreen({
   const [poseStatus, setPoseStatus] = useState<"loading" | "ready" | "error">(
     "loading",
   );
-  const [poseLimited, setPoseLimited] = useState(false);
   // Defer the visible pose player until still-frame extraction finishes so
   // iOS Safari does not pause the lab preview under ConcurrentPlaybackNotPermitted.
   const [framesReady, setFramesReady] = useState(
     () => Boolean(request.analysis) || !request.file,
   );
+  const [reportReady, setReportReady] = useState(false);
+  const [presentationElapsedMs, setPresentationElapsedMs] = useState(0);
+  const [analysisInFlight, setAnalysisInFlight] = useState(false);
+  const [forceReportNow, setForceReportNow] = useState(false);
+  const [reducedMotion] = useState(() => prefersReducedMotion());
+
   const isSampleDemo = isSampleReport(request);
+  const poseLimited = poseStatus === "error";
   const finishedRef = useRef(false);
+  const analyzeStartedRef = useRef(false);
+  const forceNowRef = useRef(false);
+  const pendingReportRef = useRef<AnalysisRequest | null>(null);
   const requestRef = useRef(request);
-  requestRef.current = request;
+
+  useEffect(() => {
+    requestRef.current = request;
+  }, [request]);
+
   const deferPoseOverlay = shouldDeferPoseOverlay({
     hasFile: Boolean(request.file),
     hasPrecomputedAnalysis: Boolean(request.analysis),
     framesReady,
   });
 
+  const visibleStages = isSampleDemo ? SAMPLE_LAB_STAGES : LIVE_LAB_STAGES;
+  const minPresentationMs = liveMinPresentationMs(reducedMotion);
+
+  const liveStage = useMemo(() => {
+    if (isSampleDemo) {
+      const sample = SAMPLE_LAB_STAGES[activeStep] ?? SAMPLE_LAB_STAGES[0];
+      return {
+        label: sample.label,
+        detail: sample.detail,
+      };
+    }
+    return liveLabStageCopy(activeStep, {
+      framesReady,
+      analysisInFlight,
+      analysisReady: reportReady,
+    });
+  }, [activeStep, analysisInFlight, framesReady, isSampleDemo, reportReady]);
+
   const completedSteps = useMemo(
-    () => (isComplete ? LAB_STAGES.length : activeStep),
-    [activeStep, isComplete],
+    () => (isComplete ? visibleStages.length : activeStep),
+    [activeStep, isComplete, visibleStages.length],
   );
 
   const headline = isComplete
@@ -149,7 +195,7 @@ export default function AnalysisScreen({
       : "Your development report is ready."
     : isSampleDemo
       ? "Loading the pre-generated sample report."
-      : `Reviewing your ${request.goal.toLowerCase()} mechanics.`;
+      : liveStage.label;
 
   const subcopy = isComplete
     ? isSampleDemo
@@ -157,20 +203,22 @@ export default function AnalysisScreen({
       : "Your personalized development report is ready to review."
     : isSampleDemo
       ? "Demo mode: showing how a finished POWR report looks. No live AI analysis is running on this clip."
-      : LAB_STAGES[activeStep]?.detail ??
-        "Taking a closer look at the movement patterns visible in your clip.";
+      : liveStage.detail;
 
   const finishToReport = useCallback(
     (finalRequest: AnalysisRequest) => {
       if (finishedRef.current) return;
       finishedRef.current = true;
       onReady?.(finalRequest);
-      setActiveStep(LAB_STAGES.length - 1);
+      setActiveStep(visibleStages.length - 1);
       setIsComplete(true);
       // Navigate while the lab is still visible. Fading first caused a long
       // blank stretch on mobile while the share token request was in flight.
       void (async () => {
         try {
+          if (!isSampleDemo) {
+            await delay(LIVE_COMPLETE_HOLD_MS);
+          }
           await onComplete();
         } catch (err) {
           console.error("POWR report navigation failed", err);
@@ -185,8 +233,18 @@ export default function AnalysisScreen({
         setIsLeaving(true);
       })();
     },
-    [onComplete, onReady],
+    [isSampleDemo, onComplete, onReady, visibleStages.length],
   );
+
+  const handleViewReportNow = useCallback(() => {
+    if (!reportReady || finishedRef.current) return;
+    forceNowRef.current = true;
+    setForceReportNow(true);
+    const pending = pendingReportRef.current;
+    if (pending) {
+      finishToReport(pending);
+    }
+  }, [finishToReport, reportReady]);
 
   // Drive real analyze when we have a file and no analysis yet;
   // theatrical path when analysis is already present (sample).
@@ -199,110 +257,178 @@ export default function AnalysisScreen({
         setError("Missing video file for analysis.");
         return;
       }
+      // Prevent duplicate /api/analyze + credit consumption on remount races.
+      if (analyzeStartedRef.current) return;
+      analyzeStartedRef.current = true;
+
+      const minMs = liveMinPresentationMs(prefersReducedMotion());
 
       try {
         setActiveStep(0);
         setFramesReady(false);
+        setReportReady(false);
+        setAnalysisInFlight(false);
+        setPresentationElapsedMs(0);
+        forceNowRef.current = false;
+        setForceReportNow(false);
+        pendingReportRef.current = null;
+
         logLabPlayback("live_analyze_start", {
           fileName: current.fileName,
           hasVideoUrl: Boolean(current.videoUrl),
+          minPresentationMs: minMs,
         });
-        await delay(350);
-        if (cancelled) return;
 
         // Phase 1: sample stills on an offscreen decoder ONLY.
         // Do not mount PoseVideoPlayer yet — concurrent play() freezes the lab
         // preview on iPhone Safari (Regular more than Private due to warm cache).
-        setActiveStep(1);
         logLabPlayback("frame_extract_start");
         const frames = await extractVideoFrames(current.file, 5);
         if (cancelled) return;
         logLabPlayback("frame_extract_done", { frameCount: frames.length });
 
-        // Phase 2: now it is safe to loop the visible preview + MediaPipe.
+        // Phase 2: mount looping preview + MediaPipe, start /api/analyze immediately.
         setFramesReady(true);
-        setActiveStep(2);
-        await delay(200);
-        if (cancelled) return;
-        setActiveStep(3);
+        setActiveStep(1);
+        setAnalysisInFlight(true);
+        const presentationStartedAt = performance.now();
 
-        // Advance mid-stages while the network request is in flight (UX only).
-        const midTimer = window.setTimeout(() => {
-          if (!cancelled) setActiveStep((s) => Math.max(s, 4));
-        }, 4000);
-        const lateTimer = window.setTimeout(() => {
-          if (!cancelled) setActiveStep((s) => Math.max(s, 5));
-        }, 12000);
+        type AnalyzeOutcome =
+          | { ok: true; finalRequest: AnalysisRequest }
+          | { ok: false; error: unknown };
 
-        const response = await fetch("/api/analyze", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            frames: frames.map((frame) => frame.dataUrl),
-            goal: current.goal,
-          }),
-        });
-        window.clearTimeout(midTimer);
-        window.clearTimeout(lateTimer);
-        if (cancelled) return;
+        const analyzeTask: Promise<AnalyzeOutcome> = (async () => {
+          try {
+            const response = await fetch("/api/analyze", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                frames: frames.map((frame) => frame.dataUrl),
+                goal: current.goal,
+              }),
+            });
 
-        const result = await response.json();
+            const result = await response.json();
 
-        if (response.status === 402 || result.error === "free_assessment_used") {
-          throw new Error(
-            result.message ||
-              "You've used your free assessment. Unlock a pack to continue.",
-          );
+            if (
+              response.status === 402 ||
+              result.error === "free_assessment_used"
+            ) {
+              throw new Error(
+                result.message ||
+                  "You've used your free assessment. Unlock a pack to continue.",
+              );
+            }
+            if (
+              response.status === 422 ||
+              result.error === "insufficient_video_quality"
+            ) {
+              throw new InsufficientVideoFramesError(
+                result.message ||
+                  "This clip does not have enough visible skating evidence for a reliable assessment.",
+                Array.isArray(result.issues) ? result.issues : [],
+              );
+            }
+            if (!response.ok || !result.success) {
+              throw new Error(result.error || "Analysis failed.");
+            }
+
+            // Consume/mirror entitlements as soon as the API succeeds —
+            // never wait for the presentation floor.
+            if (result.entitlements) {
+              writeLocalEntitlements(result.entitlements);
+            } else {
+              localConsumeAssessment();
+            }
+
+            const evidenceMoments = buildEvidenceMoments(
+              frames,
+              result.analysis?.priorityImprovement || "",
+            );
+            stashEvidenceFrames(evidenceMoments);
+
+            track("analysis_succeeded", {
+              goal: current.goal,
+              remaining: result.remaining,
+            });
+
+            const finalRequest: AnalysisRequest = {
+              ...current,
+              analysis: result.analysis,
+              evidenceMoments,
+            };
+
+            if (!cancelled) {
+              pendingReportRef.current = finalRequest;
+              setReportReady(true);
+              setAnalysisInFlight(false);
+              logLabPlayback("analyze_ready", {
+                presentationElapsedMs: performance.now() - presentationStartedAt,
+              });
+            }
+
+            return { ok: true as const, finalRequest };
+          } catch (err) {
+            if (!cancelled) {
+              setAnalysisInFlight(false);
+            }
+            return { ok: false as const, error: err };
+          }
+        })();
+
+        // Presentation loop: video/skeleton keep playing until both analysis
+        // and the minimum presentation window are satisfied (or View Report Now).
+        while (!cancelled) {
+          const elapsed = performance.now() - presentationStartedAt;
+          setPresentationElapsedMs(elapsed);
+
+          const outcomeSettled = await Promise.race([
+            analyzeTask.then((value) => ({ settled: true as const, value })),
+            delay(100).then(() => ({ settled: false as const, value: null })),
+          ]);
+
+          if (outcomeSettled.settled && outcomeSettled.value) {
+            if (!outcomeSettled.value.ok) {
+              throw outcomeSettled.value.error;
+            }
+          }
+
+          const analysisReady = Boolean(pendingReportRef.current);
+          const inFlight = !analysisReady;
+
+          const stageIndex = resolveLiveLabStageIndex({
+            framesReady: true,
+            analysisInFlight: inFlight,
+            analysisReady,
+            presentationElapsedMs: elapsed,
+            minPresentationMs: minMs,
+          });
+          setActiveStep(stageIndex);
+
+          if (
+            canNavigateToLiveReport({
+              analysisReady,
+              presentationElapsedMs: elapsed,
+              minPresentationMs: minMs,
+              forceNow: forceNowRef.current,
+            })
+          ) {
+            const outcome = await analyzeTask;
+            if (!outcome.ok) throw outcome.error;
+            if (cancelled) return;
+            // If the user already forced navigation, finishToReport is a no-op.
+            finishToReport(outcome.finalRequest);
+            return;
+          }
         }
-        if (
-          response.status === 422 ||
-          result.error === "insufficient_video_quality"
-        ) {
-          throw new InsufficientVideoFramesError(
-            result.message ||
-              "This clip does not have enough visible skating evidence for a reliable assessment.",
-            Array.isArray(result.issues) ? result.issues : [],
-          );
-        }
-        if (!response.ok || !result.success) {
-          throw new Error(result.error || "Analysis failed.");
-        }
 
-        // Only mirror entitlements after a successful usable analysis.
-        // Unusable clips return above without consuming credits.
-        if (result.entitlements) {
-          writeLocalEntitlements(result.entitlements);
-        } else {
-          localConsumeAssessment();
-        }
-
-        const evidenceMoments = buildEvidenceMoments(
-          frames,
-          result.analysis?.priorityImprovement || "",
-        );
-        stashEvidenceFrames(evidenceMoments);
-
-        track("analysis_succeeded", {
-          goal: current.goal,
-          remaining: result.remaining,
-        });
-
-        setActiveStep(5);
-        await delay(280);
-        if (cancelled) return;
-        setActiveStep(6);
-        await delay(320);
-        if (cancelled) return;
-
-        const finalRequest: AnalysisRequest = {
-          ...current,
-          analysis: result.analysis,
-          evidenceMoments,
-        };
-        finishToReport(finalRequest);
+        // Unmount/cancel: still let the in-flight request settle so we don't
+        // leave a dangling unhandled rejection (credits already applied server-side).
+        await analyzeTask;
       } catch (err) {
         if (cancelled) return;
         console.error("POWR analysis lab failed", err);
+        setAnalysisInFlight(false);
         if (err instanceof InsufficientVideoFramesError) {
           setError(err.message);
           return;
@@ -317,12 +443,12 @@ export default function AnalysisScreen({
 
     function runTheatrical() {
       const total = 2400;
-      const timers = LAB_STAGES.slice(1).map((_, index) =>
+      const timers = SAMPLE_LAB_STAGES.slice(1).map((_, index) =>
         window.setTimeout(
           () => {
             if (!cancelled) setActiveStep(index + 1);
           },
-          ((index + 1) * total) / LAB_STAGES.length,
+          ((index + 1) * total) / SAMPLE_LAB_STAGES.length,
         ),
       );
       const done = window.setTimeout(() => {
@@ -352,30 +478,58 @@ export default function AnalysisScreen({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  useEffect(() => {
-    if (poseStatus === "error") setPoseLimited(true);
-  }, [poseStatus]);
-
   const progressPct = isComplete
     ? 100
-    : Math.min(
-        96,
-        Math.round(((activeStep + (isComplete ? 1 : 0.35)) / LAB_STAGES.length) * 100),
-      );
+    : isSampleDemo
+      ? Math.min(
+          96,
+          Math.round(((activeStep + 0.35) / SAMPLE_LAB_STAGES.length) * 100),
+        )
+      : liveLabProgressPct({
+          framesReady,
+          analysisReady: reportReady,
+          presentationElapsedMs,
+          minPresentationMs,
+          forceNow: forceReportNow,
+        });
+
+  const showViewReportNow =
+    !isSampleDemo && reportReady && !isComplete && !error && !isLeaving;
 
   return (
-    <main className={`analysis-lab ${isLeaving ? "is-leaving" : ""}`}>
+    <main
+      className={`analysis-lab${isLeaving ? " is-leaving" : ""}${
+        !isSampleDemo ? " is-live-lab" : ""
+      }`}
+    >
       <section className="analysis-lab-shell">
         <header className="analysis-lab-heading">
           <p className="eyebrow">
             {isSampleDemo ? "POWR SAMPLE DEMO" : "POWR ANALYSIS"}
           </p>
-          <h1>{headline}</h1>
-          <p>{subcopy}</p>
+          <h1 key={headline} className="analysis-lab-headline">
+            {headline}
+          </h1>
+          <p key={subcopy} className="analysis-lab-subcopy">
+            {subcopy}
+          </p>
           {!isComplete && !error && !isSampleDemo ? (
             <p className="analysis-lab-keep-open">
-              Keep this page open while we finish your assessment.
+              {reportReady
+                ? "Assessment complete — keep watching the overlay, or open your report now."
+                : "Keep this page open while we finish your assessment."}
             </p>
+          ) : null}
+          {showViewReportNow ? (
+            <div className="analysis-lab-skip">
+              <button
+                type="button"
+                className="analysis-lab-view-now"
+                onClick={handleViewReportNow}
+              >
+                View Report Now →
+              </button>
+            </div>
           ) : null}
         </header>
 
@@ -417,7 +571,7 @@ export default function AnalysisScreen({
               ) : (
                 <div className="analysis-lab-video-fallback">
                   {deferPoseOverlay
-                    ? "Preparing your clip for analysis…"
+                    ? "Preparing your skating footage…"
                     : "Preparing your clip…"}
                 </div>
               )}
@@ -449,7 +603,9 @@ export default function AnalysisScreen({
                       : "Analysis complete"
                     : isSampleDemo
                       ? "Sample demo"
-                      : "AI tracking active"}
+                      : reportReady
+                        ? "Report ready"
+                        : "AI tracking active"}
                 </span>
               </div>
             </div>
@@ -460,7 +616,9 @@ export default function AnalysisScreen({
                 <p className="analysis-lab-card-note">
                   {isSampleDemo
                     ? "Optional pose overlay — not a live assessment"
-                    : "Pose estimates"}
+                    : poseLimited
+                      ? "Pose unavailable on this device — assessment continues"
+                      : "Live pose estimates from your clip"}
                 </p>
                 <ul className="analysis-lab-metrics">
                   <li>
@@ -514,7 +672,9 @@ export default function AnalysisScreen({
 
               <div className="analysis-lab-card">
                 <div className="analysis-lab-progress-head">
-                  <h2>{isSampleDemo ? "SAMPLE REPORT" : "REPORT GENERATION"}</h2>
+                  <h2>
+                    {isSampleDemo ? "SAMPLE REPORT" : "ASSESSMENT PROGRESS"}
+                  </h2>
                   <strong>{isComplete ? "100%" : `${progressPct}%`}</strong>
                 </div>
                 <div
@@ -529,7 +689,7 @@ export default function AnalysisScreen({
                   />
                 </div>
                 <ol className="analysis-lab-stages">
-                  {LAB_STAGES.map((step, index) => {
+                  {visibleStages.map((step, index) => {
                     const done = index < completedSteps || isComplete;
                     const active = !isComplete && index === activeStep;
                     return (

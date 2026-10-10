@@ -2199,6 +2199,62 @@ button {
   font-weight: 650;
 }
 
+.analysis-lab-headline {
+  animation: analysis-lab-copy-in 420ms ease both;
+}
+
+.analysis-lab-subcopy {
+  animation: analysis-lab-copy-in 520ms ease both;
+}
+
+.analysis-lab-skip {
+  margin-top: 14px;
+}
+
+.analysis-lab-view-now {
+  appearance: none;
+  border: 1px solid rgba(184, 255, 59, 0.35);
+  background: rgba(184, 255, 59, 0.1);
+  color: #f4ffe8;
+  border-radius: 999px;
+  padding: 0.65rem 1.1rem;
+  font: inherit;
+  font-weight: 650;
+  cursor: pointer;
+  transition: background 180ms ease, border-color 180ms ease, transform 180ms ease;
+}
+
+.analysis-lab-view-now:hover {
+  background: rgba(184, 255, 59, 0.18);
+  border-color: rgba(184, 255, 59, 0.55);
+}
+
+.analysis-lab-view-now:active {
+  transform: translateY(1px);
+}
+
+@keyframes analysis-lab-copy-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .analysis-lab-headline,
+  .analysis-lab-subcopy {
+    animation: none;
+  }
+
+  .analysis-lab-view-now {
+    transition: none;
+  }
+}
+
 .analysis-lab-layout {
   display: grid;
   grid-template-columns: minmax(0, 1.35fr) minmax(240px, 0.85fr);
