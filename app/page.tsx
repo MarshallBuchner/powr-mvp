@@ -60,14 +60,24 @@ export default function Home() {
     setAnalysisRequest(request);
   }
 
-  async function handleAnalysisComplete() {
-    const request = analysisRequestRef.current;
+  async function handleAnalysisComplete(requestFromLab?: AnalysisRequest) {
+    const request = requestFromLab ?? analysisRequestRef.current;
     if (!request?.analysis) {
       throw new Error("Analysis payload missing — cannot open report.");
     }
+    // Keep the ref warm so retries / View Report do not lose a billed result.
+    analysisRequestRef.current = request;
+    setAnalysisRequest(request);
+
     // Prefer tokenized share; never put analysis JSON in the URL.
-    stashLastReport(request);
+    // stashLastReport is best-effort — quota failures must not block navigation.
+    const stashed = stashLastReport(request);
     const share = await createReportSharePath(request);
+    if (!stashed && share.mode === "session") {
+      console.warn(
+        "[POWR:report] opening session report without durable stash",
+      );
+    }
     router.push(share.path);
   }
 

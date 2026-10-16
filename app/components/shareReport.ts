@@ -94,7 +94,8 @@ export async function createReportSharePath(
     console.error("POWR createReportSharePath failed", error);
   }
 
-  // Dev/local fallback — never put analysis in the query string.
+  // Fallback — never put analysis in the query string. stashLastReport is
+  // best-effort and must not throw (Safari storage quota).
   const { stashLastReport } = await import("./reportSession");
   stashLastReport(request);
   return { path: "/r/view", mode: "session" };
