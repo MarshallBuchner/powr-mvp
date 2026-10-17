@@ -46,6 +46,8 @@ export type CreateShareResult = {
   token?: string;
   expiresAt?: string | null;
   mode: "token" | "session" | "sample" | "saved";
+  /** Present for session fallback — false means /r/view would be empty. */
+  stashed?: boolean;
 };
 
 /**
@@ -97,8 +99,8 @@ export async function createReportSharePath(
   // Fallback — never put analysis in the query string. stashLastReport is
   // best-effort and must not throw (Safari storage quota).
   const { stashLastReport } = await import("./reportSession");
-  stashLastReport(request);
-  return { path: "/r/view", mode: "session" };
+  const stashed = stashLastReport(request);
+  return { path: "/r/view", mode: "session", stashed };
 }
 
 /** @deprecated Legacy URL payloads are no longer created. Kept for inbound old links. */

@@ -95,3 +95,23 @@ export function reportRequestHasAnalysis(
 ): boolean {
   return Boolean(request?.analysis && typeof request.analysis === "object");
 }
+
+/**
+ * Session (/r/view) fallback is only safe when stash succeeded.
+ * Prefer tokenized shares — they do not depend on browser storage.
+ */
+export function canUseSessionReportFallback(input: {
+  mode: string;
+  stashed: boolean;
+}): boolean {
+  if (input.mode === "token" || input.mode === "sample" || input.mode === "saved") {
+    return true;
+  }
+  if (input.mode === "session") {
+    return input.stashed;
+  }
+  return false;
+}
+
+export const SESSION_REPORT_UNAVAILABLE_MESSAGE =
+  "Your assessment is ready, but this browser could not save a local report copy. Tap Open Report to retry — you will not be charged again.";
