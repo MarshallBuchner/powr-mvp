@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { armCompletionMeasurement } from "@/lib/metaMeasurementClient";
 import { useEffect, useRef, useState } from "react";
 import AnalysisScreen from "./components/AnalysisScreen";
 import Hero from "./components/Hero";
@@ -68,6 +69,7 @@ export default function Home() {
     // Prefer tokenized share; never put analysis JSON in the URL.
     stashLastReport(request);
     const share = await createReportSharePath(request);
+    armCompletionMeasurement(request.marketingEventId, share.path);
     router.push(share.path);
   }
 

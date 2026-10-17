@@ -1,4 +1,5 @@
 import OpenAI from "openai";
+import { issueMeasurementReceipt, MEASUREMENT_COOKIE, MEASUREMENT_TTL_SECONDS } from "@/lib/metaMeasurement";
 import { NextRequest, NextResponse } from "next/server";
 import {
   consumeAssessment,
@@ -414,8 +415,14 @@ Return a development assessment suitable for POWR.
       remaining = remainingAssessments(nextEntitlement);
     }
 
+    const measurement = issueMeasurementReceipt({
+      adult: body.marketingAdult === true,
+      consent: body.marketingConsent === true,
+      fbclid: body.marketingClickId,
+    });
     const json = NextResponse.json({
       success: true,
+      ...(measurement ? { marketingEventId: measurement.id } : {}),
       analysis,
       remaining,
       entitlements: nextEntitlement,
@@ -428,6 +435,11 @@ Return a development assessment suitable for POWR.
       foundingExpiresAt: nextFounding?.active ? nextFounding.expiresAt : null,
     });
 
+    // A new analysis clears any stale completion proof, including when consent is declined.
+    json.cookies.set(MEASUREMENT_COOKIE, measurement?.value ?? "", {
+      path: "/api/marketing/complete", httpOnly: true, secure: true,
+      sameSite: "strict", maxAge: measurement ? MEASUREMENT_TTL_SECONDS : 0,
+    });
     return writeEntitlementCookie(json, nextEntitlement);
   } catch (error) {
     console.error("POWR analysis error:", error);

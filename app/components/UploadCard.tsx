@@ -83,6 +83,7 @@ export default function UploadCard({ onAnalyze }: UploadCardProps) {
   );
   const [ageBand, setAgeBand] = useState<AgeBand | null>(null);
   const [consented, setConsented] = useState(false);
+  const [marketingConsent, setMarketingConsent] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -262,6 +263,10 @@ export default function UploadCard({ onAnalyze }: UploadCardProps) {
       videoUrl: previewUrl,
       goal: selectedGoal,
       duration,
+      marketingConsent: ageBand === "adult" && marketingConsent,
+      marketingClickId: ageBand === "adult" && marketingConsent
+        ? new URLSearchParams(window.location.search).get("fbclid") ?? undefined
+        : undefined,
     });
   }
 
@@ -504,9 +509,10 @@ export default function UploadCard({ onAnalyze }: UploadCardProps) {
           <span className="consent-label-title">Age eligibility</span>
           <select
             value={ageBand ?? ""}
-            onChange={(e) =>
-              setAgeBand((e.target.value || null) as AgeBand | null)
-            }
+            onChange={(e) => {
+              setAgeBand((e.target.value || null) as AgeBand | null);
+              setMarketingConsent(false);
+            }}
             aria-required="true"
           >
             <option value="" disabled>
@@ -539,6 +545,19 @@ export default function UploadCard({ onAnalyze }: UploadCardProps) {
             of sampled frames for this assessment.
           </span>
         </label>
+        {ageBand === "adult" ? (
+          <label className="consent-check">
+            <input type="checkbox" checked={marketingConsent}
+              onChange={(e) => setMarketingConsent(e.target.checked)} />
+            <span>
+              Optional: help measure POWR ads. If my report opens successfully,
+              share a completion event, my IP address, browser information and
+              any Meta ad click ID with Meta to measure ads and help find audiences.
+              My video, scores and coaching report are not shared. I can leave
+              this unchecked and still use POWR. <Link href="/privacy">Privacy details</Link>.
+            </span>
+          </label>
+        ) : null}
       </fieldset>
 
       <button

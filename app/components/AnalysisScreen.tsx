@@ -305,6 +305,9 @@ export default function AnalysisScreen({
               body: JSON.stringify({
                 frames: frames.map((frame) => frame.dataUrl),
                 goal: current.goal,
+                marketingConsent: current.marketingConsent === true,
+                marketingAdult: current.marketingConsent === true,
+                marketingClickId: current.marketingClickId,
               }),
             });
 
@@ -355,6 +358,7 @@ export default function AnalysisScreen({
             const finalRequest: AnalysisRequest = {
               ...current,
               analysis: result.analysis,
+              marketingEventId: result.marketingEventId,
               evidenceMoments,
             };
 

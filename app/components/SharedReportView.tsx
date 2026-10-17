@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { track } from "@vercel/analytics";
+import { measureOpenedReport } from "@/lib/metaMeasurementClient";
 import ReportScreen from "./ReportScreen";
 import ReportV2Flow from "./report-v2/ReportV2Flow";
 import { reportV2FromAnalysis } from "./report-v2/mockReportData";
@@ -43,13 +44,14 @@ function SharedReportViewInner({
 
   useEffect(() => {
     if (!request.analysis || isSample) return;
+    if (pathname) void measureOpenedReport(pathname);
     track("report_viewed", { goal: request.goal, ui: "v2" });
     if (!localCanRunAssessment()) {
       track("upgrade_viewed", { source: "report_v2" });
     }
     // Touch remaining so entitlement cookie/local stay warm for UpgradePanel.
     void getLocalRemainingAssessments();
-  }, [request.analysis, request.goal, isSample]);
+  }, [request.analysis, request.goal, isSample, pathname]);
 
   const preservedQuery = useMemo(() => {
     const params = new URLSearchParams(searchParams.toString());
