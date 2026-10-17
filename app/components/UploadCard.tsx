@@ -24,11 +24,22 @@ import {
   ASSESSMENT_PACK_CREDITS,
   ASSESSMENT_PACK_PRICE_CAD,
 } from "@/lib/assessmentBilling";
+import type { AccountConsentStatus } from "@/lib/accountConsent";
 import {
   ageGateMessage,
   canStartAnalysis,
   type AgeBand,
 } from "@/lib/consent";
+import {
+  TERMS_VERSION,
+  PRIVACY_VERSION,
+} from "@/lib/accountConsent";
+import {
+  guestConsentComplete,
+  readGuestConsent,
+  writeGuestConsent,
+} from "@/lib/guestConsent";
+import { useAuth } from "./AuthProvider";
 
 const goals = [
   "Overall skating",
@@ -66,7 +77,14 @@ type UploadCardProps = {
   onAnalyze: (request: AnalysisRequest) => void;
 };
 
+type ConsentMode =
+  | "loading"
+  | "authed-ready"
+  | "authed-needs-onboarding"
+  | "guest";
+
 export default function UploadCard({ onAnalyze }: UploadCardProps) {
+  const { configured, loading: authLoading, user } = useAuth();
   const [selectedGoal, setSelectedGoal] = useState("Overall skating");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState("");
@@ -81,9 +99,14 @@ export default function UploadCard({ onAnalyze }: UploadCardProps) {
   const [foundingExpiresAt, setFoundingExpiresAt] = useState<string | null>(
     null,
   );
+
+  const [consentMode, setConsentMode] = useState<ConsentMode>("loading");
+  const [accountConsent, setAccountConsent] =
+    useState<AccountConsentStatus | null>(null);
   const [ageBand, setAgeBand] = useState<AgeBand | null>(null);
   const [consented, setConsented] = useState(false);
-  const [marketingConsent, setMarketingConsent] = useState(false);
+  const [guestMarketing, setGuestMarketing] = useState(false);
+  const [guestRemembered, setGuestRemembered] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -113,9 +136,6 @@ export default function UploadCard({ onAnalyze }: UploadCardProps) {
           setFoundingMonthRemaining(foundingLeft);
           setFoundingExpiresAt(data.foundingExpiresAt ?? null);
           setRemaining(data.remaining ?? getLocalRemainingAssessments());
-          // Hide upgrades only while complimentary Founding assessments remain.
-          // After the monthly bucket is empty, free/paid credits still run;
-          // upgrade shows when those are also gone.
           setNeedsUpgrade(
             isUnlimited || (isFounding && foundingLeft > 0)
               ? false
@@ -129,6 +149,55 @@ export default function UploadCard({ onAnalyze }: UploadCardProps) {
       }
     })();
   }, []);
+
+  useEffect(() => {
+    if (authLoading) {
+      setConsentMode("loading");
+      return;
+    }
+
+    if (user && configured) {
+      let cancelled = false;
+      void (async () => {
+        try {
+          const res = await fetch("/api/account/consent", {
+            cache: "no-store",
+          });
+          if (!res.ok) {
+            if (!cancelled) setConsentMode("authed-needs-onboarding");
+            return;
+          }
+          const data = (await res.json()) as AccountConsentStatus;
+          if (cancelled) return;
+          setAccountConsent(data);
+          setConsentMode(
+            data.canUseAnalysis ? "authed-ready" : "authed-needs-onboarding",
+          );
+        } catch {
+          if (!cancelled) setConsentMode("authed-needs-onboarding");
+        }
+      })();
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    // Guest / unsigned flow — restore compact local consent when present.
+    const guest = readGuestConsent();
+    if (guestConsentComplete(guest)) {
+      setAgeBand(guest.ageBand);
+      setConsented(true);
+      setGuestMarketing(guest.marketingConsent === true);
+      setGuestRemembered(true);
+    } else {
+      setAgeBand(guest.ageBand);
+      setConsented(false);
+      setGuestMarketing(false);
+      setGuestRemembered(false);
+    }
+    setAccountConsent(null);
+    setConsentMode("guest");
+  }, [authLoading, user, configured]);
 
   useEffect(() => {
     if (!selectedFile) {
@@ -216,22 +285,44 @@ export default function UploadCard({ onAnalyze }: UploadCardProps) {
     fileInputRef.current?.click();
   }
 
+  function persistGuestConsent() {
+    if (!ageBand || ageBand === "under13") return;
+    writeGuestConsent({
+      ageBand,
+      termsVersion: TERMS_VERSION,
+      privacyVersion: PRIVACY_VERSION,
+      analysisConsentAt: new Date().toISOString(),
+      marketingConsent: ageBand === "adult" && guestMarketing,
+    });
+    setGuestRemembered(true);
+  }
+
   function handleAnalyze() {
     if (!selectedFile || !previewUrl) {
       return;
     }
 
-    const ageMessage = ageGateMessage(ageBand);
-    if (ageMessage) {
-      setError(ageMessage);
+    if (consentMode === "authed-needs-onboarding") {
+      setError("Finish account setup before starting an assessment.");
       return;
     }
 
-    if (!canStartAnalysis({ ageBand, consented })) {
-      setError(
-        "Confirm your age eligibility and analysis consent before continuing.",
-      );
-      return;
+    if (consentMode === "authed-ready") {
+      // Account-level consent already verified server-side.
+    } else {
+      const ageMessage = ageGateMessage(ageBand);
+      if (ageMessage) {
+        setError(ageMessage);
+        return;
+      }
+
+      if (!canStartAnalysis({ ageBand, consented })) {
+        setError(
+          "Confirm your age eligibility and analysis consent before continuing.",
+        );
+        return;
+      }
+      persistGuestConsent();
     }
 
     if (
@@ -256,24 +347,32 @@ export default function UploadCard({ onAnalyze }: UploadCardProps) {
 
     setError("");
 
-    // Open Analysis Lab immediately — /api/analyze runs there with pose overlay.
+    const measureAds =
+      consentMode === "authed-ready"
+        ? Boolean(accountConsent?.canMeasureAds)
+        : ageBand === "adult" && guestMarketing;
+
     onAnalyze({
       file: selectedFile,
       fileName: selectedFile.name,
       videoUrl: previewUrl,
       goal: selectedGoal,
       duration,
-      marketingConsent: ageBand === "adult" && marketingConsent,
-      marketingClickId: ageBand === "adult" && marketingConsent
+      marketingConsent: measureAds,
+      marketingClickId: measureAds
         ? new URLSearchParams(window.location.search).get("fbclid") ?? undefined
         : undefined,
     });
   }
 
+  const consentBlocksAnalyze =
+    consentMode === "loading" ||
+    consentMode === "authed-needs-onboarding" ||
+    (consentMode === "guest" &&
+      !canStartAnalysis({ ageBand, consented }));
+
   const analysisReady =
-    Boolean(selectedFile) &&
-    !needsUpgrade &&
-    canStartAnalysis({ ageBand, consented });
+    Boolean(selectedFile) && !needsUpgrade && !consentBlocksAnalyze;
 
   const quotaPrimary = unlimited
     ? "Founder access — unlimited assessments"
@@ -492,73 +591,125 @@ export default function UploadCard({ onAnalyze }: UploadCardProps) {
         <UpgradePanel source="upload_card" remaining={remaining} />
       ) : null}
 
-      <fieldset className="consent-fieldset">
-        <legend>Before we analyze</legend>
-        <p className="consent-lead">
-          Analysis samples a few compressed frames from your clip (and may use
-          on-device pose estimates) so we can build a skating development report.
-          Those frames are sent to third-party processors such as OpenAI. Your
-          full video file stays on this device and is not stored by POWR.
-          OpenAI API/business data is not used to train OpenAI models by default
-          unless a customer explicitly opts in. Saved reports keep analysis text
-          and scores — not the clip. You can request deletion of saved reports
-          via support or My assessments when signed in.
-        </p>
-
-        <label className="consent-label">
-          <span className="consent-label-title">Age eligibility</span>
-          <select
-            value={ageBand ?? ""}
-            onChange={(e) => {
-              setAgeBand((e.target.value || null) as AgeBand | null);
-              setMarketingConsent(false);
-            }}
-            aria-required="true"
-          >
-            <option value="" disabled>
-              Select one…
-            </option>
-            <option value="adult">I am 18 or older</option>
-            <option value="teen">
-              I am 13–17 and have parent/guardian permission to use POWR
-            </option>
-            <option value="under13">I am under 13</option>
-          </select>
-        </label>
-        {ageBand === "under13" ? (
-          <p className="consent-blocked" role="alert">
-            {ageGateMessage("under13")}
+      {consentMode === "authed-needs-onboarding" ? (
+        <fieldset className="consent-fieldset">
+          <legend>Account setup required</legend>
+          <p className="consent-lead">
+            Confirm age eligibility, Terms, Privacy Policy, and analysis consent
+            once on your account. This is not repeated on every upload.
           </p>
-        ) : null}
+          <Link
+            className="primary-button consent-setup-link"
+            href="/onboarding?next=/#start-assessment"
+          >
+            Continue account setup →
+          </Link>
+        </fieldset>
+      ) : null}
 
-        <label className="consent-check">
-          <input
-            type="checkbox"
-            checked={consented}
-            onChange={(e) => setConsented(e.target.checked)}
-            disabled={ageBand === "under13"}
-          />
-          <span>
-            I understand the above, agree to the{" "}
-            <Link href="/terms">Terms of Service</Link> and{" "}
-            <Link href="/privacy">Privacy Policy</Link>, and consent to analysis
-            of sampled frames for this assessment.
-          </span>
-        </label>
-        {ageBand === "adult" ? (
-          <label className="consent-check">
-            <input type="checkbox" checked={marketingConsent}
-              onChange={(e) => setMarketingConsent(e.target.checked)} />
-            <span>
-              Optional: help measure POWR ads. If my report opens successfully,
-              share a completion event, my IP address, browser information and
-              any Meta ad click ID with Meta to measure ads and help find audiences.
-              My video, scores and coaching report are not shared. I can leave
-              this unchecked and still use POWR. <Link href="/privacy">Privacy details</Link>.
-            </span>
+      {consentMode === "authed-ready" ? (
+        <fieldset className="consent-fieldset consent-fieldset-compact">
+          <legend>Privacy</legend>
+          <p className="consent-lead">
+            Sampled frames may be processed by third parties such as OpenAI to
+            build your report. Your full video stays on this device.{" "}
+            <Link href="/privacy">Privacy Policy</Link>
+            {" · "}
+            <Link href="/privacy/settings">Privacy settings</Link>
+          </p>
+        </fieldset>
+      ) : null}
+
+      {consentMode === "guest" ? (
+        <fieldset className="consent-fieldset">
+          <legend>Before we analyze</legend>
+          {guestRemembered ? (
+            <p className="consent-lead">
+              Eligibility saved on this device. Sampled frames may be processed
+              by third parties such as OpenAI; your full video stays on this
+              device.{" "}
+              <Link href="/privacy">Privacy details</Link>
+              {" · "}
+              <button
+                type="button"
+                className="consent-text-button"
+                onClick={() => {
+                  setGuestRemembered(false);
+                  setConsented(false);
+                }}
+              >
+                Review again
+              </button>
+            </p>
+          ) : (
+            <p className="consent-lead">
+              Analysis samples a few compressed frames from your clip (and may
+              use on-device pose estimates) so we can build a skating development
+              report. Those frames are sent to third-party processors such as
+              OpenAI. Your full video file stays on this device and is not
+              stored by POWR.
+            </p>
+          )}
+
+          <label className="consent-label">
+            <span className="consent-label-title">Age eligibility</span>
+            <select
+              value={ageBand ?? ""}
+              onChange={(e) => {
+                const nextBand = (e.target.value || null) as AgeBand | null;
+                setAgeBand(nextBand);
+                if (nextBand !== "adult") setGuestMarketing(false);
+              }}
+              aria-required="true"
+            >
+              <option value="" disabled>
+                Select one…
+              </option>
+              <option value="adult">I am 18 or older</option>
+              <option value="teen">
+                I am 13–17 and have parent/guardian permission to use POWR
+              </option>
+              <option value="under13">I am under 13</option>
+            </select>
           </label>
-        ) : null}
-      </fieldset>
+          {ageBand === "under13" ? (
+            <p className="consent-blocked" role="alert">
+              {ageGateMessage("under13")}
+            </p>
+          ) : null}
+
+          {!guestRemembered ? (
+            <label className="consent-check">
+              <input
+                type="checkbox"
+                checked={consented}
+                onChange={(e) => setConsented(e.target.checked)}
+                disabled={ageBand === "under13"}
+              />
+              <span>
+                I understand the above, agree to the{" "}
+                <Link href="/terms">Terms of Service</Link> and{" "}
+                <Link href="/privacy">Privacy Policy</Link>, and consent to
+                analysis of sampled frames for this assessment.
+              </span>
+            </label>
+          ) : null}
+
+          {ageBand === "adult" ? (
+            <label className="consent-check">
+              <input
+                type="checkbox"
+                checked={guestMarketing}
+                onChange={(e) => setGuestMarketing(e.target.checked)}
+              />
+              <span>
+                Optional: help measure POWR ads (off by default).{" "}
+                <Link href="/privacy/settings">Manage / withdraw</Link>
+              </span>
+            </label>
+          ) : null}
+        </fieldset>
+      ) : null}
 
       <button
         className="primary-button"
@@ -573,6 +724,12 @@ export default function UploadCard({ onAnalyze }: UploadCardProps) {
       <p className="privacy-note">
         Full details: <Link href="/privacy">Privacy Policy</Link> ·{" "}
         <Link href="/terms">Terms</Link>
+        {user ? (
+          <>
+            {" · "}
+            <Link href="/privacy/settings">Privacy settings</Link>
+          </>
+        ) : null}
       </p>
     </section>
   );

@@ -130,6 +130,12 @@ export default function AccountBar() {
           <Link href="/privacy" onClick={() => setMenuOpen(false)}>
             Privacy
           </Link>
+          <Link
+            href="/privacy/settings"
+            onClick={() => setMenuOpen(false)}
+          >
+            Privacy settings
+          </Link>
           <Link href="/terms" onClick={() => setMenuOpen(false)}>
             Terms
           </Link>

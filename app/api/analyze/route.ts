@@ -1,4 +1,8 @@
 import OpenAI from "openai";
+import {
+  evaluateAccountConsent,
+  mapProfileConsentRow,
+} from "@/lib/accountConsent";
 import { issueMeasurementReceipt, MEASUREMENT_COOKIE, MEASUREMENT_TTL_SECONDS } from "@/lib/metaMeasurement";
 import { NextRequest, NextResponse } from "next/server";
 import {
@@ -415,10 +419,40 @@ Return a development assessment suitable for POWR.
       remaining = remainingAssessments(nextEntitlement);
     }
 
+    // Meta CAPI: never trust client marketing flags for signed-in users.
+    // Authed adults need persisted marketing consent; teens/minors never measure.
+    // Guests may arm only with explicit adult + opt-in flags (fail closed).
+    // Tracking failures must not affect analysis results (receipt issue is sync/local).
+    let measureAdult = false;
+    let measureConsent = false;
+    if (authed) {
+      try {
+        const { data: consentRow } = await authed.supabase
+          .from("profiles")
+          .select(
+            "age_band, age_confirmed_at, terms_version, terms_accepted_at, privacy_version, privacy_accepted_at, analysis_consent_at, marketing_consent, marketing_consent_at, marketing_consent_withdrawn_at",
+          )
+          .eq("id", authed.user.id)
+          .maybeSingle();
+        const account = evaluateAccountConsent(
+          mapProfileConsentRow(consentRow),
+        );
+        measureAdult = account.ageBand === "adult";
+        measureConsent = account.canMeasureAds;
+      } catch (error) {
+        console.error("POWR analyze consent lookup failed", error);
+        measureAdult = false;
+        measureConsent = false;
+      }
+    } else {
+      measureAdult = body.marketingAdult === true;
+      measureConsent = body.marketingConsent === true;
+    }
+
     const measurement = issueMeasurementReceipt({
-      adult: body.marketingAdult === true,
-      consent: body.marketingConsent === true,
-      fbclid: body.marketingClickId,
+      adult: measureAdult,
+      consent: measureConsent,
+      fbclid: measureConsent ? body.marketingClickId : undefined,
     });
     const json = NextResponse.json({
       success: true,

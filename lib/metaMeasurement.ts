@@ -55,8 +55,9 @@ export async function sendAssessmentCompletion(receipt: Receipt, input: {
 }, options: Config & { fetcher?: typeof fetch; testCode?: string } = {}) {
   const { enabled, token, now } = config(options);
   if (!enabled || !token) return false;
-  // IP and user agent are sent only with the adult's explicit per-assessment consent.
-  // Do not use email, account IDs, report tokens, filenames, scores or analysis here.
+  // IP and user agent are sent only with explicit adult marketing consent
+  // (account-level for signed-in users; guest opt-in otherwise).
+  // Never send video, frames, scores, coaching text, email, or report links.
   if (!input.ip || !isIP(input.ip) || !input.userAgent) return false;
   const response = await (options.fetcher ?? fetch)(
     `https://graph.facebook.com/v25.0/${POWR_DATASET_ID}/events`,
