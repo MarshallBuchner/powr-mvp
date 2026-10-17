@@ -100,22 +100,26 @@ export default function UploadCard({ onAnalyze }: UploadCardProps) {
     null,
   );
 
-  const [consentMode, setConsentMode] = useState<ConsentMode>("loading");
   const [accountConsent, setAccountConsent] =
     useState<AccountConsentStatus | null>(null);
+  const [accountConsentFetched, setAccountConsentFetched] = useState(false);
   const [ageBand, setAgeBand] = useState<AgeBand | null>(null);
   const [consented, setConsented] = useState(false);
   const [guestMarketing, setGuestMarketing] = useState(false);
   const [guestRemembered, setGuestRemembered] = useState(false);
+  const [guestHydrated, setGuestHydrated] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const previewObjectUrlRef = useRef("");
 
   useEffect(() => {
-    setRemaining(getLocalRemainingAssessments());
-    setNeedsUpgrade(!localCanRunAssessment());
-
     void (async () => {
       try {
+        const localRemaining = getLocalRemainingAssessments();
+        const localNeedsUpgrade = !localCanRunAssessment();
+        setRemaining(localRemaining);
+        setNeedsUpgrade(localNeedsUpgrade);
+
         const res = await fetch("/api/assessments/entitlement");
         if (!res.ok) return;
         const data = await res.json();
@@ -151,10 +155,7 @@ export default function UploadCard({ onAnalyze }: UploadCardProps) {
   }, []);
 
   useEffect(() => {
-    if (authLoading) {
-      setConsentMode("loading");
-      return;
-    }
+    if (authLoading) return;
 
     if (user && configured) {
       let cancelled = false;
@@ -163,18 +164,21 @@ export default function UploadCard({ onAnalyze }: UploadCardProps) {
           const res = await fetch("/api/account/consent", {
             cache: "no-store",
           });
+          if (cancelled) return;
           if (!res.ok) {
-            if (!cancelled) setConsentMode("authed-needs-onboarding");
+            setAccountConsent(null);
+            setAccountConsentFetched(true);
             return;
           }
           const data = (await res.json()) as AccountConsentStatus;
           if (cancelled) return;
           setAccountConsent(data);
-          setConsentMode(
-            data.canUseAnalysis ? "authed-ready" : "authed-needs-onboarding",
-          );
+          setAccountConsentFetched(true);
         } catch {
-          if (!cancelled) setConsentMode("authed-needs-onboarding");
+          if (!cancelled) {
+            setAccountConsent(null);
+            setAccountConsentFetched(true);
+          }
         }
       })();
       return () => {
@@ -182,42 +186,69 @@ export default function UploadCard({ onAnalyze }: UploadCardProps) {
       };
     }
 
-    // Guest / unsigned flow — restore compact local consent when present.
-    const guest = readGuestConsent();
-    if (guestConsentComplete(guest)) {
-      setAgeBand(guest.ageBand);
-      setConsented(true);
-      setGuestMarketing(guest.marketingConsent === true);
-      setGuestRemembered(true);
-    } else {
-      setAgeBand(guest.ageBand);
-      setConsented(false);
-      setGuestMarketing(false);
-      setGuestRemembered(false);
-    }
-    setAccountConsent(null);
-    setConsentMode("guest");
+    let cancelled = false;
+    void Promise.resolve().then(() => {
+      if (cancelled) return;
+      const guest = readGuestConsent();
+      if (guestConsentComplete(guest)) {
+        setAgeBand(guest.ageBand);
+        setConsented(true);
+        setGuestMarketing(guest.marketingConsent === true);
+        setGuestRemembered(true);
+      } else {
+        setAgeBand(guest.ageBand);
+        setConsented(false);
+        setGuestMarketing(false);
+        setGuestRemembered(false);
+      }
+      setAccountConsent(null);
+      setAccountConsentFetched(false);
+      setGuestHydrated(true);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [authLoading, user, configured]);
 
   useEffect(() => {
-    if (!selectedFile) {
-      setPreviewUrl((current) => {
-        if (current.startsWith("blob:")) {
-          URL.revokeObjectURL(current);
+    let objectUrl = "";
+    void Promise.resolve().then(() => {
+      if (!selectedFile) {
+        if (previewObjectUrlRef.current.startsWith("blob:")) {
+          URL.revokeObjectURL(previewObjectUrlRef.current);
         }
-        return "";
-      });
-      return;
-    }
-
-    const objectUrl = URL.createObjectURL(selectedFile);
-    setPreviewUrl((current) => {
-      if (current.startsWith("blob:")) {
-        URL.revokeObjectURL(current);
+        previewObjectUrlRef.current = "";
+        setPreviewUrl("");
+        return;
       }
-      return objectUrl;
+
+      objectUrl = URL.createObjectURL(selectedFile);
+      if (previewObjectUrlRef.current.startsWith("blob:")) {
+        URL.revokeObjectURL(previewObjectUrlRef.current);
+      }
+      previewObjectUrlRef.current = objectUrl;
+      setPreviewUrl(objectUrl);
     });
+
+    return () => {
+      if (objectUrl && previewObjectUrlRef.current === objectUrl) {
+        URL.revokeObjectURL(objectUrl);
+        previewObjectUrlRef.current = "";
+      }
+    };
   }, [selectedFile]);
+
+  const consentMode: ConsentMode = authLoading
+    ? "loading"
+    : user && configured
+      ? accountConsentFetched
+        ? accountConsent?.canUseAnalysis
+          ? "authed-ready"
+          : "authed-needs-onboarding"
+        : "loading"
+      : guestHydrated
+        ? "guest"
+        : "loading";
 
   function validateAndSelectFile(file: File) {
     setError("");

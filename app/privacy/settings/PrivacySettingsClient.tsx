@@ -16,27 +16,43 @@ export default function PrivacySettingsClient() {
   const { configured, loading, user } = useAuth();
   const [status, setStatus] = useState<AccountConsentStatus | null>(null);
   const [guest, setGuest] = useState<GuestConsentRecord | null>(null);
+  const [statusLoaded, setStatusLoaded] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
   useEffect(() => {
     if (loading) return;
+
     if (!user) {
-      setGuest(readGuestConsent());
-      setStatus(null);
-      return;
+      let cancelled = false;
+      void Promise.resolve().then(() => {
+        if (cancelled) return;
+        setGuest(readGuestConsent());
+        setStatus(null);
+        setStatusLoaded(true);
+      });
+      return () => {
+        cancelled = true;
+      };
     }
 
     let cancelled = false;
     void (async () => {
       try {
         const res = await fetch("/api/account/consent", { cache: "no-store" });
-        if (!res.ok) return;
+        if (cancelled) return;
+        if (!res.ok) {
+          setStatusLoaded(true);
+          return;
+        }
         const data = (await res.json()) as AccountConsentStatus;
-        if (!cancelled) setStatus(data);
+        if (!cancelled) {
+          setStatus(data);
+          setStatusLoaded(true);
+        }
       } catch {
-        // Non-blocking.
+        if (!cancelled) setStatusLoaded(true);
       }
     })();
     return () => {
@@ -117,7 +133,7 @@ export default function PrivacySettingsClient() {
         <Link href="/onboarding">account setup</Link>.
       </p>
 
-      {loading ? (
+      {loading || !statusLoaded ? (
         <p>Loading…</p>
       ) : (
         <section className="legal-section">
