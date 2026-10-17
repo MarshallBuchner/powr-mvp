@@ -11,6 +11,9 @@ export type AnalysisRequest = {
   videoUrl: string;
   goal: string;
   duration: number | null;
+  marketingConsent?: boolean;
+  marketingEventId?: string;
+  marketingClickId?: string;
   analysis?: RealAnalysis;
   evidenceMoments?: AnalysisEvidenceMoment[];
 };
