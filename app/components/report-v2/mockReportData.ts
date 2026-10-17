@@ -270,7 +270,11 @@ export function reportV2FromAnalysis(
     .map((m) => m.dataUrl)
     .filter((url): url is string => Boolean(url));
 
-  const weakMetrics = analysis.movementMetrics
+  const movementMetrics = Array.isArray(analysis.movementMetrics)
+    ? analysis.movementMetrics
+    : [];
+  const drills = Array.isArray(analysis.drills) ? analysis.drills : [];
+  const weakMetrics = movementMetrics
     .filter((m) => m.score < 80)
     .slice(0, 2);
 
@@ -283,7 +287,7 @@ export function reportV2FromAnalysis(
     coachImage: "/report-v2/report-v2-coach.jpg",
     heroImage: "/report-v2/report-v2-hero.jpg",
     analysis,
-    categories: analysis.movementMetrics.map((m) => ({
+    categories: movementMetrics.map((m) => ({
       name: m.title,
       score: m.score,
       icon: categoryIcon(m.title),
@@ -314,7 +318,7 @@ export function reportV2FromAnalysis(
         tone: (i === 0 ? "focus" : "steady") as "focus" | "steady",
       })),
     ].slice(0, 3),
-    drills: analysis.drills.map((d, i) => ({
+    drills: drills.map((d, i) => ({
       title: d.title,
       description: d.description,
       duration: d.duration.toUpperCase().includes("MIN")

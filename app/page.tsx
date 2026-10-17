@@ -17,6 +17,11 @@ import {
   NEXT_SESSION_UPLOAD_HASH,
   scrollToNextSessionUploadAnchor,
 } from "./components/nextSessionNavigation";
+import {
+  SESSION_REPORT_UNAVAILABLE_MESSAGE,
+  canUseSessionReportFallback,
+  logReportHandoff,
+} from "@/lib/reportNavigation";
 
 type Screen = "upload" | "sample" | "analysis";
 
@@ -60,14 +65,34 @@ export default function Home() {
     setAnalysisRequest(request);
   }
 
-  async function handleAnalysisComplete() {
-    const request = analysisRequestRef.current;
+  async function handleAnalysisComplete(requestFromLab?: AnalysisRequest) {
+    const request = requestFromLab ?? analysisRequestRef.current;
     if (!request?.analysis) {
       throw new Error("Analysis payload missing — cannot open report.");
     }
+    // Keep the ref warm so retries / View Report do not lose a billed result.
+    analysisRequestRef.current = request;
+    setAnalysisRequest(request);
+
     // Prefer tokenized share; never put analysis JSON in the URL.
-    stashLastReport(request);
+    // stashLastReport is best-effort — quota failures must not block token shares.
+    const stashed = stashLastReport(request);
     const share = await createReportSharePath(request);
+    const sessionOk = canUseSessionReportFallback({
+      mode: share.mode,
+      stashed: share.stashed ?? stashed,
+    });
+    if (!sessionOk) {
+      logReportHandoff("session_fallback_unavailable", {
+        mode: share.mode,
+        stashed: share.stashed ?? stashed,
+      });
+      throw new Error(SESSION_REPORT_UNAVAILABLE_MESSAGE);
+    }
+    logReportHandoff("navigate_report", {
+      mode: share.mode,
+      stashed: share.stashed ?? stashed,
+    });
     router.push(share.path);
   }
 

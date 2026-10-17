@@ -8,6 +8,8 @@
  * Live assessments: still-frame extraction first (Safari ConcurrentPlaybackNotPermitted),
  * then mount the looping overlay and run /api/analyze immediately. Presentation lasts
  * ~25–35s so users can see skeleton tracking; billing is never delayed for UX.
+ *
+ * Sample demos: ~30s overlay choreography with honest pre-generated copy (no /api/analyze).
  */
 
 import dynamic from "next/dynamic";
@@ -23,7 +25,9 @@ import {
   localConsumeAssessment,
   writeLocalEntitlements,
 } from "./assessmentEntitlements";
+import type { EntitlementState } from "@/lib/assessmentBilling";
 import { stashEvidenceFrames } from "./evidenceStorage";
+import { stashLastReport } from "./reportSession";
 import type { PrototypeMetrics } from "./prototype/poseMetrics";
 import type { PoseDebugInfo } from "./prototype/PoseVideoPlayer";
 import { isSampleReport } from "./shareReport";
@@ -41,6 +45,23 @@ import {
   prefersReducedMotion,
   resolveLiveLabStageIndex,
 } from "@/lib/liveLabPresentation";
+import {
+  SAMPLE_DEMO_COMPLETE_HOLD_MS,
+  SAMPLE_DEMO_LEAVE_MS,
+  SAMPLE_DEMO_STAGES,
+  canShowSampleViewReport,
+  sampleDemoDurationMs,
+  sampleDemoProgressPct,
+  sampleDemoStageStartTimes,
+  sampleDemoViewReportAfterMs,
+} from "@/lib/sampleLabDemo";
+import {
+  canRetryReportNavigation,
+  logReportHandoff,
+  readAnalyzeResponse,
+  shouldBlockDuplicateAnalyze,
+  summarizeAnalyzeFailure,
+} from "@/lib/reportNavigation";
 
 const PoseVideoPlayer = dynamic(
   () => import("./prototype/PoseVideoPlayer"),
@@ -56,41 +77,10 @@ type AnalysisScreenProps = {
   request: AnalysisRequest;
   /** Called when analysis payload is ready (before navigating to report). */
   onReady?: (request: AnalysisRequest) => void;
-  onComplete: () => void | Promise<void>;
+  /** Opens the report. Receives the billed/sample request so navigation cannot lose it. */
+  onComplete: (request?: AnalysisRequest) => void | Promise<void>;
   onBack?: () => void;
 };
-
-/** Sample / non-live theatrical stages (unchanged short path). */
-const SAMPLE_LAB_STAGES = [
-  {
-    label: "Preparing video",
-    detail: "Preparing your clip for analysis",
-  },
-  {
-    label: "Detecting player",
-    detail: "Separating the player from the background",
-  },
-  {
-    label: "Tracking body landmarks",
-    detail: "Mapping joints and posture on your footage",
-  },
-  {
-    label: "Reviewing skating posture",
-    detail: "I'm taking a closer look at movement patterns that affect your skating",
-  },
-  {
-    label: "Identifying movement patterns",
-    detail: "Reviewing the mechanics that matter for your focus area",
-  },
-  {
-    label: "Building development priorities",
-    detail: "Selecting coaching priorities and drills",
-  },
-  {
-    label: "Generating POWR report",
-    detail: "Finalizing your personalized development report",
-  },
-] as const;
 
 const EMPTY_METRICS: PrototypeMetrics = {
   kneeBendDeg: null,
@@ -132,6 +122,7 @@ export default function AnalysisScreen({
   const [isComplete, setIsComplete] = useState(false);
   const [isLeaving, setIsLeaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [navigationError, setNavigationError] = useState(false);
   const [metrics, setMetrics] = useState<PrototypeMetrics>(EMPTY_METRICS);
   const [debug, setDebug] = useState<PoseDebugInfo | null>(null);
   const [poseStatus, setPoseStatus] = useState<"loading" | "ready" | "error">(
@@ -153,7 +144,9 @@ export default function AnalysisScreen({
   const finishedRef = useRef(false);
   const analyzeStartedRef = useRef(false);
   const forceNowRef = useRef(false);
-  const pendingReportRef = useRef<AnalysisRequest | null>(null);
+  const pendingReportRef = useRef<AnalysisRequest | null>(
+    request.analysis ? request : null,
+  );
   const requestRef = useRef(request);
 
   useEffect(() => {
@@ -166,16 +159,15 @@ export default function AnalysisScreen({
     framesReady,
   });
 
-  const visibleStages = isSampleDemo ? SAMPLE_LAB_STAGES : LIVE_LAB_STAGES;
+  const visibleStages = isSampleDemo ? SAMPLE_DEMO_STAGES : LIVE_LAB_STAGES;
   const minPresentationMs = liveMinPresentationMs(reducedMotion);
+  const sampleDurationMs = sampleDemoDurationMs(reducedMotion);
+  const sampleViewAfterMs = sampleDemoViewReportAfterMs(reducedMotion);
 
   const liveStage = useMemo(() => {
     if (isSampleDemo) {
-      const sample = SAMPLE_LAB_STAGES[activeStep] ?? SAMPLE_LAB_STAGES[0];
-      return {
-        label: sample.label,
-        detail: sample.detail,
-      };
+      const sample = SAMPLE_DEMO_STAGES[activeStep] ?? SAMPLE_DEMO_STAGES[0];
+      return { label: sample.label, detail: sample.detail };
     }
     return liveLabStageCopy(activeStep, {
       framesReady,
@@ -194,7 +186,7 @@ export default function AnalysisScreen({
       ? "Your sample report is ready."
       : "Your development report is ready."
     : isSampleDemo
-      ? "Loading the pre-generated sample report."
+      ? liveStage.label
       : liveStage.label;
 
   const subcopy = isComplete
@@ -202,52 +194,82 @@ export default function AnalysisScreen({
       ? "This is a pre-generated demo report — not a new live assessment."
       : "Your personalized development report is ready to review."
     : isSampleDemo
-      ? "Demo mode: showing how a finished POWR report looks. No live AI analysis is running on this clip."
+      ? liveStage.detail
       : liveStage.detail;
 
   const finishToReport = useCallback(
     (finalRequest: AnalysisRequest) => {
       if (finishedRef.current) return;
       finishedRef.current = true;
+      pendingReportRef.current = finalRequest;
+      setNavigationError(false);
+      setError(null);
       onReady?.(finalRequest);
       setActiveStep(visibleStages.length - 1);
       setIsComplete(true);
-      // Navigate while the lab is still visible. Fading first caused a long
-      // blank stretch on mobile while the share token request was in flight.
+      // Persist before navigation so /r/view works if the share API fails.
+      stashLastReport(finalRequest);
+      logReportHandoff("finish_to_report_start", {
+        sample: isSampleReport(finalRequest),
+        hasAnalysis: Boolean(finalRequest.analysis),
+      });
+
       void (async () => {
         try {
-          if (!isSampleDemo) {
+          if (isSampleReport(finalRequest)) {
+            await delay(SAMPLE_DEMO_COMPLETE_HOLD_MS);
+            setIsLeaving(true);
+            await delay(SAMPLE_DEMO_LEAVE_MS);
+          } else {
             await delay(LIVE_COMPLETE_HOLD_MS);
           }
-          await onComplete();
+          await onComplete(finalRequest);
+          logReportHandoff("finish_to_report_ok");
+          if (!isSampleReport(finalRequest)) {
+            setIsLeaving(true);
+          }
         } catch (err) {
           console.error("POWR report navigation failed", err);
+          logReportHandoff("finish_to_report_failed", {
+            name: err instanceof Error ? err.name : "unknown",
+          });
           finishedRef.current = false;
           setIsComplete(false);
           setIsLeaving(false);
+          setNavigationError(true);
+          setReportReady(true);
           setError(
-            "Your analysis finished, but opening the report failed. Tap below to try again.",
+            "Your assessment is ready, but opening the report failed. Tap Open Report to try again — you will not be charged again.",
           );
-          return;
         }
-        setIsLeaving(true);
       })();
     },
-    [isSampleDemo, onComplete, onReady, visibleStages.length],
+    [onComplete, onReady, visibleStages.length],
   );
 
   const handleViewReportNow = useCallback(() => {
-    if (!reportReady || finishedRef.current) return;
+    const pending = pendingReportRef.current;
+    if (!pending?.analysis || finishedRef.current) return;
     forceNowRef.current = true;
     setForceReportNow(true);
+    finishToReport(pending);
+  }, [finishToReport]);
+
+  const handleRetryOpenReport = useCallback(() => {
     const pending = pendingReportRef.current;
-    if (pending) {
-      finishToReport(pending);
+    if (
+      !canRetryReportNavigation({
+        analysisReady: Boolean(pending?.analysis),
+        navigationError,
+      })
+    ) {
+      return;
     }
-  }, [finishToReport, reportReady]);
+    finishToReport(pending!);
+  }, [finishToReport, navigationError]);
 
   // Drive real analyze when we have a file and no analysis yet;
-  // theatrical path when analysis is already present (sample).
+  // sample path uses a longer theatrical demo with the real pose overlay.
   useEffect(() => {
     let cancelled = false;
     const current = requestRef.current;
@@ -257,8 +279,14 @@ export default function AnalysisScreen({
         setError("Missing video file for analysis.");
         return;
       }
-      // Prevent duplicate /api/analyze + credit consumption on remount races.
-      if (analyzeStartedRef.current) return;
+      if (
+        shouldBlockDuplicateAnalyze({
+          analyzeStarted: analyzeStartedRef.current,
+          analysisReady: Boolean(pendingReportRef.current?.analysis),
+        })
+      ) {
+        return;
+      }
       analyzeStartedRef.current = true;
 
       const minMs = liveMinPresentationMs(prefersReducedMotion());
@@ -269,6 +297,7 @@ export default function AnalysisScreen({
         setReportReady(false);
         setAnalysisInFlight(false);
         setPresentationElapsedMs(0);
+        setNavigationError(false);
         forceNowRef.current = false;
         setForceReportNow(false);
         pendingReportRef.current = null;
@@ -280,8 +309,6 @@ export default function AnalysisScreen({
         });
 
         // Phase 1: sample stills on an offscreen decoder ONLY.
-        // Do not mount PoseVideoPlayer yet — concurrent play() freezes the lab
-        // preview on iPhone Safari (Regular more than Private due to warm cache).
         logLabPlayback("frame_extract_start");
         const frames = await extractVideoFrames(current.file, 5);
         if (cancelled) return;
@@ -308,62 +335,94 @@ export default function AnalysisScreen({
               }),
             });
 
-            const result = await response.json();
+            const parsed = await readAnalyzeResponse(response);
+            const result = parsed.body;
+
+            if (parsed.parseError) {
+              logReportHandoff("analyze_parse_error", {
+                status: parsed.status,
+              });
+              throw new Error(
+                "The assessment response could not be read. If a credit was used, tap back and check My Assessments — do not re-run the same clip immediately.",
+              );
+            }
 
             if (
-              response.status === 402 ||
-              result.error === "free_assessment_used"
+              parsed.status === 402 ||
+              result?.error === "free_assessment_used"
             ) {
               throw new Error(
-                result.message ||
-                  "You've used your free assessment. Unlock a pack to continue.",
+                summarizeAnalyzeFailure({
+                  status: 402,
+                  message: result?.message,
+                }),
               );
             }
             if (
-              response.status === 422 ||
-              result.error === "insufficient_video_quality"
+              parsed.status === 422 ||
+              result?.error === "insufficient_video_quality"
             ) {
               throw new InsufficientVideoFramesError(
-                result.message ||
-                  "This clip does not have enough visible skating evidence for a reliable assessment.",
-                Array.isArray(result.issues) ? result.issues : [],
+                summarizeAnalyzeFailure({
+                  status: 422,
+                  message: result?.message,
+                }),
+                Array.isArray(result?.issues)
+                  ? (result?.issues as string[])
+                  : [],
               );
             }
-            if (!response.ok || !result.success) {
-              throw new Error(result.error || "Analysis failed.");
+            if (!parsed.ok || !result) {
+              throw new Error(
+                summarizeAnalyzeFailure({
+                  status: parsed.status,
+                  error: result?.error,
+                  message: result?.message,
+                }),
+              );
             }
 
-            // Consume/mirror entitlements as soon as the API succeeds —
-            // never wait for the presentation floor.
-            if (result.entitlements) {
-              writeLocalEntitlements(result.entitlements);
+            // Mirror entitlements as soon as the API succeeds — never wait for UX.
+            if (result.entitlements && typeof result.entitlements === "object") {
+              writeLocalEntitlements(result.entitlements as EntitlementState);
             } else {
               localConsumeAssessment();
             }
 
             const evidenceMoments = buildEvidenceMoments(
               frames,
-              result.analysis?.priorityImprovement || "",
+              (result.analysis as { priorityImprovement?: string } | undefined)
+                ?.priorityImprovement || "",
             );
+
+            const finalRequest: AnalysisRequest = {
+              ...current,
+              analysis: result.analysis as AnalysisRequest["analysis"],
+              evidenceMoments,
+            };
+
+            // Persist analysis BEFORE large evidence frames so report handoff
+            // survives Safari sessionStorage pressure.
+            stashLastReport(finalRequest);
             stashEvidenceFrames(evidenceMoments);
 
             track("analysis_succeeded", {
               goal: current.goal,
-              remaining: result.remaining,
+              remaining:
+                typeof result.remaining === "number"
+                  ? result.remaining
+                  : undefined,
             });
 
-            const finalRequest: AnalysisRequest = {
-              ...current,
-              analysis: result.analysis,
-              evidenceMoments,
-            };
-
+            // Keep the billed result even if the lab unmounts mid-presentation.
+            pendingReportRef.current = finalRequest;
             if (!cancelled) {
-              pendingReportRef.current = finalRequest;
               setReportReady(true);
               setAnalysisInFlight(false);
+              onReady?.(finalRequest);
               logLabPlayback("analyze_ready", {
-                presentationElapsedMs: performance.now() - presentationStartedAt,
+                presentationElapsedMs:
+                  performance.now() - presentationStartedAt,
               });
             }
 
@@ -376,8 +435,6 @@ export default function AnalysisScreen({
           }
         })();
 
-        // Presentation loop: video/skeleton keep playing until both analysis
-        // and the minimum presentation window are satisfied (or View Report Now).
         while (!cancelled) {
           const elapsed = performance.now() - presentationStartedAt;
           setPresentationElapsedMs(elapsed);
@@ -393,12 +450,13 @@ export default function AnalysisScreen({
             }
           }
 
-          const analysisReady = Boolean(pendingReportRef.current);
-          const inFlight = !analysisReady;
-
+          // Read through a typed local — assigning `null` earlier can narrow
+          // useRef.current to `never` under TypeScript control-flow analysis.
+          const pending = pendingReportRef.current as AnalysisRequest | null;
+          const analysisReady = Boolean(pending?.analysis);
           const stageIndex = resolveLiveLabStageIndex({
             framesReady: true,
-            analysisInFlight: inFlight,
+            analysisInFlight: !analysisReady,
             analysisReady,
             presentationElapsedMs: elapsed,
             minPresentationMs: minMs,
@@ -416,14 +474,11 @@ export default function AnalysisScreen({
             const outcome = await analyzeTask;
             if (!outcome.ok) throw outcome.error;
             if (cancelled) return;
-            // If the user already forced navigation, finishToReport is a no-op.
             finishToReport(outcome.finalRequest);
             return;
           }
         }
 
-        // Unmount/cancel: still let the in-flight request settle so we don't
-        // leave a dangling unhandled rejection (credits already applied server-side).
         await analyzeTask;
       } catch (err) {
         if (cancelled) return;
@@ -441,31 +496,55 @@ export default function AnalysisScreen({
       }
     }
 
-    function runTheatrical() {
-      const total = 2400;
-      const timers = SAMPLE_LAB_STAGES.slice(1).map((_, index) =>
-        window.setTimeout(
-          () => {
-            if (!cancelled) setActiveStep(index + 1);
-          },
-          ((index + 1) * total) / SAMPLE_LAB_STAGES.length,
-        ),
+    function runSampleDemo() {
+      // ~30s choreography with the real sample clip + MediaPipe overlay.
+      // No /api/analyze and no credit consumption.
+      const durationMs = sampleDemoDurationMs(prefersReducedMotion());
+      const starts = sampleDemoStageStartTimes(durationMs);
+      const startedAt = performance.now();
+      setFramesReady(true);
+      setReportReady(true);
+      pendingReportRef.current = current;
+      setPresentationElapsedMs(0);
+      setActiveStep(0);
+
+      const stageTimers = starts.slice(1).map((startAt, index) =>
+        window.setTimeout(() => {
+          if (!cancelled) setActiveStep(index + 1);
+        }, startAt),
       );
+
+      const progressTick = window.setInterval(() => {
+        if (cancelled) return;
+        setPresentationElapsedMs(performance.now() - startedAt);
+      }, 100);
+
       const done = window.setTimeout(() => {
-        if (!cancelled) finishToReport(current);
-      }, total);
+        window.clearInterval(progressTick);
+        if (cancelled) return;
+        setPresentationElapsedMs(durationMs);
+        finishToReport(current);
+      }, durationMs);
+
       return () => {
-        timers.forEach((t) => window.clearTimeout(t));
+        stageTimers.forEach((t) => window.clearTimeout(t));
+        window.clearInterval(progressTick);
         window.clearTimeout(done);
       };
     }
 
     let cleanupTheatrical: (() => void) | undefined;
 
-    if (current.analysis || (!current.file && current.videoUrl)) {
-      cleanupTheatrical = runTheatrical();
+    if (isSampleReport(current)) {
+      cleanupTheatrical = runSampleDemo();
     } else if (current.file) {
       void runLiveAnalyze();
+    } else if (current.analysis) {
+      // Precomputed non-sample handoff (rare) — do not re-bill.
+      pendingReportRef.current = current;
+      setFramesReady(true);
+      setReportReady(true);
+      finishToReport(current);
     } else {
       setError("Nothing to analyze.");
     }
@@ -481,10 +560,7 @@ export default function AnalysisScreen({
   const progressPct = isComplete
     ? 100
     : isSampleDemo
-      ? Math.min(
-          96,
-          Math.round(((activeStep + 0.35) / SAMPLE_LAB_STAGES.length) * 100),
-        )
+      ? sampleDemoProgressPct(presentationElapsedMs, sampleDurationMs)
       : liveLabProgressPct({
           framesReady,
           analysisReady: reportReady,
@@ -494,12 +570,31 @@ export default function AnalysisScreen({
         });
 
   const showViewReportNow =
-    !isSampleDemo && reportReady && !isComplete && !error && !isLeaving;
+    !isSampleDemo &&
+    reportReady &&
+    !isComplete &&
+    !error &&
+    !isLeaving;
+
+  const showViewSampleReport =
+    isSampleDemo &&
+    canShowSampleViewReport({
+      elapsedMs: presentationElapsedMs,
+      viewAfterMs: sampleViewAfterMs,
+      isComplete,
+    }) &&
+    !error &&
+    !isLeaving;
+
+  const showNavRetry = canRetryReportNavigation({
+    analysisReady: reportReady,
+    navigationError,
+  });
 
   return (
     <main
       className={`analysis-lab${isLeaving ? " is-leaving" : ""}${
-        !isSampleDemo ? " is-live-lab" : ""
+        isSampleDemo ? " is-sample-demo" : " is-live-lab"
       }`}
     >
       <section className="analysis-lab-shell">
@@ -513,6 +608,11 @@ export default function AnalysisScreen({
           <p key={subcopy} className="analysis-lab-subcopy">
             {subcopy}
           </p>
+          {!isComplete && !error && isSampleDemo ? (
+            <p className="analysis-lab-demo-note">
+              Pre-generated demo — no live AI analysis on this clip.
+            </p>
+          ) : null}
           {!isComplete && !error && !isSampleDemo ? (
             <p className="analysis-lab-keep-open">
               {reportReady
@@ -531,15 +631,37 @@ export default function AnalysisScreen({
               </button>
             </div>
           ) : null}
+          {showViewSampleReport ? (
+            <div className="analysis-lab-skip">
+              <button
+                type="button"
+                className="analysis-lab-view-now"
+                onClick={handleViewReportNow}
+              >
+                View Sample Report →
+              </button>
+            </div>
+          ) : null}
         </header>
 
         {error ? (
           <div className="analysis-lab-error" role="alert">
-            <strong>Analysis interrupted</strong>
+            <strong>
+              {navigationError ? "Report handoff interrupted" : "Analysis interrupted"}
+            </strong>
             <p>{error}</p>
             <div className="analysis-lab-error-actions">
+              {showNavRetry ? (
+                <button
+                  type="button"
+                  className="skel-btn is-primary"
+                  onClick={handleRetryOpenReport}
+                >
+                  Open Report →
+                </button>
+              ) : null}
               {onBack ? (
-                <button type="button" className="skel-btn is-primary" onClick={onBack}>
+                <button type="button" className="skel-btn" onClick={onBack}>
                   ← Back to upload
                 </button>
               ) : null}
@@ -602,7 +724,7 @@ export default function AnalysisScreen({
                       ? "Sample ready"
                       : "Analysis complete"
                     : isSampleDemo
-                      ? "Sample demo"
+                      ? "Demo tracking"
                       : reportReady
                         ? "Report ready"
                         : "AI tracking active"}
@@ -615,7 +737,7 @@ export default function AnalysisScreen({
                 <h2>{isSampleDemo ? "DEMO PREVIEW" : "AI TRACKING"}</h2>
                 <p className="analysis-lab-card-note">
                   {isSampleDemo
-                    ? "Optional pose overlay — not a live assessment"
+                    ? "Live pose overlay on a sample clip — results are pre-generated"
                     : poseLimited
                       ? "Pose unavailable on this device — assessment continues"
                       : "Live pose estimates from your clip"}
@@ -673,7 +795,7 @@ export default function AnalysisScreen({
               <div className="analysis-lab-card">
                 <div className="analysis-lab-progress-head">
                   <h2>
-                    {isSampleDemo ? "SAMPLE REPORT" : "ASSESSMENT PROGRESS"}
+                    {isSampleDemo ? "SAMPLE DEMO" : "ASSESSMENT PROGRESS"}
                   </h2>
                   <strong>{isComplete ? "100%" : `${progressPct}%`}</strong>
                 </div>
@@ -681,7 +803,9 @@ export default function AnalysisScreen({
                   className={`analysis-lab-progress-track${isComplete ? " is-complete" : ""}`}
                   role="progressbar"
                   aria-valuenow={progressPct}
-                  aria-label="Analysis progress"
+                  aria-label={
+                    isSampleDemo ? "Sample demo progress" : "Analysis progress"
+                  }
                 >
                   <span
                     className="analysis-lab-progress-fill"
@@ -721,13 +845,15 @@ export default function AnalysisScreen({
             <h2>{isSampleDemo ? "Sample ready" : "Analysis complete"}</h2>
             <p>
               {isSampleDemo
-                ? "Open the pre-generated demo report to explore the POWR layout."
+                ? "Opening the pre-generated demo report — not a live assessment."
                 : "Your personalized development report is ready to review."}
             </p>
             <button
               type="button"
               className="primary-button"
-              onClick={() => void onComplete()}
+              onClick={() =>
+                void onComplete(pendingReportRef.current ?? request)
+              }
             >
               {isSampleDemo ? "View sample report →" : "View Development Report →"}
             </button>
