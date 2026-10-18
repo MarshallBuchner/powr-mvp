@@ -526,6 +526,46 @@ button {
   line-height: 1.4;
 }
 
+.consent-fieldset-compact {
+  padding-top: 12px;
+  padding-bottom: 12px;
+}
+
+.consent-fieldset-compact .consent-lead {
+  margin-bottom: 0;
+}
+
+.consent-setup-link {
+  display: inline-flex;
+  margin-top: 4px;
+  text-decoration: none;
+}
+
+.consent-text-button {
+  display: inline;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.consent-onboarding-form {
+  display: grid;
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.privacy-settings-actions {
+  display: grid;
+  gap: 12px;
+  justify-items: start;
+  margin-top: 12px;
+}
+
 .sample-demo-ack {
   margin: 16px 0 0;
   text-align: left;

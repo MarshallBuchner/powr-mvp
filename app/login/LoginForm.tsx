@@ -40,6 +40,31 @@ export default function LoginForm() {
     return () => window.clearTimeout(id);
   }, [cooldown]);
 
+  useEffect(() => {
+    if (!user) return;
+    const safeNext = next.startsWith("/") ? next : "/assessments";
+    let cancelled = false;
+    void (async () => {
+      try {
+        const consentRes = await fetch("/api/account/consent", {
+          cache: "no-store",
+        });
+        if (cancelled || !consentRes.ok) return;
+        const consent = await consentRes.json();
+        if (!consent.onboardingComplete) {
+          router.replace(
+            `/onboarding?next=${encodeURIComponent(safeNext)}`,
+          );
+        }
+      } catch {
+        // Stay on login confirmation if consent check fails.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user, next, router]);
+
   const heading = useMemo(() => {
     if (user) return "You're signed in";
     if (step === "code") return "Check your email";
@@ -86,7 +111,25 @@ export default function LoginForm() {
       return;
     }
     setMessage("Signed in. Redirecting…");
-    router.replace(next.startsWith("/") ? next : "/assessments");
+    const safeNext = next.startsWith("/") ? next : "/assessments";
+    try {
+      const consentRes = await fetch("/api/account/consent", {
+        cache: "no-store",
+      });
+      if (consentRes.ok) {
+        const consent = await consentRes.json();
+        if (!consent.onboardingComplete) {
+          router.replace(
+            `/onboarding?next=${encodeURIComponent(safeNext)}`,
+          );
+          router.refresh();
+          return;
+        }
+      }
+    } catch {
+      // Fall through to destination if consent check fails.
+    }
+    router.replace(safeNext);
     router.refresh();
   }
 
@@ -129,7 +172,9 @@ export default function LoginForm() {
       {user ? (
         <p>
           Signed in as <strong>{user.email}</strong>.{" "}
-          <Link href={next}>Continue →</Link>
+          <Link href={`/onboarding?next=${encodeURIComponent(next.startsWith("/") ? next : "/assessments")}`}>
+            Continue →
+          </Link>
         </p>
       ) : step === "email" ? (
         <>

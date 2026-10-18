@@ -13,8 +13,20 @@ create table if not exists public.profiles (
   founding_expires_at timestamptz,
   founding_month_key text,
   founding_month_used integer not null default 0,
+  age_band text,
+  age_confirmed_at timestamptz,
+  terms_version text,
+  terms_accepted_at timestamptz,
+  privacy_version text,
+  privacy_accepted_at timestamptz,
+  analysis_consent_at timestamptz,
+  marketing_consent boolean not null default false,
+  marketing_consent_at timestamptz,
+  marketing_consent_withdrawn_at timestamptz,
   created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
+  updated_at timestamptz not null default now(),
+  constraint profiles_age_band_check
+    check (age_band is null or age_band in ('teen', 'adult'))
 );
 
 -- Safe to re-run: add entitlement columns if profiles already exists.
@@ -30,6 +42,32 @@ alter table public.profiles
   add column if not exists founding_month_key text;
 alter table public.profiles
   add column if not exists founding_month_used integer not null default 0;
+alter table public.profiles
+  add column if not exists age_band text;
+alter table public.profiles
+  add column if not exists age_confirmed_at timestamptz;
+alter table public.profiles
+  add column if not exists terms_version text;
+alter table public.profiles
+  add column if not exists terms_accepted_at timestamptz;
+alter table public.profiles
+  add column if not exists privacy_version text;
+alter table public.profiles
+  add column if not exists privacy_accepted_at timestamptz;
+alter table public.profiles
+  add column if not exists analysis_consent_at timestamptz;
+alter table public.profiles
+  add column if not exists marketing_consent boolean not null default false;
+alter table public.profiles
+  add column if not exists marketing_consent_at timestamptz;
+alter table public.profiles
+  add column if not exists marketing_consent_withdrawn_at timestamptz;
+
+alter table public.profiles
+  drop constraint if exists profiles_age_band_check;
+alter table public.profiles
+  add constraint profiles_age_band_check
+  check (age_band is null or age_band in ('teen', 'adult'));
 
 create table if not exists public.assessments (
   id uuid primary key default gen_random_uuid(),
@@ -53,10 +91,23 @@ create policy "profiles_select_own"
   on public.profiles for select
   using (auth.uid() = id);
 
--- Users may edit profile details, but credit columns are server-managed.
+-- Users may edit profile details and consent fields; credit columns are server-managed.
 revoke insert, update on public.profiles from anon, authenticated;
 grant insert (id, email, display_name) on public.profiles to authenticated;
-grant update (email, display_name) on public.profiles to authenticated;
+grant update (
+  email,
+  display_name,
+  age_band,
+  age_confirmed_at,
+  terms_version,
+  terms_accepted_at,
+  privacy_version,
+  privacy_accepted_at,
+  analysis_consent_at,
+  marketing_consent,
+  marketing_consent_at,
+  marketing_consent_withdrawn_at
+) on public.profiles to authenticated;
 
 drop policy if exists "profiles_insert_own" on public.profiles;
 create policy "profiles_insert_own"

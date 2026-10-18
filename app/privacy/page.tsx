@@ -18,7 +18,7 @@ export default function PrivacyPage() {
     <main className="app-shell legal-page">
       <p className="eyebrow">POWR LEGAL</p>
       <h1>Privacy Policy</h1>
-      <p className="legal-updated">Last updated: October 16, 2026</p>
+      <p className="legal-updated">Last updated: October 17, 2026</p>
       <p className="legal-lead">
         This policy explains how {OPERATOR_IDENTITY} (“POWR”, “we”, “us”) handles
         information when you use {SITE_CANONICAL_URL} and POWR skating assessment
@@ -215,24 +215,28 @@ export default function PrivacyPage() {
       <section className="legal-section">
         <h2>Optional Meta ad measurement</h2>
         <p>
-          Adults can choose optional ad measurement separately for each assessment.
-          It is off by default and is not required to use POWR. If you opt in and
-          your new report successfully opens, we send Meta a generic completion
-          event, event time, a random event ID, your IP address, browser user agent
-          and any Meta ad click ID from your visit. Meta may match these signals
-          to your Meta account to measure and optimize advertising. We do not send
-          skating footage, analysis frames, filenames, scores, coaching text,
-          report links, account email or payment data through this integration.
+          Adults can choose optional advertising measurement during account setup
+          (or a short opt-in for guests on this device). It is off by default and
+          is not required to use POWR. Manage or withdraw anytime in{" "}
+          <Link href="/privacy/settings">Privacy settings</Link>. If you opt in
+          and a new report successfully opens, we send Meta a generic completion
+          event, event time, a random event ID, your IP address, browser user
+          agent and any Meta ad click ID from your visit. Meta may match these
+          signals to your Meta account to measure and optimize advertising. We do
+          not send skating footage, analysis frames, filenames, scores, coaching
+          text, report links, account email or payment data through this
+          integration.
         </p>
         <p>
-          The integration uses a short-lived signed cookie and session storage to
-          connect successful analysis to the opening of its report. They expire
-          after one hour; the cookie is removed after successful delivery. No Meta
-          tracking script runs on POWR pages. Samples, failed assessments and
-          ordinary visits to existing shared reports do not generate a completion
-          event. The optional choice is offered only to people selecting age 18+.
-          Leave it unchecked on later assessments to decline further measurement.
-          Meta may process these signals outside Canada under its own privacy policy.
+          For signed-in accounts, measurement is gated by your saved adult age
+          band and marketing consent on the server. Teens and withdrawn consent
+          never arm a completion event. The integration uses a short-lived signed
+          cookie and session storage to connect successful analysis to the
+          opening of its report. They expire after one hour; the cookie is
+          removed after successful delivery. No Meta tracking script (Pixel) runs
+          on POWR pages. Samples, failed assessments and ordinary visits to
+          existing shared reports do not generate a completion event. Meta may
+          process these signals outside Canada under its own privacy policy.
         </p>
       </section>
 
