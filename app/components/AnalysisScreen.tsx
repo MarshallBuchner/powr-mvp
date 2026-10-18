@@ -60,7 +60,8 @@ type AnalysisScreenProps = {
   onBack?: () => void;
 };
 
-/** Sample / non-live theatrical stages (unchanged short path). */
+/** Sample stages spread over a live-length, looping tracking demonstration. */
+const SAMPLE_LAB_DURATION_MS = 30_000;
 const SAMPLE_LAB_STAGES = [
   {
     label: "Preparing video",
@@ -446,7 +447,7 @@ export default function AnalysisScreen({
     }
 
     function runTheatrical() {
-      const total = 2400;
+      const total = isSampleDemo ? SAMPLE_LAB_DURATION_MS : 2400;
       const timers = SAMPLE_LAB_STAGES.slice(1).map((_, index) =>
         window.setTimeout(
           () => {
