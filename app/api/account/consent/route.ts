@@ -122,12 +122,10 @@ export async function POST(request: NextRequest) {
             marketing_consent: true,
             marketing_consent_at: now,
             marketing_consent_withdrawn_at: null,
-            updated_at: now,
           }
         : {
             marketing_consent: false,
             marketing_consent_withdrawn_at: now,
-            updated_at: now,
           };
 
       const { error } = await authed.supabase
@@ -201,7 +199,6 @@ export async function POST(request: NextRequest) {
       privacy_version: PRIVACY_VERSION,
       privacy_accepted_at: now,
       analysis_consent_at: current.analysisConsentAt ?? now,
-      updated_at: now,
     };
 
     if (body.acceptAnalysis === true) {
