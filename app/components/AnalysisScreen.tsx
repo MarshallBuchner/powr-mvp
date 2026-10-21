@@ -10,6 +10,7 @@
  * ~25–35s so users can see skeleton tracking; billing is never delayed for UX.
  */
 
+import { CONNECTION_LOST_MESSAGE, isNetworkFetchError } from "@/lib/previewObjectUrl";
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { track } from "@vercel/analytics";
@@ -436,6 +437,12 @@ export default function AnalysisScreen({
         setAnalysisInFlight(false);
         if (err instanceof InsufficientVideoFramesError) {
           setError(err.message);
+          return;
+        }
+        if (isNetworkFetchError(err)) {
+          // Raw Safari text ("Load failed") stays in the console only.
+          console.error("[POWR:analyze] network failure", err);
+          setError(CONNECTION_LOST_MESSAGE);
           return;
         }
         setError(

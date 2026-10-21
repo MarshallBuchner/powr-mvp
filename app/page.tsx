@@ -14,6 +14,7 @@ import {
   createSampleRequest,
 } from "./components/shareReport";
 import { stashLastReport } from "./components/reportSession";
+import { releaseAnalysisVideoUrl } from "@/lib/previewObjectUrl";
 import {
   NEXT_SESSION_UPLOAD_HASH,
   scrollToNextSessionUploadAnchor,
@@ -31,6 +32,11 @@ export default function Home() {
   useEffect(() => {
     analysisRequestRef.current = analysisRequest;
   }, [analysisRequest]);
+
+  // The uploaded clip's blob URL is owned here once the Analysis Lab opens.
+  useEffect(() => {
+    return () => releaseAnalysisVideoUrl(analysisRequestRef.current?.videoUrl);
+  }, []);
 
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: "auto" });
@@ -74,11 +80,15 @@ export default function Home() {
   }
 
   function handleAnalysisBack() {
+    releaseAnalysisVideoUrl(analysisRequestRef.current?.videoUrl);
+    analysisRequestRef.current = null;
     setAnalysisRequest(null);
     setScreen("upload");
   }
 
   function handleRestart() {
+    releaseAnalysisVideoUrl(analysisRequestRef.current?.videoUrl);
+    analysisRequestRef.current = null;
     setAnalysisRequest(null);
     setScreen("upload");
   }
