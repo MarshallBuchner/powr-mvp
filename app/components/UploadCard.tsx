@@ -40,6 +40,7 @@ import {
   writeGuestConsent,
 } from "@/lib/guestConsent";
 import { useAuth } from "./AuthProvider";
+import { createPreviewUrlOwner } from "@/lib/previewObjectUrl";
 
 const goals = [
   "Overall skating",
@@ -111,6 +112,7 @@ export default function UploadCard({ onAnalyze }: UploadCardProps) {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const previewObjectUrlRef = useRef("");
+  const previewOwnerRef = useRef(createPreviewUrlOwner());
 
   useEffect(() => {
     void (async () => {
@@ -211,32 +213,19 @@ export default function UploadCard({ onAnalyze }: UploadCardProps) {
   }, [authLoading, user, configured]);
 
   useEffect(() => {
-    let objectUrl = "";
     void Promise.resolve().then(() => {
-      if (!selectedFile) {
-        if (previewObjectUrlRef.current.startsWith("blob:")) {
-          URL.revokeObjectURL(previewObjectUrlRef.current);
-        }
-        previewObjectUrlRef.current = "";
-        setPreviewUrl("");
-        return;
-      }
-
-      objectUrl = URL.createObjectURL(selectedFile);
-      if (previewObjectUrlRef.current.startsWith("blob:")) {
-        URL.revokeObjectURL(previewObjectUrlRef.current);
-      }
-      previewObjectUrlRef.current = objectUrl;
-      setPreviewUrl(objectUrl);
+      const url = previewOwnerRef.current.select(selectedFile ?? null);
+      previewObjectUrlRef.current = url;
+      setPreviewUrl(url);
     });
-
-    return () => {
-      if (objectUrl && previewObjectUrlRef.current === objectUrl) {
-        URL.revokeObjectURL(objectUrl);
-        previewObjectUrlRef.current = "";
-      }
-    };
   }, [selectedFile]);
+
+  // Unmount: revoke only a preview that was never handed to the Analysis Lab.
+  // A handed-off URL is still playing in PoseVideoPlayer; Home releases it.
+  useEffect(() => {
+    const owner = previewOwnerRef.current;
+    return () => owner.dispose();
+  }, []);
 
   const consentMode: ConsentMode = authLoading
     ? "loading"
@@ -386,7 +375,7 @@ export default function UploadCard({ onAnalyze }: UploadCardProps) {
     onAnalyze({
       file: selectedFile,
       fileName: selectedFile.name,
-      videoUrl: previewUrl,
+      videoUrl: previewOwnerRef.current.handoff(previewUrl),
       goal: selectedGoal,
       duration,
       marketingConsent: measureAds,

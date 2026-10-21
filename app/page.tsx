@@ -14,6 +14,7 @@ import {
   createSampleRequest,
 } from "./components/shareReport";
 import { stashLastReport } from "./components/reportSession";
+import { releaseAnalysisVideoUrl } from "@/lib/previewObjectUrl";
 import {
   NEXT_SESSION_UPLOAD_HASH,
   scrollToNextSessionUploadAnchor,
@@ -31,6 +32,11 @@ export default function Home() {
   useEffect(() => {
     analysisRequestRef.current = analysisRequest;
   }, [analysisRequest]);
+
+  // The uploaded clip's blob URL is owned here once the Analysis Lab opens.
+  useEffect(() => {
+    return () => releaseAnalysisVideoUrl(analysisRequestRef.current?.videoUrl);
+  }, []);
 
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: "auto" });
@@ -66,19 +72,30 @@ export default function Home() {
     if (!request?.analysis) {
       throw new Error("Analysis payload missing — cannot open report.");
     }
-    // Prefer tokenized share; never put analysis JSON in the URL.
-    stashLastReport(request);
+    // The billed analysis is already complete. Preserve it for report-only retries.
+    // Tokenized share comes first: Safari sessionStorage may be full or disabled.
     const share = await createReportSharePath(request);
+    if (share.mode === "session" && share.stashed !== true) {
+      throw new Error(
+        "Your assessment is complete, but this browser could not save the report. Tap Open Report to retry — you will not be charged again.",
+      );
+    }
+    // Best-effort fallback only; never block a working tokenized report.
+    if (share.mode !== "session") stashLastReport(request);
     armCompletionMeasurement(request.marketingEventId, share.path);
     router.push(share.path);
   }
 
   function handleAnalysisBack() {
+    releaseAnalysisVideoUrl(analysisRequestRef.current?.videoUrl);
+    analysisRequestRef.current = null;
     setAnalysisRequest(null);
     setScreen("upload");
   }
 
   function handleRestart() {
+    releaseAnalysisVideoUrl(analysisRequestRef.current?.videoUrl);
+    analysisRequestRef.current = null;
     setAnalysisRequest(null);
     setScreen("upload");
   }
