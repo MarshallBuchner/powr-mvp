@@ -35,6 +35,14 @@ import {
   remainingWithFounding,
 } from "@/lib/profileEntitlements";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
+import {
+  claimAnalysisAttempt,
+  decideReplay,
+  findAnalysisResult,
+  hashDeviceKey,
+  isValidAttemptId,
+  persistCompletedAnalysis,
+} from "@/lib/analysisResults";
 import { createClient } from "@/lib/supabase/server";
 
 function getOpenAIClient() {
@@ -73,6 +81,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    let body: Record<string, unknown> & { frames?: unknown; goal?: unknown };
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json(
+        { success: false, error: "Invalid JSON body." },
+        { status: 400 },
+      );
+    }
+
     const cookieEntitlement = readEntitlementCookie(request);
     const authed = await getAuthedUser();
     const founderUnlimited = Boolean(
@@ -101,6 +119,68 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Idempotent replay: a retried attempt (same client attempt id) returns the
+    // stored report — no OpenAI call and no credit consumption. Checked before
+    // the balance gate so a user who just spent their last credit can recover.
+    const headerAttempt = request.headers.get("idempotency-key");
+    const attemptId = isValidAttemptId(headerAttempt)
+      ? headerAttempt
+      : isValidAttemptId(body?.attemptId)
+        ? (body.attemptId as string)
+        : null;
+    const deviceKeyHash = hashDeviceKey(body?.deviceKey);
+    const ownerUserId = authed?.user.id ?? null;
+    if (attemptId) {
+      const decision = decideReplay(await findAnalysisResult(attemptId), {
+        userId: ownerUserId,
+        deviceKeyHash,
+      });
+      if (decision.kind === "replay") {
+        const report = decision.row.report as { analysis?: unknown };
+        console.info("[POWR:analyze] idempotent_replay", { authed: Boolean(authed) });
+        return NextResponse.json({
+          success: true,
+          replayed: true,
+          analysis: report.analysis,
+          remaining: remainingWithFounding(entitlement, founding),
+          entitlements: {
+            ...entitlement,
+            unlockedSessionIds: cookieEntitlement.unlockedSessionIds,
+          },
+          source: authed ? "profile" : "device",
+          unlimited: founderUnlimited,
+          foundingAthlete: Boolean(founding?.active),
+          foundingMonthRemaining: founding?.active ? founding.monthRemaining : 0,
+          foundingExpiresAt: founding?.active ? founding.expiresAt : null,
+          ...(decision.row.share_token
+            ? {
+                shareToken: decision.row.share_token,
+                sharePath: `/r/s/${decision.row.share_token}`,
+              }
+            : {}),
+        });
+      }
+      if (decision.kind === "in_progress") {
+        return NextResponse.json(
+          { success: false, error: "analysis_in_progress", retryAfterMs: 4000 },
+          { status: 409 },
+        );
+      }
+      if (decision.kind === "forbidden") {
+        return NextResponse.json(
+          { success: false, error: "attempt_conflict" },
+          { status: 409 },
+        );
+      }
+    }
+    if (body?.replayOnly === true) {
+      // Recovery lookup only — never analyzes or bills.
+      return NextResponse.json(
+        { success: false, error: "not_found" },
+        { status: 404 },
+      );
+    }
+
     // Founder override: never 402; balances are not consumed below.
     // Founding athletes use monthly complimentary allowance before paid credits.
     if (!founderUnlimited && !canRunWithFounding(entitlement, founding)) {
@@ -125,7 +205,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const body = await request.json();
     const { frames, goal } = body;
 
     if (!Array.isArray(frames) || frames.length === 0) {
@@ -153,6 +232,21 @@ export async function POST(request: NextRequest) {
         },
         { status: 422 },
       );
+    }
+
+    const payloadChars = frames.reduce(
+      (n: number, f: unknown) => n + (typeof f === "string" ? f.length : 0),
+      0,
+    );
+    console.info("[POWR:analyze] start", {
+      frameCount: frames.length,
+      payloadChars,
+      hasAttemptId: Boolean(attemptId),
+      authed: Boolean(authed),
+    });
+    const startedAt = Date.now();
+    if (attemptId) {
+      await claimAnalysisAttempt({ attemptId, ownerUserId, deviceKeyHash });
     }
 
     const imageInputs = frames.map((frame: string) => ({
@@ -470,8 +564,31 @@ Return a development assessment suitable for POWR.
       consent: measureConsent,
       fbclid: measureConsent ? body.marketingClickId : undefined,
     });
+    // Persist the report + share link BEFORE responding so an iOS tab kill
+    // after this point never loses a billed assessment. Best effort.
+    const persisted = await persistCompletedAnalysis({
+      attemptId,
+      ownerUserId,
+      deviceKeyHash,
+      goal: typeof goal === "string" ? goal : "",
+      fileName:
+        typeof body.fileName === "string" && body.fileName.trim()
+          ? body.fileName.trim().slice(0, 200)
+          : "Skating assessment",
+      duration: typeof body.duration === "number" ? body.duration : null,
+      analysis: analysis as Record<string, unknown>,
+    });
+    console.info("[POWR:analyze] success", {
+      ms: Date.now() - startedAt,
+      persisted: Boolean(persisted),
+      authed: Boolean(authed),
+    });
+
     const json = NextResponse.json({
       success: true,
+      ...(persisted
+        ? { shareToken: persisted.shareToken, sharePath: persisted.sharePath }
+        : {}),
       ...(measurement ? { marketingEventId: measurement.id } : {}),
       analysis,
       remaining,

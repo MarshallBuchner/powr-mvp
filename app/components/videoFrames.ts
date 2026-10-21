@@ -8,11 +8,19 @@ import {
   type FrameQualityResult,
 } from "@/lib/frameQuality";
 import { logLabPlayback, snapshotVideoPlayback } from "@/lib/labPlayback";
+import {
+  FRAME_JPEG_QUALITY,
+  qualitySampleSize,
+  releaseCanvas,
+  scaledFrameSize,
+} from "@/lib/frameSizing";
 
 export type ExtractedFrame = {
   dataUrl: string;
   timeSeconds: number;
   timeLabel: string;
+  width: number;
+  height: number;
   quality?: FrameQualityResult;
 };
 
@@ -130,24 +138,27 @@ async function seekVideo(video: HTMLVideoElement, time: number) {
 }
 
 function sampleFrameQuality(
-  context: CanvasRenderingContext2D,
-  width: number,
-  height: number,
+  qualityContext: CanvasRenderingContext2D | null,
+  source: CanvasImageSource,
+  sample: { width: number; height: number },
   dataUrl: string,
 ): FrameQualityResult {
   const structural = inspectFrameDataUrl(dataUrl);
   if (!structural.usable) return structural;
+  if (!qualityContext) return structural;
 
   try {
-    const image = context.getImageData(0, 0, width, height);
+    // Tiny canvas (short edge 160px): ~180KB getImageData instead of 33MB at 4K.
+    qualityContext.drawImage(source, 0, 0, sample.width, sample.height);
+    const image = qualityContext.getImageData(0, 0, sample.width, sample.height);
     return analyzeImageData(image);
   } catch {
     return {
       ...structural,
       usable: false,
       issues: ["decode_failed"],
-      width,
-      height,
+      width: sample.width,
+      height: sample.height,
     };
   }
 }
@@ -158,7 +169,9 @@ export async function extractVideoFrames(
 ): Promise<ExtractedFrame[]> {
   const video = document.createElement("video");
   const canvas = document.createElement("canvas");
-  const context = canvas.getContext("2d", { willReadFrequently: true });
+  const context = canvas.getContext("2d");
+  const qualityCanvas = document.createElement("canvas");
+  const qualityContext = qualityCanvas.getContext("2d", { willReadFrequently: true });
 
   if (!context) {
     throw new Error("Could not create canvas context.");
@@ -195,8 +208,14 @@ export async function extractVideoFrames(
       );
     }
 
-    canvas.width = width;
-    canvas.height = height;
+    // Encode at most 960px on the long edge (lib/frameSizing.ts) — never the
+    // native 4K/1080p canvas that pressured iOS Safari memory.
+    const target = scaledFrameSize(width, height);
+    const sample = qualitySampleSize(target.width, target.height);
+    canvas.width = target.width;
+    canvas.height = target.height;
+    qualityCanvas.width = sample.width;
+    qualityCanvas.height = sample.height;
     const duration = video.duration;
     const qualities: FrameQualityResult[] = [];
 
@@ -207,15 +226,17 @@ export async function extractVideoFrames(
           : (duration * i) / (frameCount - 1);
 
       const seekTime = await seekVideo(video, time);
-      context.drawImage(video, 0, 0, width, height);
-      const dataUrl = canvas.toDataURL("image/jpeg", 0.72);
-      const quality = sampleFrameQuality(context, width, height, dataUrl);
+      context.drawImage(video, 0, 0, target.width, target.height);
+      const dataUrl = canvas.toDataURL("image/jpeg", FRAME_JPEG_QUALITY);
+      const quality = sampleFrameQuality(qualityContext, canvas, sample, dataUrl);
       qualities.push(quality);
 
       frames.push({
         dataUrl,
         timeSeconds: seekTime,
         timeLabel: formatTimestamp(seekTime),
+        width: target.width,
+        height: target.height,
         quality,
       });
     }
@@ -230,6 +251,8 @@ export async function extractVideoFrames(
 
     return frames;
   } finally {
+    releaseCanvas(canvas);
+    releaseCanvas(qualityCanvas);
     URL.revokeObjectURL(videoUrl);
     video.removeAttribute("src");
     video.load();

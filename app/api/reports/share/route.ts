@@ -106,6 +106,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  console.info("[POWR:share] created", { authed: Boolean(user), linked: Boolean(assessmentId) });
   return NextResponse.json({
     token: data.share_token,
     path: `/r/s/${data.share_token}`,

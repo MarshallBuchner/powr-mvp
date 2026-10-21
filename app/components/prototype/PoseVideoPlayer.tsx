@@ -50,10 +50,19 @@ export type PoseVideoPlayerProps = {
   onMetrics?: (metrics: PrototypeMetrics) => void;
   onDebug?: (info: PoseDebugInfo) => void;
   onModelStatus?: (status: "loading" | "ready" | "error") => void;
+  /**
+   * Stop all work: pause video, stop the RAF loop, close the MediaPipe
+   * landmarker (frees wasm/GPU memory). Used once the assessment result is in.
+   */
+  suspended?: boolean;
 };
+
+/** Pose detection cadence cap (~15fps) — 60fps on 4K frames pressured iOS GPU memory. */
+export const POSE_DETECT_MIN_INTERVAL_MS = 66;
 
 export default function PoseVideoPlayer({
   src,
+  suspended = false,
   showSkeleton = true,
   showKeypoints = true,
   showLabels = false,
@@ -72,6 +81,8 @@ export default function PoseVideoPlayer({
   const lastTsRef = useRef(-1);
   const landmarksRef = useRef<NormalizedLandmark[] | null>(null);
   const failCountRef = useRef(0);
+  const lastDetectAtRef = useRef(0);
+  const suspendedRef = useRef(suspended);
   const modelStatusRef = useRef<"loading" | "ready" | "error">("loading");
 
   const [modelStatus, setModelStatus] = useState<"loading" | "ready" | "error">(
@@ -135,7 +146,7 @@ export default function PoseVideoPlayer({
         } catch {
           landmarker = await create("CPU");
         }
-        if (cancelled) {
+        if (cancelled || suspendedRef.current) {
           landmarker.close();
           return;
         }
@@ -219,13 +230,18 @@ export default function PoseVideoPlayer({
     const timeAdvanced = video.currentTime !== lastTsRef.current;
     const needsFirstFrame =
       landmarksRef.current == null && video.readyState >= 2;
+    const nowMs = performance.now();
+    const throttled =
+      !needsFirstFrame && nowMs - lastDetectAtRef.current < POSE_DETECT_MIN_INTERVAL_MS;
     if (
+      !throttled &&
       video.readyState >= 2 &&
       (timeAdvanced || needsFirstFrame) &&
       (!video.paused || needsFirstFrame) &&
       !video.ended
     ) {
       lastTsRef.current = video.currentTime;
+      lastDetectAtRef.current = nowMs;
       try {
         // MediaPipe requires monotonically increasing timestamps (ms)
         const result = landmarker.detectForVideo(video, performance.now());
@@ -284,11 +300,30 @@ export default function PoseVideoPlayer({
     }
   }, [syncCanvasSize]);
 
+  // Suspend: release MediaPipe + decoder work as soon as the result is in.
+  useEffect(() => {
+    suspendedRef.current = suspended;
+    if (!suspended) return;
+    if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
+    rafRef.current = null;
+    try {
+      videoRef.current?.pause();
+    } catch {
+      // ignore
+    }
+    try {
+      landmarkerRef.current?.close();
+    } catch {
+      // ignore close errors
+    }
+    landmarkerRef.current = null;
+  }, [suspended]);
+
   // Animation loop
   useEffect(() => {
     let active = true;
     const loop = () => {
-      if (!active) return;
+      if (!active || suspendedRef.current) return;
       paintFrame();
       rafRef.current = requestAnimationFrame(loop);
     };
