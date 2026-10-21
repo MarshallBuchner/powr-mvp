@@ -376,6 +376,22 @@ Return a development assessment suitable for POWR.
     // Unusable footage must never produce a billed skating score.
     const qualityGate = shouldRejectAnalysisForQuality(rawAnalysis);
     if (qualityGate.reject) {
+      // Diagnostic only: no frames, reason text, user ids, or secrets.
+      const confidence = rawAnalysis.confidence as
+        | { score?: unknown; label?: unknown }
+        | undefined;
+      console.warn("[POWR:analyze] quality_gate_422", {
+        assessmentUsable: rawAnalysis.assessmentUsable === true,
+        confidenceLabel:
+          typeof confidence?.label === "string" ? confidence.label : null,
+        confidenceScore:
+          typeof confidence?.score === "number" ? confidence.score : null,
+        metricCount: Array.isArray(rawAnalysis.movementMetrics)
+          ? rawAnalysis.movementMetrics.length
+          : 0,
+        frameCount: frames.length,
+        authed: Boolean(authed),
+      });
       return NextResponse.json(
         {
           success: false,
