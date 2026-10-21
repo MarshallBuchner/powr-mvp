@@ -291,6 +291,14 @@
   margin: 0;
 }
 
+.rv2-progress-offer {
+  width: min(480px, 100%);
+  margin: 0 auto;
+  padding: 4px 14px calc(24px + env(safe-area-inset-bottom));
+}
+
+.rv2-progress-offer .upgrade-panel { margin: 0; }
+
 .rv2-founding-renew {
   margin: 0 0 12px;
   color: #8fa297;

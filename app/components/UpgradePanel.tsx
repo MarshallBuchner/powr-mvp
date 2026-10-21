@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { track } from "@vercel/analytics";
 import {
   ASSESSMENT_PACK_CREDITS,
@@ -12,10 +13,20 @@ type Props = {
   source: string;
   remaining: number;
   compact?: boolean;
+  variant?: "default" | "progress" | "pricing";
 };
 
-export default function UpgradePanel({ source, remaining, compact = false }: Props) {
+export default function UpgradePanel({
+  source,
+  remaining,
+  compact = false,
+  variant = "default",
+}: Props) {
   const [loading, setLoading] = useState(false);
+  const isProgressOffer = variant !== "default";
+  const offerHeading = variant === "pricing"
+    ? "Make your next assessment count."
+    : "Your first assessment is just the beginning.";
 
   async function startCheckout() {
     if (loading) return;
@@ -55,17 +66,38 @@ export default function UpgradePanel({ source, remaining, compact = false }: Pro
   }
 
   return (
-    <div className={`upgrade-panel${compact ? " is-compact" : ""}`}>
-      <p className="upgrade-eyebrow">UNLOCK MORE ASSESSMENTS</p>
+    <div className={`upgrade-panel${compact ? " is-compact" : ""}${isProgressOffer ? " upgrade-panel-progress" : ""}`}>
+      <p className="upgrade-eyebrow">
+        {isProgressOffer ? "BUILD ON YOUR BASELINE" : "UNLOCK MORE ASSESSMENTS"}
+      </p>
       <h3>
-        {remaining > 0
+        {isProgressOffer
+          ? offerHeading
+          : remaining > 0
           ? `${remaining} assessment${remaining === 1 ? "" : "s"} left`
           : "You’ve used your free assessment"}
       </h3>
-      <p>
-        Keep training with a one-time pack of {ASSESSMENT_PACK_CREDITS} skating
-        assessments for {ASSESSMENT_PACK_PRICE_CAD}. No subscription.
-      </p>
+      {isProgressOffer ? (
+        <>
+          <p>
+            {variant === "pricing"
+              ? "Turn your feedback into focused practice, then reassess to see what’s changed."
+              : "You now know where your skating stands. The next step is measuring how much you improve."}
+          </p>
+          {variant === "progress" ? (
+            <p>Train with your feedback, come back in two weeks, and see what&apos;s changed.</p>
+          ) : null}
+          <p className="upgrade-pack-details">
+            <strong>{ASSESSMENT_PACK_CREDITS} assessments. {ASSESSMENT_PACK_PRICE_CAD}.</strong>
+            <span>One-time purchase. No subscription.</span>
+          </p>
+        </>
+      ) : (
+        <p>
+          Keep training with a one-time pack of {ASSESSMENT_PACK_CREDITS} skating
+          assessments for {ASSESSMENT_PACK_PRICE_CAD}. No subscription.
+        </p>
+      )}
       <button
         type="button"
         className="primary-button"
@@ -74,8 +106,13 @@ export default function UpgradePanel({ source, remaining, compact = false }: Pro
       >
         {loading
           ? "Opening checkout..."
-          : `Get ${ASSESSMENT_PACK_CREDITS} assessments — ${ASSESSMENT_PACK_PRICE_CAD}`}
+          : isProgressOffer
+            ? "Track My Progress →"
+            : `Get ${ASSESSMENT_PACK_CREDITS} assessments — ${ASSESSMENT_PACK_PRICE_CAD}`}
       </button>
+      {variant === "progress" ? (
+        <Link href="/pricing" className="upgrade-details-link">See how the assessment pack works</Link>
+      ) : null}
     </div>
   );
 }

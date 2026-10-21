@@ -537,16 +537,6 @@ export default function ReportV2Flow({
               </p>
             ) : null}
 
-            {!demoMode &&
-            !isSample &&
-            !unlimited &&
-            remaining <= 0 &&
-            !(foundingAthlete && foundingMonthRemaining > 0) ? (
-              <div className="rv2-upgrade-wrap">
-                <UpgradePanel source="report" remaining={remaining} compact />
-              </div>
-            ) : null}
-
             {!demoMode && !isSample && savePayload ? (
               <div className="rv2-save-cta">
                 {isSavedView ? (
@@ -695,6 +685,16 @@ export default function ReportV2Flow({
           </Link>
         )}
       </footer>
+
+      {!demoMode &&
+      !isSample &&
+      !unlimited &&
+      remaining <= 0 &&
+      !(foundingAthlete && foundingMonthRemaining > 0) ? (
+        <section className="rv2-progress-offer" aria-label="Keep measuring your progress">
+          <UpgradePanel source="report" remaining={remaining} variant="progress" />
+        </section>
+      ) : null}
 
       <DrillMediaLightbox
         drill={activeDrill}

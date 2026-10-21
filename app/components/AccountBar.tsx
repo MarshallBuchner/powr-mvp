@@ -127,6 +127,9 @@ export default function AccountBar() {
           <Link href="/assessments" onClick={() => setMenuOpen(false)}>
             My assessments
           </Link>
+          <Link href="/pricing" onClick={() => setMenuOpen(false)}>
+            Pricing
+          </Link>
           <Link href="/privacy" onClick={() => setMenuOpen(false)}>
             Privacy
           </Link>
