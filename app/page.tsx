@@ -15,6 +15,11 @@ import {
 } from "./components/shareReport";
 import { stashLastReport } from "./components/reportSession";
 import { releaseAnalysisVideoUrl } from "@/lib/previewObjectUrl";
+import ReportRecoveryBanner from "./components/ReportRecoveryBanner";
+import { readLifecycle, readNavigationType, writeLifecycle } from "@/lib/labLifecycle";
+import { sendLabBeacon } from "@/lib/labTelemetryClient";
+import { createShareOnce } from "@/lib/shareOnce";
+import { resolveHandoffShare } from "@/lib/reportHandoff";
 import {
   NEXT_SESSION_UPLOAD_HASH,
   scrollToNextSessionUploadAnchor,
@@ -36,6 +41,36 @@ export default function Home() {
   // The uploaded clip's blob URL is owned here once the Analysis Lab opens.
   useEffect(() => {
     return () => releaseAnalysisVideoUrl(analysisRequestRef.current?.videoUrl);
+  }, []);
+
+  // One share link per analysis: auto-navigation and the fallback button reuse it.
+  const shareOnceRef = useRef<{
+    key: AnalysisRequest | null;
+    get: () => ReturnType<typeof createReportSharePath>;
+  } | null>(null);
+
+  // Lifecycle beacons distinguish an iOS tab kill (pagehide → fresh "reload"
+  // boot) from an in-app reset. No PII; see lib/labTelemetry.ts allowlist.
+  useEffect(() => {
+    const onPageHide = () => sendLabBeacon("pagehide", readLifecycle());
+    const onVisibility = () =>
+      sendLabBeacon(
+        document.visibilityState === "hidden" ? "visibility_hidden" : "visibility_visible",
+        readLifecycle(),
+      );
+    const onPageShow = (e: PageTransitionEvent) =>
+      sendLabBeacon("pageshow", readLifecycle(), {
+        persisted: e.persisted,
+        navType: readNavigationType(),
+      });
+    window.addEventListener("pagehide", onPageHide);
+    window.addEventListener("pageshow", onPageShow);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      window.removeEventListener("pagehide", onPageHide);
+      window.removeEventListener("pageshow", onPageShow);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
   }, []);
 
   useEffect(() => {
@@ -74,7 +109,14 @@ export default function Home() {
     }
     // The billed analysis is already complete. Preserve it for report-only retries.
     // Tokenized share comes first: Safari sessionStorage may be full or disabled.
-    const share = await createReportSharePath(request);
+    if (!shareOnceRef.current || shareOnceRef.current.key !== request) {
+      const target = request;
+      shareOnceRef.current = {
+        key: target,
+        get: createShareOnce(() => createReportSharePath(target)),
+      };
+    }
+    const share = await resolveHandoffShare(request, shareOnceRef.current.get);
     if (share.mode === "session" && share.stashed !== true) {
       throw new Error(
         "Your assessment is complete, but this browser could not save the report. Tap Open Report to retry — you will not be charged again.",
@@ -83,6 +125,14 @@ export default function Home() {
     // Best-effort fallback only; never block a working tokenized report.
     if (share.mode !== "session") stashLastReport(request);
     armCompletionMeasurement(request.marketingEventId, share.path);
+    if (request.attemptId) {
+      sendLabBeacon(
+        "stage",
+        writeLifecycle(request.attemptId, "navigate", {
+          sharePath: share.path.startsWith("/r/s/") ? share.path : undefined,
+        }),
+      );
+    }
     router.push(share.path);
   }
 
@@ -133,6 +183,7 @@ export default function Home() {
 
   return (
     <main className="app-shell">
+      <ReportRecoveryBanner />
       <Hero onViewSample={handleSampleAssessment} />
 
       <section className="sample-assessment">

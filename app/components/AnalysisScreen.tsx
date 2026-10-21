@@ -11,6 +11,12 @@
  */
 
 import { CONNECTION_LOST_MESSAGE, isNetworkFetchError } from "@/lib/previewObjectUrl";
+import {
+  getOrCreateDeviceKey,
+  newAttemptId,
+  writeLifecycle,
+} from "@/lib/labLifecycle";
+import { sendLabBeacon } from "@/lib/labTelemetryClient";
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { track } from "@vercel/analytics";
@@ -148,6 +154,7 @@ export default function AnalysisScreen({
   const [presentationElapsedMs, setPresentationElapsedMs] = useState(0);
   const [analysisInFlight, setAnalysisInFlight] = useState(false);
   const [forceReportNow, setForceReportNow] = useState(false);
+  const [poseSuspended, setPoseSuspended] = useState(false);
   const [reducedMotion] = useState(() => prefersReducedMotion());
 
   const isSampleDemo = isSampleReport(request);
@@ -254,6 +261,40 @@ export default function AnalysisScreen({
     let cancelled = false;
     const current = requestRef.current;
 
+    /**
+     * POST /api/analyze. On a network failure ("Load failed"), poll an
+     * idempotent replay lookup with the same attempt id: if the server already
+     * finished, we recover the report without re-analysis or a second charge.
+     */
+    async function postAnalyzeWithRecovery(
+      requestBody: string,
+      attemptId: string,
+      deviceKey: string,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- untyped API JSON, same as before
+    ): Promise<{ response: Response; result: any }> {
+      const headers = { "Content-Type": "application/json", "Idempotency-Key": attemptId };
+      try {
+        const response = await fetch("/api/analyze", { method: "POST", headers, body: requestBody });
+        return { response, result: await response.json() };
+      } catch (err) {
+        if (!isNetworkFetchError(err)) throw err;
+        const replayBody = JSON.stringify({ attemptId, deviceKey, replayOnly: true });
+        for (let i = 0; i < 6 && !cancelled; i++) {
+          await delay(4000);
+          try {
+            const response = await fetch("/api/analyze", { method: "POST", headers, body: replayBody });
+            if (response.status === 409) continue; // still processing server-side
+            const result = await response.json();
+            if (response.ok && result.success) return { response, result };
+            break; // 404 not_found: the server never completed this attempt
+          } catch {
+            // keep polling while offline
+          }
+        }
+        throw err;
+      }
+    }
+
     async function runLiveAnalyze() {
       if (!current.file) {
         setError("Missing video file for analysis.");
@@ -285,9 +326,41 @@ export default function AnalysisScreen({
         // Do not mount PoseVideoPlayer yet — concurrent play() freezes the lab
         // preview on iPhone Safari (Regular more than Private due to warm cache).
         logLabPlayback("frame_extract_start");
-        const frames = await extractVideoFrames(current.file, 5);
+        const attemptId = current.attemptId ?? newAttemptId();
+        const deviceKey = getOrCreateDeviceKey();
+        sendLabBeacon("stage", writeLifecycle(attemptId, "started"));
+        const extracted = await extractVideoFrames(current.file, 5);
         if (cancelled) return;
-        logLabPlayback("frame_extract_done", { frameCount: frames.length });
+        logLabPlayback("frame_extract_done", { frameCount: extracted.length });
+        const firstFrame = extracted[0];
+        sendLabBeacon(
+          "stage",
+          writeLifecycle(attemptId, "frames_extracted", {
+            frameWidth: firstFrame?.width,
+            frameHeight: firstFrame?.height,
+            frameCount: extracted.length,
+          }),
+        );
+
+        // Build the request body once, then keep only the two evidence stills
+        // (mid + late). Every other dataUrl is dropped right after send.
+        const requestBody = JSON.stringify({
+          frames: extracted.map((frame) => frame.dataUrl),
+          goal: current.goal,
+          fileName: current.fileName,
+          duration: current.duration,
+          attemptId,
+          deviceKey,
+          marketingConsent: current.marketingConsent === true,
+          marketingAdult: current.marketingConsent === true,
+          marketingClickId: current.marketingClickId,
+        });
+        const mid = extracted[Math.floor(extracted.length / 2)];
+        const late = extracted[extracted.length - 1];
+        const frames = [mid, late].filter(
+          (f, i, arr): f is NonNullable<typeof f> => Boolean(f) && arr.indexOf(f) === i,
+        );
+        extracted.length = 0;
 
         // Phase 2: mount looping preview + MediaPipe, start /api/analyze immediately.
         setFramesReady(true);
@@ -301,20 +374,15 @@ export default function AnalysisScreen({
 
         const analyzeTask: Promise<AnalyzeOutcome> = (async () => {
           try {
-            const response = await fetch("/api/analyze", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                frames: frames.map((frame) => frame.dataUrl),
-                goal: current.goal,
-                marketingConsent: current.marketingConsent === true,
-                marketingAdult: current.marketingConsent === true,
-                marketingClickId: current.marketingClickId,
-              }),
-            });
-
-            const result = await response.json();
-
+            sendLabBeacon(
+              "stage",
+              writeLifecycle(attemptId, "analyze_sent", { payloadBytes: requestBody.length }),
+            );
+            const { response, result } = await postAnalyzeWithRecovery(
+              requestBody,
+              attemptId,
+              deviceKey,
+            );
             if (
               response.status === 402 ||
               result.error === "free_assessment_used"
@@ -357,12 +425,24 @@ export default function AnalysisScreen({
               remaining: result.remaining,
             });
 
+            const sharePath =
+              typeof result.sharePath === "string" ? result.sharePath : undefined;
             const finalRequest: AnalysisRequest = {
               ...current,
+              attemptId,
+              sharePath,
               analysis: result.analysis,
               marketingEventId: result.marketingEventId,
               evidenceMoments,
             };
+            // Persist recovery info immediately (survives an iOS tab kill).
+            sendLabBeacon(
+              "stage",
+              writeLifecycle(attemptId, sharePath ? "share_ready" : "analyze_200", { sharePath }),
+            );
+            // Result is in: stop the lab animation/MediaPipe and go straight to the report.
+            forceNowRef.current = true;
+            if (!cancelled) setPoseSuspended(true);
 
             if (!cancelled) {
               pendingReportRef.current = finalRequest;
@@ -375,6 +455,7 @@ export default function AnalysisScreen({
 
             return { ok: true as const, finalRequest };
           } catch (err) {
+            writeLifecycle(attemptId, "analyze_error");
             if (!cancelled) {
               setAnalysisInFlight(false);
             }
@@ -570,7 +651,8 @@ export default function AnalysisScreen({
                   <PoseVideoPlayer
                     src={request.videoUrl}
                     labMode
-                    showScanLine={!isComplete}
+                    showScanLine={!isComplete && !poseSuspended}
+                    suspended={poseSuspended || isComplete}
                     showSkeleton
                     showKeypoints
                     showLabels={false}

@@ -14,6 +14,10 @@ export type AnalysisRequest = {
   marketingConsent?: boolean;
   marketingEventId?: string;
   marketingClickId?: string;
+  /** Client-generated idempotency key for /api/analyze (UUID, no PII). */
+  attemptId?: string;
+  /** Share path persisted server-side before /api/analyze responded. */
+  sharePath?: string;
   analysis?: RealAnalysis;
   evidenceMoments?: AnalysisEvidenceMoment[];
 };

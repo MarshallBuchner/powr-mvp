@@ -2754,3 +2754,21 @@ button {
   color: var(--accent);
   font-weight: 700;
 }
+
+/* Homepage report recovery (iOS tab-kill safety net) */
+.report-recovery-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 1rem auto;
+  padding: 1rem 1.25rem;
+  max-width: 960px;
+  border-radius: 14px;
+  border: 1px solid rgba(74, 222, 128, 0.45);
+  background: rgba(22, 101, 52, 0.18);
+}
+.report-recovery-banner p {
+  flex-basis: 100%;
+  margin: 0;
+}
