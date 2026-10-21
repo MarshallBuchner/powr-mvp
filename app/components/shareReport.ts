@@ -46,6 +46,8 @@ export type CreateShareResult = {
   token?: string;
   expiresAt?: string | null;
   mode: "token" | "session" | "sample" | "saved";
+  /** Whether the browser session fallback was saved successfully. */
+  stashed?: boolean;
 };
 
 /**
@@ -96,8 +98,8 @@ export async function createReportSharePath(
 
   // Dev/local fallback — never put analysis in the query string.
   const { stashLastReport } = await import("./reportSession");
-  stashLastReport(request);
-  return { path: "/r/view", mode: "session" };
+  const stashed = stashLastReport(request);
+  return { path: "/r/view", mode: "session", stashed };
 }
 
 /** @deprecated Legacy URL payloads are no longer created. Kept for inbound old links. */

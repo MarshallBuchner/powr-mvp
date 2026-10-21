@@ -540,10 +540,15 @@ export default function AnalysisScreen({
 
         {error ? (
           <div className="analysis-lab-error" role="alert">
-            <strong>Analysis interrupted</strong>
+            <strong>{reportReady ? "Report ready — opening interrupted" : "Analysis interrupted"}</strong>
             <p>{error}</p>
             <div className="analysis-lab-error-actions">
-              {onBack ? (
+              {reportReady && pendingReportRef.current ? (
+                <button type="button" className="skel-btn is-primary" onClick={handleViewReportNow}>
+                  Open report — no new charge →
+                </button>
+              ) : null}
+              {onBack && !reportReady ? (
                 <button type="button" className="skel-btn is-primary" onClick={onBack}>
                   ← Back to upload
                 </button>

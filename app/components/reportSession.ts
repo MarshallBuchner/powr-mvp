@@ -2,20 +2,48 @@ import type { AnalysisRequest } from "./types";
 
 export const LAST_REPORT_SESSION_KEY = "powr_last_report_v1";
 
-/** Fallback when secure share API is unavailable (local/dev). Not for public URLs. */
-export function stashLastReport(request: AnalysisRequest) {
-  if (typeof window === "undefined" || !request.analysis) return;
+/**
+ * Persist the latest analysis for /r/view fallback.
+ * Must never throw — Safari QuotaExceededError after large evidence frames
+ * previously aborted report navigation after credits were already consumed.
+ */
+export function stashLastReport(request: AnalysisRequest): boolean {
+  if (typeof window === "undefined" || !request.analysis) return false;
   const payload = {
     goal: request.goal,
     fileName: request.fileName,
     duration: request.duration,
     analysis: request.analysis,
+    // Never persist evidence data URLs here — they blow Safari sessionStorage.
     evidenceMoments: request.evidenceMoments?.map(({ timeLabel, caption }) => ({
       timeLabel,
       caption,
     })),
   };
-  sessionStorage.setItem(LAST_REPORT_SESSION_KEY, JSON.stringify(payload));
+  try {
+    sessionStorage.setItem(LAST_REPORT_SESSION_KEY, JSON.stringify(payload));
+    return true;
+  } catch (error) {
+    // Retry once without evidence metadata if quota is tight.
+    try {
+      sessionStorage.setItem(
+        LAST_REPORT_SESSION_KEY,
+        JSON.stringify({
+          goal: payload.goal,
+          fileName: payload.fileName,
+          duration: payload.duration,
+          analysis: payload.analysis,
+        }),
+      );
+      return true;
+    } catch {
+      console.warn(
+        "[POWR:report] stashLastReport failed",
+        error instanceof Error ? error.name : "unknown",
+      );
+      return false;
+    }
+  }
 }
 
 export function readLastReport(): AnalysisRequest | null {
