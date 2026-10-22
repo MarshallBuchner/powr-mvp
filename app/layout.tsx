@@ -5,6 +5,7 @@ import "./globals.css";
 import { Analytics } from "@vercel/analytics/next";
 import { AuthProvider } from "./components/AuthProvider";
 import AccountBar from "./components/AccountBar";
+import SiteFooter from "./components/SiteFooter";
 import ClientRuntimeHygiene from "./components/ClientRuntimeHygiene";
 import CreatorReferralCapture from "./components/CreatorReferralCapture";
 
@@ -60,6 +61,7 @@ export default function RootLayout({
             <CreatorReferralCapture />
           </Suspense>
           {children}
+          <SiteFooter />
         </AuthProvider>
         <Analytics />
       </body>
