@@ -2,209 +2,54 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useRef, useState } from "react";
 import { useAuth } from "./AuthProvider";
 import BetaBadge from "./BetaBadge";
-import { fetchEntitlementBalance } from "./assessmentEntitlements";
-
-function accountInitial(email: string | null | undefined) {
-  const letter = (email || "P").trim().charAt(0).toUpperCase();
-  return /[A-Z0-9]/.test(letter) ? letter : "P";
-}
 
 export default function AccountBar() {
   const pathname = usePathname();
-  const { configured, loading, user, email, signOut } = useAuth();
-  const [remaining, setRemaining] = useState<number | null>(null);
-  const [unlimited, setUnlimited] = useState(false);
-  const [foundingAthlete, setFoundingAthlete] = useState(false);
-  const [foundingMonthRemaining, setFoundingMonthRemaining] = useState<
-    number | null
-  >(null);
-  const [foundingExpiresAt, setFoundingExpiresAt] = useState<string | null>(
-    null,
-  );
-  const [menuOpen, setMenuOpen] = useState(false);
-  const initial = useMemo(() => accountInitial(email), [email]);
+  const { loading, user } = useAuth();
+  const [openPath, setOpenPath] = useState<string | null>(null);
+  const toggle = useRef<HTMLButtonElement>(null);
+  const menuOpen = openPath === pathname;
+  const closeMenu = () => setOpenPath(null);
 
-  useEffect(() => {
-    if (!user) {
-      setRemaining(null);
-      setUnlimited(false);
-      setFoundingAthlete(false);
-      setFoundingMonthRemaining(null);
-      setFoundingExpiresAt(null);
-      return;
-    }
-
-    let cancelled = false;
-    void (async () => {
-      const balance = await fetchEntitlementBalance();
-      if (!cancelled && balance) {
-        setRemaining(balance.remaining);
-        setUnlimited(Boolean(balance.unlimited));
-        setFoundingAthlete(Boolean(balance.foundingAthlete));
-        setFoundingMonthRemaining(
-          typeof balance.foundingMonthRemaining === "number"
-            ? balance.foundingMonthRemaining
-            : null,
-        );
-        setFoundingExpiresAt(balance.foundingExpiresAt ?? null);
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [user, pathname]);
-
-  useEffect(() => {
-    setMenuOpen(false);
-  }, [pathname]);
-
-  // Recruit stays purchase/download-only — no account chrome there.
-  if (pathname?.startsWith("/recruit")) {
-    return null;
-  }
-
-  if (!configured) {
-    return null;
-  }
-
-  async function handleSignOut() {
-    setMenuOpen(false);
-    await signOut();
-  }
+  if (pathname?.startsWith("/recruit")) return null;
 
   return (
-    <div className={`account-bar${menuOpen ? " is-menu-open" : ""}`}>
+    <header className={`account-bar${menuOpen ? " is-menu-open" : ""}`}
+      onKeyDown={(event) => {
+        if (event.key === "Escape" && menuOpen) {
+          closeMenu();
+          toggle.current?.focus();
+        }
+      }}>
       <div className="account-bar-inner">
-        <Link href="/" className="account-bar-brand">
+        <Link href="/" className="account-bar-brand" onClick={closeMenu}>
           POWR <BetaBadge className="beta-badge-inline" />
         </Link>
-
         <div className="account-bar-actions">
-          {loading ? (
-            <span className="account-bar-muted">…</span>
-          ) : user ? (
-            <Link
-              href="/assessments"
-              className="account-bar-avatar"
-              title={email ? `Account · ${email}` : "My assessments"}
-              aria-label="Open my assessments"
-            >
-              <span className="account-bar-avatar-mark" aria-hidden="true">
-                {initial}
-              </span>
-              <span className="account-bar-avatar-label">Account</span>
-            </Link>
-          ) : (
-            <Link href="/login" className="account-bar-button is-signin">
-              Sign in
-            </Link>
-          )}
-
-          <button
-            type="button"
-            className="account-bar-menu-toggle"
-            aria-expanded={menuOpen}
-            aria-controls="account-bar-menu"
-            aria-label={menuOpen ? "Close menu" : "Open menu"}
-            onClick={() => setMenuOpen((open) => !open)}
-          >
+          <button ref={toggle} type="button" className="account-bar-menu-toggle"
+            aria-expanded={menuOpen} aria-controls="account-bar-menu"
+            aria-label={menuOpen ? "Close navigation" : "Open navigation"}
+            onClick={(event) => {
+              event.currentTarget.focus();
+              setOpenPath(menuOpen ? null : pathname);
+            }}>
             <span aria-hidden="true">{menuOpen ? "✕" : "☰"}</span>
           </button>
         </div>
-
-        <nav
-          id="account-bar-menu"
-          className="account-bar-nav"
-          aria-label="Account"
-        >
-          <Link href="/#start-assessment" onClick={() => setMenuOpen(false)}>
-            Assess
-          </Link>
-          <Link href="/assessments" onClick={() => setMenuOpen(false)}>
-            My assessments
-          </Link>
-          <Link href="/pricing" onClick={() => setMenuOpen(false)}>
-            Pricing
-          </Link>
-          <Link href="/privacy" onClick={() => setMenuOpen(false)}>
-            Privacy
-          </Link>
-          <Link
-            href="/privacy/settings"
-            onClick={() => setMenuOpen(false)}
-          >
-            Privacy settings
-          </Link>
-          <Link href="/terms" onClick={() => setMenuOpen(false)}>
-            Terms
-          </Link>
-
-          {loading ? (
-            <span className="account-bar-muted">…</span>
-          ) : user ? (
-            <>
-              {unlimited ? (
-                <span className="account-bar-muted" title="Founder unlimited access">
-                  Founder access
-                </span>
-              ) : foundingAthlete ? (
-                <span
-                  className="account-bar-muted account-bar-founding"
-                  title={
-                    foundingExpiresAt
-                      ? `Complimentary access through ${new Date(foundingExpiresAt).toLocaleDateString()}`
-                      : "POWR Founding Athlete"
-                  }
-                >
-                  Founding Athlete
-                  {foundingMonthRemaining != null
-                    ? ` · ${foundingMonthRemaining} left`
-                    : remaining != null
-                      ? ` · ${remaining} left`
-                      : ""}
-                </span>
-              ) : remaining != null ? (
-                <span className="account-bar-muted" title="Assessments remaining">
-                  {remaining} left
-                </span>
-              ) : null}
-              <Link
-                href="/assessments"
-                className="account-bar-avatar account-bar-nav-account"
-                title={email ? `Account · ${email}` : "My assessments"}
-                aria-label="Open my assessments"
-                onClick={() => setMenuOpen(false)}
-              >
-                <span className="account-bar-avatar-mark" aria-hidden="true">
-                  {initial}
-                </span>
-                <span className="account-bar-avatar-label">
-                  {email || "Account"}
-                </span>
-              </Link>
-              <button
-                type="button"
-                className="account-bar-button"
-                onClick={() => void handleSignOut()}
-              >
-                Sign out
-              </button>
-            </>
+        <nav id="account-bar-menu" className="account-bar-nav" aria-label="Main">
+          <Link href="/#start-assessment" onClick={closeMenu}>Assess</Link>
+          {!loading && user ? <Link href="/assessments" onClick={closeMenu}>My Assessments</Link> : null}
+          <Link href="/pricing" onClick={closeMenu}>Pricing</Link>
+          {loading ? <span className="account-bar-muted" role="status">Loading account…</span> : user ? (
+            <Link href="/account" onClick={closeMenu}>Account</Link>
           ) : (
-            <Link
-              href="/login"
-              className="account-bar-button is-signin account-bar-nav-signin"
-              onClick={() => setMenuOpen(false)}
-            >
-              Sign in
-            </Link>
+            <Link href="/login" className="account-bar-button is-signin" onClick={closeMenu}>Sign in</Link>
           )}
         </nav>
       </div>
-    </div>
+    </header>
   );
 }

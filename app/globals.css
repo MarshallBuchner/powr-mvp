@@ -2860,3 +2860,19 @@ button {
   flex-basis: 100%;
   margin: 0;
 }
+
+/* Shared legal links remain available to guests for consent withdrawal. */
+.site-footer { margin-top: auto; padding: 24px 14px; border-top: 1px solid rgba(255,255,255,.08); }
+.site-footer nav { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 24px; }
+.site-footer a { display: inline-flex; align-items: center; min-height: 44px; color: var(--muted); }
+.account-page nav { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; margin: 24px 0; }
+.account-page nav a { display: inline-flex; align-items: center; min-height: 44px; }
+.account-email { overflow-wrap: anywhere; }
+.account-bar a:focus-visible, .account-bar button:focus-visible,
+.site-footer a:focus-visible, .account-page a:focus-visible, .account-page button:focus-visible {
+  outline: 2px solid var(--accent); outline-offset: 4px;
+}
+.account-bar-menu-toggle { min-height: 44px; width: 44px; }
+@media (max-width: 760px) {
+  .account-bar.is-menu-open .account-bar-nav { max-height: calc(100dvh - 80px); overflow-y: auto; }
+}
